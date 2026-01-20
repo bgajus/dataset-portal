@@ -1,0 +1,9 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log

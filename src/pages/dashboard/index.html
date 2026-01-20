@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Constellation Dataset Portal — Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- USWDS init (recommended before CSS) -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- Portal shared layer -->
+    <link rel="stylesheet" href="/src/assets/css/portal-tokens.css" />
+    <link rel="stylesheet" href="/src/assets/css/portal-ui.css" />
+
+    <!-- Dashboard styles -->
+    <link rel="stylesheet" href="./dashboard.css" />
+  </head>
+
+  <body data-auth="true">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content" class="padding-y-4">
+      <div class="grid-container-widescreen">
+        <!-- Top: welcome + CTA -->
+        <section class="dash-top" aria-label="Dashboard header">
+          <div class="dash-user">
+            <div class="dash-avatar" aria-hidden="true">BG</div>
+
+            <div class="dash-welcome">
+              <h1 class="dash-title">Welcome back, Brian!</h1>
+              <p class="dash-sub">
+                From your dashboard you have access create new DOI reservations, edit your datasets,
+                and view your published datasets.
+              </p>
+            </div>
+          </div>
+
+          <button id="openDoiModal" class="usa-button btnBrandSolid dash-cta" type="button">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            <span>Create New DOI Reservation</span>
+          </button>
+        </section>
+
+        <!-- Notification banner -->
+        <section id="dashNote" class="dash-note dash-block" aria-label="Notifications">
+          <div class="dash-note__left">
+            <i class="fa-solid fa-bell" aria-hidden="true"></i>
+            <div class="dash-note__text">
+              <strong>You have 2 unread notifications.</strong>
+              <a class="usa-link" href="#" aria-label="View notifications">View Notifications</a>
+            </div>
+          </div>
+
+          <button id="dashNoteClose" class="dash-note__close" type="button" aria-label="Dismiss notification">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </section>
+
+        <!-- Main grid -->
+        <section class="dash-grid" aria-label="Dashboard content">
+          <!-- LEFT -->
+          <div class="dash-left">
+            <!-- Stats row (4) -->
+            <div class="dash-stats dash-block" role="list" aria-label="Dashboard statistics">
+              <article class="dash-stat" role="listitem">
+                <div class="dash-stat__label">Datasets</div>
+                <div class="dash-stat__metric">
+                  <div class="dash-stat__value" id="statDatasets">32</div>
+                  <div class="dash-stat__icon" aria-hidden="true">
+                    <i class="fa-regular fa-rectangle-list"></i>
+                  </div>
+                </div>
+                <div class="dash-stat__desc">Number of your published datasets on Constellation.</div>
+              </article>
+
+              <article class="dash-stat" role="listitem">
+                <div class="dash-stat__label">Views</div>
+                <div class="dash-stat__metric">
+                  <div class="dash-stat__value" id="statViews">774</div>
+                  <div class="dash-stat__icon" aria-hidden="true">
+                    <i class="fa-regular fa-eye"></i>
+                  </div>
+                </div>
+                <div class="dash-stat__desc">Number of views of your published datasets.</div>
+              </article>
+
+              <article class="dash-stat" role="listitem">
+                <div class="dash-stat__label">Downloads</div>
+                <div class="dash-stat__metric">
+                  <div class="dash-stat__value" id="statDownloads">56</div>
+                  <div class="dash-stat__icon" aria-hidden="true">
+                    <i class="fa-solid fa-download"></i>
+                  </div>
+                </div>
+                <div class="dash-stat__desc">Number of downloads of your datasets.</div>
+              </article>
+
+              <article class="dash-stat" role="listitem">
+                <div class="dash-stat__label">Saved</div>
+                <div class="dash-stat__metric">
+                  <div class="dash-stat__value" id="statSaved">14</div>
+                  <div class="dash-stat__icon" aria-hidden="true">
+                    <i class="fa-regular fa-star"></i>
+                  </div>
+                </div>
+                <div class="dash-stat__desc">Number of your published datasets saved by users.</div>
+              </article>
+            </div>
+
+            <!-- Latest activity -->
+            <article class="dash-card dash-card--tall">
+              <header class="dash-card__head">
+                <h2 class="dash-card__title">Latest Activity</h2>
+              </header>
+              <div class="dash-card__body">
+                <div id="dashActivityEmpty" class="dash-empty">
+                  No activity yet. Create a DOI reservation to get started.
+                </div>
+
+                <div id="dashActivity" class="dash-activity" hidden></div>
+              </div>
+            </article>
+          </div>
+
+          <!-- RIGHT -->
+          <aside class="dash-right" aria-label="Dashboard sidebar">
+            <article class="dash-card">
+              <div class="dash-card__body">
+                <div class="dash-bigstat">
+                  <div class="dash-bigstat__value" id="statUploads">32 GB</div>
+                  <div class="dash-bigstat__suffix">uploads</div>
+                </div>
+                <div class="dash-bigstat__desc">
+                  Total file size of your all your uploads for published datasets.
+                </div>
+              </div>
+            </article>
+
+            <article class="dash-card">
+              <header class="dash-card__head">
+                <h2 class="dash-card__title">Help and Support</h2>
+              </header>
+              <div class="dash-card__body">
+                <p class="dash-helptext">
+                  Contact a Constellation curator to get assistance with your dataset. Some questions might be
+                  answered in our <a class="usa-link" href="#">FAQs section</a>.
+                </p>
+
+                <button class="usa-button btnBrandOutline dash-helpbtn" type="button">
+                  Depositor Guide
+                </button>
+              </div>
+            </article>
+          </aside>
+        </section>
+      </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- DOI Reservation modal - hidden by default, with accessibility attributes -->
+    <div id="doiBackdrop" class="dash-modal-backdrop" hidden></div>
+
+    <div id="doiModal" class="dash-modal" role="dialog" aria-modal="true" aria-labelledby="doiModalTitle" hidden>
+      <div class="dash-modal__panel">
+        <div class="dash-modal__head">
+          <h2 id="doiModalTitle" class="dash-modal__title">Create a new DOI reservation</h2>
+          <button id="closeDoiModal" class="dash-modal__close" type="button" aria-label="Close">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <!-- Step 1 -->
+        <div id="doiStepForm" class="dash-modal__body">
+          <p class="dash-modal__hint">
+            Reserving a DOI creates a draft record. Add a title now, then continue editing metadata on the editor page.
+          </p>
+
+          <label class="usa-label" for="doiTitle">Dataset title</label>
+          <input id="doiTitle" class="usa-input" type="text" placeholder="Enter a title" autocomplete="off" />
+
+          <!-- NEW: OLCF resources yes/no -->
+          <fieldset class="usa-fieldset margin-top-3" aria-describedby="doiOlcfHint">
+            <legend class="usa-legend">
+              Was any part of this dataset created on resources at the Oak Ridge Leadership Computing Facility (OLCF)?
+            </legend>
+            <div id="doiOlcfHint" class="usa-hint">
+              OLCF resources include Frontier, Summit, Titan, Slate, Andes, etc.
+            </div>
+
+            <div class="usa-radio">
+              <input class="usa-radio__input" id="doiOlcfYes" type="radio" name="doiOlcf" value="yes" />
+              <label class="usa-radio__label" for="doiOlcfYes">Yes</label>
+            </div>
+
+            <div class="usa-radio">
+              <input class="usa-radio__input" id="doiOlcfNo" type="radio" name="doiOlcf" value="no" />
+              <label class="usa-radio__label" for="doiOlcfNo">No</label>
+            </div>
+          </fieldset>
+
+          <div class="dash-modal__actions">
+            <button id="reserveDoiBtn" class="usa-button btnBrandSolid" type="button">Reserve DOI</button>
+            <button id="cancelDoiBtn" class="usa-button usa-button--unstyled" type="button">Cancel</button>
+          </div>
+
+          <div id="doiError" class="usa-error-message" role="alert" hidden></div>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="doiStepSuccess" class="dash-modal__body" hidden>
+          <div class="dash-success">
+            <div class="dash-success__title">Congratulations!</div>
+            <div class="dash-success__sub">Your DOI reservation was successful.</div>
+          </div>
+
+          <div class="dash-kv">
+            <div class="dash-kv__label">Reserved DOI</div>
+            <div id="reservedDoiValue" class="dash-kv__value">—</div>
+          </div>
+
+          <div class="dash-modal__actions">
+            <a id="editRecordLink" class="usa-button btnBrandSolid" href="/src/pages/editor/index.html">Edit metadata</a>
+            <button id="returnToDashBtn" class="usa-button btnBrandOutline" type="button">Return to dashboard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader -->
+    <script src="/src/assets/js/includes.js"></script>
+
+    <!-- Dashboard behavior -->
+    <script type="module" src="./dashboard.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,558 @@
+/* Dataset Portal shared UI layer
+   - relies on portal-tokens.css for --brand, --brandFocus, etc.
+   - intended to sit AFTER USWDS CSS and BEFORE page-specific CSS
+*/
+
+/* App surface should be white by default (USWDS utilities can still override per-section) */
+html, body{
+  background: #fff;
+}
+
+main{
+  background: #fff;
+}
+
+/* Links / breadcrumb links */
+.usa-link,
+a,
+.usa-breadcrumb__link{
+  color: var(--brand) !important;
+}
+
+/* Focus ring helper (opt-in) */
+.brand-focus:focus,
+.brand-focus:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+}
+
+/* Brand outline button utility (works with USWDS .usa-button--outline) */
+.usa-button.btnBrandOutline,
+.usa-button--outline.btnBrandOutline,
+.usa-button.usa-button--outline.brand-outline{
+  color: var(--brand) !important;
+  box-shadow: inset 0 0 0 2px var(--brand) !important;
+  border-color: transparent !important;
+  background-color: transparent !important;
+}
+
+.usa-button.btnBrandOutline:hover,
+.usa-button--outline.btnBrandOutline:hover,
+.usa-button.usa-button--outline.brand-outline:hover{
+  background-color: rgba(88,65,153,.08) !important;
+}
+
+.usa-button.btnBrandOutline:focus,
+.usa-button.btnBrandOutline:focus-visible,
+.usa-button--outline.btnBrandOutline:focus,
+.usa-button--outline.btnBrandOutline:focus-visible,
+.usa-button.usa-button--outline.brand-outline:focus,
+.usa-button.usa-button--outline.brand-outline:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus), inset 0 0 0 2px var(--brand) !important;
+}
+
+/* Brand solid button utility */
+.usa-button.btnBrandSolid,
+.usa-button.brand-solid,
+a.usa-button.btnBrandSolid,
+a.usa-button.brand-solid{
+  background-color: var(--brand) !important;
+  border-color: var(--brand) !important;
+  color: #fff !important;
+}
+
+.usa-button.btnBrandSolid:hover,
+.usa-button.brand-solid:hover,
+a.usa-button.btnBrandSolid:hover,
+a.usa-button.brand-solid:hover{
+  filter: brightness(0.95);
+}
+
+.usa-button.btnBrandSolid:focus,
+.usa-button.btnBrandSolid:focus-visible,
+.usa-button.brand-solid:focus,
+.usa-button.brand-solid:focus-visible,
+a.usa-button.btnBrandSolid:focus,
+a.usa-button.btnBrandSolid:focus-visible,
+a.usa-button.brand-solid:focus,
+a.usa-button.brand-solid:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+}
+
+/* Help icon buttons: ensure no underline */
+.usa-button.usa-button--unstyled.text-no-underline,
+.usa-button.usa-button--unstyled.text-no-underline:hover{
+  text-decoration: none !important;
+}
+
+/* ---------------------------------
+   Tooltip (matches your CodePen)
+   - default: top tooltip
+   - variant: left tooltip (Help)
+---------------------------------- */
+
+/* prevent underline from parent wrappers */
+.tt,
+.tt:hover,
+.tt:focus-within{
+  text-decoration: none !important;
+}
+
+.tt{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Bubble */
+.tt::after{
+  content: attr(data-tt);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(6px);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  background: #1b1b1b;
+  color: #fff;
+  font-size: 0.82rem;
+  line-height: 1;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.35rem;
+  transition: opacity 140ms ease, transform 140ms ease;
+  z-index: 200;
+}
+
+/* Arrow */
+.tt::before{
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%) translateY(6px);
+  opacity: 0;
+  pointer-events: none;
+  border-width: 6px 6px 0 6px;
+  border-style: solid;
+  border-color: #1b1b1b transparent transparent transparent;
+  transition: opacity 140ms ease, transform 140ms ease;
+  z-index: 200;
+}
+
+/* show */
+.tt:hover::after,
+.tt:focus-within::after,
+.tt:hover::before,
+.tt:focus-within::before{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Left tooltip variant (for Help) */
+.tt--left::after{
+  left: auto;
+  right: calc(100% + 10px);
+  bottom: 50%;
+  transform: translateX(6px) translateY(50%);
+}
+
+.tt--left::before{
+  left: auto;
+  right: calc(100% + 4px);
+  bottom: 50%;
+  transform: translateX(6px) translateY(50%);
+  border-width: 6px 0 6px 6px;
+  border-color: transparent transparent transparent #1b1b1b;
+}
+
+.tt--left:hover::after,
+.tt--left:focus-within::after,
+.tt--left:hover::before,
+.tt--left:focus-within::before{
+  transform: translateX(0) translateY(50%);
+}
+
+/* ---------------------------------
+   Portal Header
+---------------------------------- */
+
+/* Full-width header/footer shell (not constrained to USWDS grid-container) */
+.portal-shell{
+  width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (max-width: 40rem){
+  .portal-shell{
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Auth visibility guardrails (in addition to JS toggles) */
+body[data-auth="true"] [data-requires-auth="false"],
+body[data-auth="false"] [data-requires-auth="true"]{
+  display: none !important;
+}
+
+.portal-header{
+  width: 100%;
+}
+
+.portal-announcement{
+  background: var(--brand);
+  color: #fff;
+}
+
+.portal-announcement__text{
+  margin: 0;
+  padding: 0.75rem 0;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.portal-announcement__link{
+  color: #fff !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.portal-mainnav{
+  background: #fff;
+  border-bottom: 1px solid #D9D9D9;
+}
+
+.portal-mainnav__inner{
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.portal-logo{
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none !important;
+}
+
+.portal-logo__img{
+  height: 44px;
+  width: auto;
+  display: block;
+}
+
+.portal-primary{
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex: 1;
+}
+
+.portal-primary__link{
+  color: #1b1b1b !important;
+  text-decoration: none !important;
+  font-weight: 500;
+}
+
+.portal-primary__link:hover,
+.portal-primary__link:focus-visible{
+  color: var(--brand) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+.portal-auth{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.portal-auth__loggedout{
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.portal-auth__signup{
+  color: #1b1b1b !important;
+  text-decoration: none !important;
+  font-weight: 500;
+}
+
+.portal-auth__signup:hover,
+.portal-auth__signup:focus-visible{
+  color: var(--brand) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+.portal-avatar{
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.portal-avatar:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+}
+
+.portal-avatar__initials{
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.portal-authnav{
+  background: #fff;
+  border-bottom: 1px solid #D9D9D9;
+}
+
+.portal-authnav__menu{
+  display:flex;
+  gap:1.75rem;
+  padding:0.75rem .25rem;
+  list-style:none;
+  margin:0;
+}
+
+.portal-authnav__item{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+  color: #1b1b1b !important;
+  text-decoration: none !important;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.portal-authnav__item:hover,
+.portal-authnav__item:focus-visible{
+  background: rgba(88,65,153,.08);
+  color: var(--brand) !important;
+}
+
+.portal-authnav__item.is-active{
+  background: rgba(88,65,153,.08);
+  border: 1px solid rgba(88,65,153,.18);
+}
+
+.portal-authnav__item i{
+  color: #1b1b1b;
+}
+
+.portal-authnav__item:hover i,
+.portal-authnav__item:focus-visible i{
+  color: var(--brand);
+}
+
+.searchClear[hidden]{ display:none !important; }
+
+
+/* Responsive tweaks */
+@media (max-width: 48rem){
+  .portal-mainnav__inner{
+    gap: 1rem;
+  }
+  .portal-primary{
+    gap: 1rem;
+  }
+  .portal-logo__img{
+    height: 38px;
+  }
+}
+
+@media (max-width: 35rem){
+  .portal-primary{
+    display: none;
+  }
+}
+
+/* ---------------------------------
+   Portal Footer
+---------------------------------- */
+
+.portal-footer{
+  background:#2A2B3F;
+  color:#fff;
+  padding:1.5rem 0;
+  margin-top:3rem;
+}
+
+.portal-footer__text{
+  margin:0;
+  font-size:0.875rem;
+  opacity:0.95;
+}
+
+.portal-footer a{
+  color:#fff !important;
+  text-decoration:underline;
+}
+
+/* Avatar Dropdown Positioning Fix */
+
+.portal-auth__loggedin {
+  position: relative; /* Key: makes this the containing block */
+}
+
+.portal-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--brand);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.portal-avatar:focus {
+  outline: 2px solid var(--brandFocus);
+  outline-offset: 2px;
+}
+
+.usa-menu--vertical {
+  position: absolute;
+  top: 100%;              /* Directly below avatar */
+  right: 0;               /* Aligned to right edge */
+  margin-top: 0.5rem;     /* Small gap */
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 0.25rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 220px;
+  z-index: 1000;
+}
+
+.usa-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
+.usa-menu__item {
+  margin: 0;
+}
+
+.usa-menu__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  color: #212529;
+  text-decoration: none;
+  width: 100%;
+  text-align: left;
+}
+
+.usa-menu__link:hover,
+.usa-menu__link:focus {
+  background: #f1f3f5;
+}
+
+.usa-menu__link.is-active {
+  background: #f1f3f5;
+  font-weight: bold;
+}
+
+.usa-menu__separator {
+  height: 1px;
+  background: #dee2e6;
+  margin: 0.5rem 0;
+}
+
+.text-red {
+  color: #dc3545;
+}
+
+/* Customize USWDS focus ring to match branding (thinner, brand color, subtle) */
+
+/* Remove default thick blue outline globally */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+[href]:focus,
+[tabindex]:focus,
+iframe:focus {
+  outline: none;
+}
+
+/* Apply customized focus ring only on keyboard navigation */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[href]:focus-visible,
+[tabindex]:focus-visible,
+iframe:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.125rem var(--brandFocus); /* thinner ring using your brand focus color */
+  border-radius: 0.25rem;
+  outline-offset: 0.125rem; /* subtle spacing */
+}
+
+/* Avatar button (circular focus ring) */
+.portal-avatar:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.125rem var(--brandFocus);
+  border-radius: 50%;
+}
+
+/* Menu links inside dropdown */
+.usa-menu__link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.125rem var(--brandFocus);
+  background: rgba(var(--brand-rgb), 0.1); /* subtle background highlight */
+}
+
+/* Optional: Even subtler for mouse-only interactions (progressive enhancement) */
+@media (pointer: fine) {
+  a:hover:focus-visible,
+  button:hover:focus-visible {
+    box-shadow: 0 0 0 0.125rem var(--brandFocus);
+  }
+}
+
+/* Fix: Make focus background subtler than active state */
+
+/* Subtle focus background for keyboard navigation */
+.usa-menu__link:focus {
+  background: rgba(241, 243, 245, 0.6) !important; /* lighter grey, semi-transparent */
+}
+
+/* Stronger active state background */
+.usa-menu__link.is-active {
+  background: #e9ecef !important; /* darker grey for clear distinction */
+  font-weight: 700;
+}
+
+/* Optional: Add focus ring for better visibility */
+.usa-menu__link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.125rem var(--brandFocus);
+}
+
+/* Ensure hover doesn't override active */
+.usa-menu__link:hover {
+  background: rgba(241, 243, 245, 0.8) !important; /* slightly darker hover */
+}
+

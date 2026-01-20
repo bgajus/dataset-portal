@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dataset</title>
+
+    <!-- USWDS init -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- Portal shared layer -->
+    <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
+    <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
+
+    <!-- Page styles -->
+    <link rel="stylesheet" href="./dataset.css" />
+  </head>
+
+  <body data-auth="false">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content">
+      <div class="padding-y-4">
+        <div class="grid-container-widescreen">
+          <!-- Preview banner (shown when ?preview=1) -->
+          <section id="previewBanner" class="dlp-preview usa-alert usa-alert--warning margin-bottom-2" hidden>
+            <div class="usa-alert__body">
+              <h2 class="usa-alert__heading">Preview mode</h2>
+              <p class="usa-alert__text">
+                You’re viewing a draft preview of this dataset. Public visitors will not see this banner.
+              </p>
+            </div>
+          </section>
+
+          <!-- Breadcrumbs -->
+          <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
+            <ol class="usa-breadcrumb__list">
+              <li class="usa-breadcrumb__list-item">
+                <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
+              </li>
+              <li class="usa-breadcrumb__list-item">
+                <a class="usa-breadcrumb__link" href="/src/pages/search/index.html"><span>Datasets</span></a>
+              </li>
+              <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+                <span id="crumbDoi">—</span>
+              </li>
+            </ol>
+          </nav>
+
+          <!-- Two-column layout -->
+          <div class="dlp-layout margin-top-2">
+            <!-- LEFT / MAIN -->
+            <section class="dlp-main" aria-label="Dataset main content">
+              <header class="dlp-header">
+                <div class="dlp-titleRow">
+                  <h1 id="dsTitle" class="dlp-title margin-0">
+                    Dataset title
+                  </h1>
+
+                  <button id="starBtn" class="dlp-star" type="button" aria-label="Save dataset">
+                    <i class="fa-regular fa-star" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                <div id="dsAuthors" class="dlp-authors margin-top-1"></div>
+
+                <div class="margin-top-2">
+                  <button id="downloadBtn" class="usa-button btnBrandSolid dlp-download" type="button" aria-label="Download dataset on Globus">
+                    Download Dataset on Globus
+                    <i class="fa-solid fa-arrow-up-right-from-square margin-left-1" aria-hidden="true"></i>
+                  </button>
+                  <div class="usa-hint margin-top-1">
+                    Downloads will be enabled via Globus during integration.
+                  </div>
+                </div>
+              </header>
+
+              <section class="dlp-section margin-top-4" aria-label="Description">
+                <h2 class="dlp-h2">Description</h2>
+                <div id="dsDescription" class="dlp-prose"></div>
+              </section>
+
+              <section class="dlp-section margin-top-4" aria-label="Funding resources">
+                <h2 class="dlp-h2">Funding Resources</h2>
+
+                <dl class="dlp-dl">
+                  <dt>DOE Contract Number</dt>
+                  <dd id="fundingContract">—</dd>
+
+                  <dt>Originating Research Organization</dt>
+                  <dd id="fundingOrg">—</dd>
+
+                  <dt>Sponsoring Organization</dt>
+                  <dd id="fundingSponsor">—</dd>
+                </dl>
+              </section>
+
+              <section class="dlp-section margin-top-4" aria-label="Related resources">
+                <h2 class="dlp-h2">Related Resources</h2>
+                <ul id="relatedList" class="dlp-related"></ul>
+              </section>
+            </section>
+
+            <!-- RIGHT / SIDEBAR -->
+            <aside class="dlp-aside" aria-label="Dataset sidebar">
+              <!-- Details card -->
+              <section class="dlp-card" aria-label="Details">
+                <h2 class="dlp-card__title">Details</h2>
+
+                <dl class="dlp-miniDL">
+                  <dt>DOI</dt>
+                  <dd><span id="dsDoi">—</span></dd>
+
+                  <dt>Release Date</dt>
+                  <dd><span id="dsRelease">—</span></dd>
+
+                  <dt>Subject</dt>
+                  <dd id="dsCategories" class="dlp-links">—</dd>
+                </dl>
+              </section>
+
+              <!-- Dataset card -->
+              <section class="dlp-card margin-top-2" aria-label="Dataset">
+                <h2 class="dlp-card__title">Dataset</h2>
+
+                <dl class="dlp-miniDL">
+                  <dt>Dataset Type</dt>
+                  <dd><span id="dsType">—</span></dd>
+
+                  <dt>Dataset Size</dt>
+                  <dd><span id="dsSize">—</span></dd>
+
+                  <dt>Software</dt>
+                  <dd><span id="dsSoftware">—</span></dd>
+                </dl>
+              </section>
+
+              <!-- Citation card -->
+              <section class="dlp-card margin-top-2" aria-label="Citation">
+                <h2 class="dlp-card__title">Citation</h2>
+
+                <div id="citeText" class="dlp-citeBox"></div>
+
+                <div class="dlp-citeControls margin-top-2">
+                  <label class="usa-label dlp-label" for="citeStyle">Style</label>
+                  <div class="dlp-citeRow">
+                    <select id="citeStyle" class="usa-select dlp-select">
+                      <option value="apa" selected>APA</option>
+                      <option value="mla">MLA</option>
+                      <option value="chicago">Chicago</option>
+                      <option value="bibtex">BibTeX</option>
+                    </select>
+
+                    <button id="copyCite" class="usa-button usa-button--outline btnBrandOutline dlp-copy" type="button" aria-label="Copy citation">
+                      <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                    </button>
+                  </div>
+
+                  <div id="copyToast" class="dlp-toast" role="status" aria-live="polite" hidden>
+                    Copied to clipboard
+                  </div>
+                </div>
+              </section>
+
+              <!-- Acknowledgements card -->
+              <section class="dlp-card margin-top-2" aria-label="Acknowledgements">
+                <h2 class="dlp-card__title">Acknowledgements</h2>
+                <p id="dsAck" class="dlp-ack margin-0"></p>
+              </section>
+            </aside>
+          </div>
+
+          <!-- Contributors popover - hidden by default -->
+          <div id="contribPopover" class="dlp-popover" role="dialog" aria-modal="true" aria-hidden="true" hidden>
+            <div class="display-flex flex-justify flex-align-start gap-1 margin-bottom-1">
+              <div id="popTitle" class="text-bold">Contributors</div>
+              <button class="usa-button usa-button--unstyled text-no-underline margin-left-auto" id="popClose" type="button" aria-label="Close">
+                ✕
+              </button>
+            </div>
+
+            <label class="usa-label" for="popSearch">Search contributors</label>
+            <input id="popSearch" class="usa-input" type="search" placeholder="Search contributors…" />
+
+            <div id="popMeta" class="usa-hint margin-top-1"></div>
+
+            <div id="popList" class="dlp-contribList margin-top-1" role="region" aria-label="Contributor list"></div>
+          </div>
+
+          <div id="contribBackdrop" class="dlp-backdrop" hidden></div>
+        </div>
+      </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader -->
+    <script type="module" src="../../assets/js/includes.js"></script>
+
+    <!-- Page JS - use module for store import -->
+    <script type="module" src="./dataset.js"></script>
+  </body>
+</html>

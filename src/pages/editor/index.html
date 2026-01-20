@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Edit Dataset</title>
+
+    <!-- USWDS init (recommended before CSS) -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Portal shared layer -->
+    <link rel="stylesheet" href="../../assets/css/portal-tokens.css">
+    <link rel="stylesheet" href="../../assets/css/portal-ui.css">
+
+    <!-- Page styles -->
+    <link rel="stylesheet" href="./editor.css">
+  </head>
+  <body data-auth="true">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content">
+      <div class="grid-container-widescreen padding-y-2">
+
+        <!-- Sticky header wrapper -->
+        <div class="sticky-shell" id="stickyShell">
+
+          <!-- Breadcrumb row + Help icon -->
+          <div class="crumb-row">
+            <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
+              <ol class="usa-breadcrumb__list">
+                <li class="usa-breadcrumb__list-item">
+                  <a class="usa-breadcrumb__link" href="javascript:void(0)">Home</a>
+                </li>
+                <li class="usa-breadcrumb__list-item">
+                  <a class="usa-breadcrumb__link" href="javascript:void(0)">My Datasets</a>
+                </li>
+                <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+                  Edit Dataset
+                </li>
+              </ol>
+            </nav>
+
+            <!-- Help: icon only, brand color, LEFT tooltip -->
+            <span class="tt tt--left" data-tt="Get Help">
+              <button
+                type="button"
+                class="usa-button usa-button--unstyled help-icon-btn"
+                id="helpBtn"
+                aria-label="Get Help"
+              >
+                <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+              </button>
+            </span>
+          </div>
+
+          <header class="margin-bottom-2">
+            <div class="title-row">
+              <h1 class="margin-0" id="pageTitle"></h1>
+              <span class="title-editing" id="titleEditing" hidden>(Editing…)</span>
+            </div>
+          </header>
+
+          <div class="action-row">
+            <div class="action-left">
+              <span class="status-chip" aria-label="Status: Draft">Draft</span>
+              <span class="started-on">
+                <strong>Started on:</strong> <span id="startedOnDate"></span>
+              </span>
+            </div>
+
+            <div class="action-right">
+              <span class="tt" data-tt="Preview">
+                <button
+                  type="button"
+                  class="usa-button usa-button--outline icon-btn brand-outline"
+                  id="previewBtn"
+                  aria-label="Preview"
+                >
+                  <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                </button>
+              </span>
+
+              <span class="tt" data-tt="Save">
+                <button
+                  type="button"
+                  class="usa-button usa-button--outline icon-btn brand-outline"
+                  id="saveBtn"
+                  aria-label="Save"
+                >
+                  <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                </button>
+              </span>
+
+              <button type="button" class="usa-button" id="submitBtn" disabled aria-disabled="true">
+                Submit for Review
+              </button>
+            </div>
+          </div>
+
+          <hr class="section-divider" />
+        </div>
+
+        <div class="below-divider">
+          <p class="text-base margin-0 margin-bottom-2">
+            Fill all required fields to enable <strong>Submit for Review</strong>. Section headers show what’s still missing.
+          </p>
+
+          <div class="usa-alert usa-alert--info margin-bottom-3" role="status" aria-live="polite">
+            <div class="usa-alert__body">
+              <p class="usa-alert__text" id="formStatus">
+                Required fields remaining: <strong id="requiredRemaining">—</strong>
+              </p>
+            </div>
+          </div>
+
+          <div class="usa-accordion" aria-multiselectable="true" id="metaAccordion">
+
+            <!-- UPLOAD FILES (DEFAULT OPEN) -->
+            <h2 class="usa-accordion__heading" data-section="upload">
+              <button class="usa-accordion__button" aria-expanded="true" aria-controls="sect-upload">
+                <span>Upload Files</span>
+                <span class="acc-status" data-status-for="upload"></span>
+              </button>
+            </h2>
+            <div id="sect-upload" class="usa-accordion__content usa-prose" data-section-content="upload">
+              <p class="margin-top-0">
+                Use Globus to upload your dataset files to the designated storage location.
+              </p>
+
+              <ol class="usa-list">
+                <li>Click <strong>Upload with Globus</strong> below. You will be taken to the Globus website.</li>
+                <li>Follow the prompts in Globus to authenticate and transfer your dataset files to the designated storage location.</li>
+                <li>Once your transfer is complete, return to this application. Uploaded datasets will appear here.</li>
+              </ol>
+
+              <div class="display-flex flex-wrap gap-2 margin-top-2">
+                <a
+                  class="usa-button brand-solid"
+                  id="uploadWithGlobusBtn"
+                  href="https://www.globus.org/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Upload with Globus
+                  <i class="fa-solid fa-arrow-up-right-from-square ext-icon" aria-hidden="true"></i>
+                </a>
+              </div>
+
+              <div class="usa-alert usa-alert--warning margin-top-3" id="uploadRequiredAlert" role="alert">
+                <div class="usa-alert__body">
+                  <p class="usa-alert__text">
+                    You must upload at least one file to Globus before submitting for review.
+                  </p>
+                </div>
+              </div>
+
+              <div class="uploaded-panel margin-top-3" id="uploadedPanel" hidden>
+                <h3 class="margin-top-0">Uploaded files (demo)</h3>
+                <ul class="usa-list" id="uploadedFilesList"></ul>
+              </div>
+            </div>
+
+            <!-- DESCRIPTION (DEFAULT CLOSED) -->
+            <h2 class="usa-accordion__heading" data-section="description">
+              <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-description">
+                <span>Description</span>
+                <span class="acc-status" data-status-for="description"></span>
+              </button>
+            </h2>
+            <div id="sect-description" class="usa-accordion__content usa-prose" data-section-content="description" hidden>
+              <label class="usa-label" for="title">
+                Title <span class="required-star" aria-hidden="true">*</span>
+              </label>
+              <input
+                class="usa-input"
+                id="title"
+                name="title"
+                type="text"
+                required
+                data-required
+                data-section="description"
+              />
+
+              <label class="usa-label" for="datasetType">
+                Dataset type <span class="required-star" aria-hidden="true">*</span>
+              </label>
+              <select class="usa-select" id="datasetType" name="datasetType" required data-required data-section="description">
+                <option value="">Select a type</option>
+                <option>Simulation output</option>
+                <option>Experimental data</option>
+                <option>Benchmark</option>
+                <option>Derived dataset</option>
+              </select>
+
+              <label class="usa-label" for="description">
+                Description <span class="required-star" aria-hidden="true">*</span>
+              </label>
+              <textarea
+                class="usa-textarea"
+                id="description"
+                name="description"
+                required
+                data-required
+                data-section="description"
+                rows="5"
+              ></textarea>
+            </div>
+
+            <!-- AUTHORS -->
+            <h2 class="usa-accordion__heading" data-section="authors">
+              <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-authors">
+                <span>Authors</span>
+                <span class="acc-status" data-status-for="authors"></span>
+              </button>
+            </h2>
+            <div id="sect-authors" class="usa-accordion__content usa-prose" data-section-content="authors" hidden>
+              <p class="margin-top-0">
+                Add at least one author. In this modal pattern, authors are validated on save.
+              </p>
+
+              <ul id="authors-list" class="authors-list"></ul>
+
+              <div class="display-flex flex-justify-start gap-2 margin-top-2">
+                <button type="button" class="usa-button usa-button--outline brand-outline" id="add-author-btn">
+                  + Add author
+                </button>
+              </div>
+
+              <!-- AUTHORS MODAL - hidden by default, with accessibility attributes -->
+              <div id="author-modal" class="modal" hidden aria-modal="true" role="dialog" aria-labelledby="modal-title">
+                <div class="modal-content">
+                  <button type="button" class="modal-close usa-button usa-button--unstyled" aria-label="Close author modal">
+                    ×
+                  </button>
+
+                  <h3 id="modal-title" class="margin-top-0">Add Author</h3>
+
+                  <div class="author-form">
+                    <label class="usa-label" for="firstName">
+                      First name <span class="required-star" aria-hidden="true">*</span>
+                    </label>
+                    <input class="usa-input" type="text" id="firstName" required />
+
+                    <label class="usa-label" for="middleName">Middle name</label>
+                    <input class="usa-input" type="text" id="middleName" />
+
+                    <label class="usa-label" for="lastName">
+                      Last name <span class="required-star" aria-hidden="true">*</span>
+                    </label>
+                    <input class="usa-input" type="text" id="lastName" required />
+
+                    <label class="usa-label" for="email">Email</label>
+                    <input class="usa-input" type="email" id="email" />
+
+                    <label class="usa-label" for="orcid">ORCID iD</label>
+                    <input class="usa-input" type="text" id="orcid" placeholder="0000-0000-0000-0000" />
+
+                    <label class="usa-label" for="affiliation">
+                      Institutional affiliation <span class="required-star" aria-hidden="true">*</span>
+                    </label>
+                    <input class="usa-input" type="text" id="affiliation" required />
+
+                    <div class="display-flex flex-justify-end gap-2 margin-top-2">
+                      <button type="button" class="usa-button usa-button--outline brand-outline" id="cancelForm">Cancel</button>
+                      <button type="button" class="usa-button usa-button--outline brand-outline" id="saveAddAnother">Save & Add Another</button>
+                      <button type="button" class="usa-button brand-solid" id="saveAuthorForm">Save Author</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SUBJECTS -->
+            <h2 class="usa-accordion__heading" data-section="subjects">
+              <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-subjects">
+                <span>Subjects</span>
+                <span class="acc-status" data-status-for="subjects"></span>
+              </button>
+            </h2>
+            <div id="sect-subjects" class="usa-accordion__content usa-prose" data-section-content="subjects" hidden>
+             <!-- Subjects (Optional) -->
+<div class="usa-form-group">
+  <label class="usa-label" for="subjectsSelect">Subjects <span class="text-base">(Optional)</span></label>
+  <div class="usa-hint">Select one or more Subjects.</div>
+
+  <select
+    id="subjectsSelect"
+    class="usa-select"
+    multiple
+    size="8"
+    data-section="subjects"
+  ></select>
+
+  <div class="usa-hint margin-top-1">
+    Tip: Hold <kbd>Ctrl</kbd> (Windows) or <kbd>⌘</kbd> (Mac) to select multiple.
+  </div>
+</div>
+
+<!-- Keywords (Optional) -->
+<div class="usa-form-group">
+  <label class="usa-label" for="keywordsInput">Keywords <span class="text-base">(Optional)</span></label>
+  <div class="usa-hint">Comma-separated keywords. Suggestions will appear as you type.</div>
+
+  <input
+    id="keywordsInput"
+    class="usa-input"
+    type="text"
+    placeholder="e.g., fusion, plasma, diagnostics"
+    list="keywordsDatalist"
+    data-section="subjects"
+  />
+
+  <datalist id="keywordsDatalist"></datalist>
+</div>
+
+            </div>
+
+            <!-- FUNDING -->
+            <h2 class="usa-accordion__heading" data-section="funding">
+              <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-funding">
+                <span>Funding Information</span>
+                <span class="acc-status" data-status-for="funding"></span>
+              </button>
+            </h2>
+            <div id="sect-funding" class="usa-accordion__content usa-prose" data-section-content="funding" hidden>
+              <div class="grid-row grid-gap">
+                <div class="tablet:grid-col-6">
+                  <label class="usa-label" for="funderName">
+                    Funder name <span class="required-star" aria-hidden="true">*</span>
+                  </label>
+                  <input class="usa-input" id="funderName" name="funderName" type="text" required data-required data-section="funding" />
+                </div>
+                <div class="tablet:grid-col-6">
+                  <label class="usa-label" for="awardNumber">
+                    Award / Grant number <span class="required-star" aria-hidden="true">*</span>
+                  </label>
+                  <input class="usa-input" id="awardNumber" name="awardNumber" type="text" required data-required data-section="funding" />
+                </div>
+              </div>
+            </div>
+
+            <!-- RELATED WORKS -->
+            <h2 class="usa-accordion__heading" data-section="related">
+              <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-related">
+                <span>Related Works</span>
+                <span class="acc-status" data-status-for="related"></span>
+              </button>
+            </h2>
+            <div id="sect-related" class="usa-accordion__content usa-prose" data-section-content="related" hidden>
+              <label class="usa-label" for="relatedDoi">Related DOI (optional)</label>
+              <input class="usa-input" id="relatedDoi" name="relatedDoi" type="text" placeholder="10.xxxx/xxxxx" data-section="related" />
+
+              <label class="usa-label" for="relatedUrl">Related URL (optional)</label>
+              <input class="usa-input" id="relatedUrl" name="relatedUrl" type="url" placeholder="https://..." data-section="related" />
+            </div>
+
+          </div>
+        </div>
+
+        <div class="save-toast" id="saveToast" role="status" aria-live="polite" aria-atomic="true" hidden>
+          Saved.
+        </div>
+      </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader -->
+    <script type="module" src="../../assets/js/includes.js"></script>
+    <script type="module" src="./editor.js" defer></script>
+  </body>
+</html>
