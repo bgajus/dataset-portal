@@ -9,5 +9,5 @@ npm-debug.log
 yarn-error.log
 
 # other files to ignore
-.zip
-.tar.gz
+*.zip
+*.tar.gz
