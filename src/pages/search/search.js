@@ -88,7 +88,8 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
   // ──────────────────────────────────────────────────────────────
   // Load records + always append demo mocks
   // ──────────────────────────────────────────────────────────────
-  const realRecordsRaw = getAllRecords();
+  // Only Published records should appear in public search results.
+  const realRecordsRaw = getAllRecords().filter(r => String(r.status || "").toLowerCase() === "published");
   let realRecords = realRecordsRaw.map(r => {
     const created = r.createdAt || Date.now();
     return {

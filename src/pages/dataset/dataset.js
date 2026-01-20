@@ -342,9 +342,13 @@ import { getRecord } from "/src/assets/js/shared-store.js";
       descEl.innerHTML = txt ? `<p>${escapeHtml(txt)}</p>` : `<p>No description available</p>`;
     }
 
-    document.getElementById("fundingContract").textContent = ds.funding?.awardNumber || "—";
-    document.getElementById("fundingOrg").textContent = "Oak Ridge National Laboratory";
-    document.getElementById("fundingSponsor").textContent = ds.funding?.funderName || "—";
+    const sponsor = ds.fundingInfo?.sponsoringOrganizations || ds.funding?.funderName || "—";
+    const contract = ds.fundingInfo?.doeContractNumber || ds.funding?.awardNumber || "—";
+    const org = ds.fundingInfo?.originatingResearchOrganization || "—";
+
+    document.getElementById("fundingContract").textContent = contract;
+    document.getElementById("fundingOrg").textContent = org;
+    document.getElementById("fundingSponsor").textContent = sponsor;
 
     const rEl = document.getElementById("relatedList");
     if (rEl) {

@@ -119,6 +119,16 @@
             </div>
           </div>
 
+          <!-- Locked banner (shown when status is In Review / Published) -->
+          <section id="lockBanner" class="usa-alert usa-alert--warning margin-bottom-3" hidden>
+            <div class="usa-alert__body">
+              <h2 class="usa-alert__heading">In Review</h2>
+              <p class="usa-alert__text">
+                This dataset has been submitted to a curator for review. Metadata is now read-only.
+              </p>
+            </div>
+          </section>
+
           <div class="usa-accordion" aria-multiselectable="true" id="metaAccordion">
 
             <!-- UPLOAD FILES (DEFAULT OPEN) -->
@@ -174,42 +184,7 @@
               </button>
             </h2>
             <div id="sect-description" class="usa-accordion__content usa-prose" data-section-content="description" hidden>
-              <label class="usa-label" for="title">
-                Title <span class="required-star" aria-hidden="true">*</span>
-              </label>
-              <input
-                class="usa-input"
-                id="title"
-                name="title"
-                type="text"
-                required
-                data-required
-                data-section="description"
-              />
-
-              <label class="usa-label" for="datasetType">
-                Dataset type <span class="required-star" aria-hidden="true">*</span>
-              </label>
-              <select class="usa-select" id="datasetType" name="datasetType" required data-required data-section="description">
-                <option value="">Select a type</option>
-                <option>Simulation output</option>
-                <option>Experimental data</option>
-                <option>Benchmark</option>
-                <option>Derived dataset</option>
-              </select>
-
-              <label class="usa-label" for="description">
-                Description <span class="required-star" aria-hidden="true">*</span>
-              </label>
-              <textarea
-                class="usa-textarea"
-                id="description"
-                name="description"
-                required
-                data-required
-                data-section="description"
-                rows="5"
-              ></textarea>
+              <div id="descriptionFields"></div>
             </div>
 
             <!-- AUTHORS -->
@@ -284,40 +259,7 @@
               </button>
             </h2>
             <div id="sect-subjects" class="usa-accordion__content usa-prose" data-section-content="subjects" hidden>
-             <!-- Subjects (Optional) -->
-<div class="usa-form-group">
-  <label class="usa-label" for="subjectsSelect">Subjects <span class="text-base">(Optional)</span></label>
-  <div class="usa-hint">Select one or more Subjects.</div>
-
-  <select
-    id="subjectsSelect"
-    class="usa-select"
-    multiple
-    size="8"
-    data-section="subjects"
-  ></select>
-
-  <div class="usa-hint margin-top-1">
-    Tip: Hold <kbd>Ctrl</kbd> (Windows) or <kbd>⌘</kbd> (Mac) to select multiple.
-  </div>
-</div>
-
-<!-- Keywords (Optional) -->
-<div class="usa-form-group">
-  <label class="usa-label" for="keywordsInput">Keywords <span class="text-base">(Optional)</span></label>
-  <div class="usa-hint">Comma-separated keywords. Suggestions will appear as you type.</div>
-
-  <input
-    id="keywordsInput"
-    class="usa-input"
-    type="text"
-    placeholder="e.g., fusion, plasma, diagnostics"
-    list="keywordsDatalist"
-    data-section="subjects"
-  />
-
-  <datalist id="keywordsDatalist"></datalist>
-</div>
+              <div id="subjectsFields"></div>
 
             </div>
 
@@ -329,20 +271,7 @@
               </button>
             </h2>
             <div id="sect-funding" class="usa-accordion__content usa-prose" data-section-content="funding" hidden>
-              <div class="grid-row grid-gap">
-                <div class="tablet:grid-col-6">
-                  <label class="usa-label" for="funderName">
-                    Funder name <span class="required-star" aria-hidden="true">*</span>
-                  </label>
-                  <input class="usa-input" id="funderName" name="funderName" type="text" required data-required data-section="funding" />
-                </div>
-                <div class="tablet:grid-col-6">
-                  <label class="usa-label" for="awardNumber">
-                    Award / Grant number <span class="required-star" aria-hidden="true">*</span>
-                  </label>
-                  <input class="usa-input" id="awardNumber" name="awardNumber" type="text" required data-required data-section="funding" />
-                </div>
-              </div>
+              <div id="fundingFields"></div>
             </div>
 
             <!-- RELATED WORKS -->
@@ -353,11 +282,7 @@
               </button>
             </h2>
             <div id="sect-related" class="usa-accordion__content usa-prose" data-section-content="related" hidden>
-              <label class="usa-label" for="relatedDoi">Related DOI (optional)</label>
-              <input class="usa-input" id="relatedDoi" name="relatedDoi" type="text" placeholder="10.xxxx/xxxxx" data-section="related" />
-
-              <label class="usa-label" for="relatedUrl">Related URL (optional)</label>
-              <input class="usa-input" id="relatedUrl" name="relatedUrl" type="url" placeholder="https://..." data-section="related" />
+              <div id="relatedFields"></div>
             </div>
 
           </div>
