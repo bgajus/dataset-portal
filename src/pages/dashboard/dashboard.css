@@ -22,6 +22,8 @@
   width: 56px;
   height: 56px;
   border-radius: 999px;
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
   background: var(--brand);
@@ -29,6 +31,29 @@
   font-weight: 900;
   letter-spacing: .02em;
   flex: 0 0 auto;
+}
+
+.dash-avatar__img,
+.dash-avatar__initials{
+  position: absolute;
+  inset: 0;
+}
+
+.dash-avatar__img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dash-avatar__initials{
+  display: grid;
+  place-items: center;
+}
+
+.dash-avatar__img[hidden],
+.dash-avatar__initials[hidden]{
+  display: none !important;
 }
 
 .dash-title{

@@ -30,10 +30,13 @@
         <!-- Top: welcome + CTA -->
         <section class="dash-top" aria-label="Dashboard header">
           <div class="dash-user">
-            <div class="dash-avatar" aria-hidden="true">BG</div>
+            <div class="dash-avatar" id="dashAvatar" aria-label="User avatar">
+              <img id="dashAvatarImg" class="dash-avatar__img" alt="" hidden />
+              <span id="dashAvatarInitials" class="dash-avatar__initials" aria-hidden="true">BG</span>
+            </div>
 
             <div class="dash-welcome">
-              <h1 class="dash-title">Welcome back, Brian!</h1>
+              <h1 class="dash-title">Welcome back, <span id="dashUserName">Brian</span>!</h1>
               <p class="dash-sub">
                 From your dashboard you have access create new DOI reservations, edit your datasets,
                 and view your published datasets.

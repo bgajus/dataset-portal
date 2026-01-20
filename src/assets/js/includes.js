@@ -16,6 +16,69 @@ const INCLUDE_MAP = {
   'portal-footer': '/src/components/footer.html',
 };
 
+// ──────────────────────────────────────────────────────────────
+// User profile (demo) — used for avatar + Settings page
+// Stored in localStorage so it persists across pages
+// ──────────────────────────────────────────────────────────────
+
+const USER_STORAGE_KEY = "constellation:user:v1";
+
+function getDefaultUserProfile() {
+  return {
+    firstName: "Brian",
+    middleName: "",
+    lastName: "Gajus",
+    email: "",
+    affiliation: "",
+    orcid: "",
+    avatarDataUrl: "", // base64/data URL
+  };
+}
+
+function getUserProfile() {
+  try {
+    const raw = localStorage.getItem(USER_STORAGE_KEY);
+    if (!raw) return getDefaultUserProfile();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return getDefaultUserProfile();
+    return { ...getDefaultUserProfile(), ...parsed };
+  } catch (e) {
+    return getDefaultUserProfile();
+  }
+}
+
+function getUserInitials(profile) {
+  const first = String(profile?.firstName || "").trim();
+  const last = String(profile?.lastName || "").trim();
+  const a = first ? first[0].toUpperCase() : "";
+  const b = last ? last[0].toUpperCase() : "";
+  return (a + b) || "??";
+}
+
+function applyUserProfileToHeader() {
+  const profile = getUserProfile();
+
+  const initialsEl = document.getElementById("avatarInitials");
+  const imgEl = document.getElementById("avatarImg");
+
+  if (initialsEl) initialsEl.textContent = getUserInitials(profile);
+
+  const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
+  if (imgEl) {
+    if (hasAvatar) {
+      imgEl.src = profile.avatarDataUrl;
+      imgEl.alt = `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() || "User avatar";
+      imgEl.hidden = false;
+      if (initialsEl) initialsEl.hidden = true;
+    } else {
+      imgEl.removeAttribute("src");
+      imgEl.alt = "";
+      imgEl.hidden = true;
+      if (initialsEl) initialsEl.hidden = false;
+    }
+  }
+}
+
 function getAuthState() {
   const bodyAttr = document.body?.dataset?.auth;
   const stored = localStorage.getItem('dp-auth');
@@ -165,6 +228,9 @@ async function initIncludes() {
 
   // Initialize avatar dropdown
   initAvatarDropdown();
+
+  // Apply user profile (avatar initials / photo)
+  applyUserProfileToHeader();
 }
 
 if (document.readyState === 'loading') {
@@ -180,4 +246,21 @@ window.DatasetPortal = window.DatasetPortal || {};
 window.DatasetPortal.setAuth = function setAuth(isAuthed) {
   localStorage.setItem('dp-auth', isAuthed ? 'true' : 'false');
   window.location.reload();
+};
+
+// Expose user profile helpers for pages that want them (e.g., Settings)
+window.DatasetPortal.getUserProfile = function () {
+  return getUserProfile();
+};
+
+window.DatasetPortal.saveUserProfile = function (profile) {
+  try {
+    const merged = { ...getDefaultUserProfile(), ...(profile || {}) };
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(merged));
+    applyUserProfileToHeader();
+    return true;
+  } catch (e) {
+    console.warn('Failed to save user profile:', e);
+    return false;
+  }
 };

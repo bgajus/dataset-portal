@@ -33,7 +33,8 @@
         <!-- Logged in -->
         <div class="portal-auth__loggedin" data-requires-auth="true" hidden>
           <button type="button" class="portal-avatar" id="avatarBtn" aria-expanded="false" aria-haspopup="true" aria-controls="userMenu">
-            <span class="portal-avatar__initials" aria-hidden="true">BG</span>
+            <img class="portal-avatar__img" id="avatarImg" alt="" hidden />
+            <span class="portal-avatar__initials" id="avatarInitials" aria-hidden="true">BG</span>
             <span class="usa-sr-only">User menu</span>
           </button>
 
@@ -61,7 +62,7 @@
                 </a>
               </li>
               <li class="usa-menu__item">
-                <a class="usa-menu__link" href="javascript:void(0)" data-path="/settings">
+                <a class="usa-menu__link" href="/src/pages/settings/index.html" data-path="/settings">
                   <i class="fa-solid fa-gear" aria-hidden="true"></i> Settings
                 </a>
               </li>
@@ -86,7 +87,7 @@
         <a class="portal-authnav__item" href="/src/pages/my-datasets/index.html" data-path="/my-datasets"><i class="fa-solid fa-table-list" aria-hidden="true"></i><span>My Datasets</span></a>
         <a class="portal-authnav__item" href="javascript:void(0)" data-path="/analytics"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Analytics &amp; Reports</span></a>
         <a class="portal-authnav__item" href="javascript:void(0)" data-path="/notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notifications</span></a>
-        <a class="portal-authnav__item" href="javascript:void(0)" data-path="/settings"><i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span></a>
+        <a class="portal-authnav__item" href="/src/pages/settings/index.html" data-path="/settings"><i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span></a>
       </nav>
     </div>
   </div>
