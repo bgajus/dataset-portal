@@ -113,7 +113,7 @@
   flex-wrap: wrap;
 }
 
-/* Draft chip */
+/* Record status chip */
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -121,10 +121,16 @@
   border-radius: 999px;
   font-size: 0.9rem;
   font-weight: 600;
-  background: #119bf1;
+  background: #119bf1; /* default (Draft) */
   color: #fff;
   white-space: nowrap;
 }
+
+/* Color-coded states */
+.status-chip[data-status="draft"] { background: #119bf1; }
+.status-chip[data-status="in-review"] { background: #f59a00; }
+.status-chip[data-status="needs-updates"] { background: #b50909; }
+.status-chip[data-status="published"] { background: #2e8540; }
 .started-on { color: #565c65; white-space: nowrap; }
 
 /* Divider */

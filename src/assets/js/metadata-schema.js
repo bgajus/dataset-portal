@@ -34,6 +34,30 @@ export const SUBJECT_OPTIONS = [
   "Urban Sensing",
 ];
 
+// Demo keyword suggestions.
+// In a real build, this should be populated from analytics (most-used keywords)
+// or a controlled vocabulary service.
+export const KEYWORD_SUGGESTIONS = [
+  "machine learning",
+  "deep learning",
+  "artificial intelligence",
+  "high performance computing",
+  "HPC",
+  "simulation",
+  "computational fluid dynamics",
+  "climate modeling",
+  "remote sensing",
+  "geospatial",
+  "materials science",
+  "bioinformatics",
+  "cybersecurity",
+  "fusion",
+  "benchmarking",
+  "performance",
+  "visualization",
+  "time series",
+];
+
 /**
  * Schema sections in the accordion order.
  * `required` indicates the section contributes required items to the global required counter.

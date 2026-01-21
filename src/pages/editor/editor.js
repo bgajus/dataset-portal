@@ -10,6 +10,7 @@ import {
   setPath,
   SUBJECT_OPTIONS,
   DATASET_TYPE_OPTIONS,
+  KEYWORD_SUGGESTIONS,
 } from "/src/assets/js/metadata-schema.js";
 
 (() => {
@@ -123,8 +124,19 @@ import {
   function setStatusChip(status) {
     if (!statusChipEl) return;
     const label = status || "Draft";
+    const norm = String(label).toLowerCase().trim();
+
+    // Drive chip styling via a data attribute so CSS can color-code states.
+    // Keep the human label text exactly as stored.
+    let key = "draft";
+    if (norm === "in review" || norm === "in-review" || norm === "review") key = "in-review";
+    else if (norm === "needs updates" || norm === "needs-updates") key = "needs-updates";
+    else if (norm === "published") key = "published";
+    else if (norm === "draft") key = "draft";
+
     statusChipEl.textContent = label;
     statusChipEl.setAttribute("aria-label", `Status: ${label}`);
+    statusChipEl.setAttribute("data-status", key);
   }
 
   function applyLockedUI() {
@@ -358,8 +370,11 @@ import {
     const dl = document.getElementById("keywordsDatalist");
     if (!dl) return;
 
+    // Merge:
+    // 1) a small curated demo list (schema)
+    // 2) keywords already used across saved records (store)
     const all = getAllRecords();
-    const set = new Set();
+    const set = new Set((Array.isArray(KEYWORD_SUGGESTIONS) ? KEYWORD_SUGGESTIONS : []).map((k) => safeTrim(k)).filter(Boolean));
     all.forEach((r) => {
       (Array.isArray(r.keywords) ? r.keywords : []).forEach((k) => {
         const v = safeTrim(k);
