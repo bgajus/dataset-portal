@@ -1,10 +1,20 @@
-// dataset.js - Supports store records + demo mock landing pages
+// /src/pages/dataset/dataset.js
+// Dataset landing page
+// - Supports real store records + deterministic demo mocks
+// - Polished to render key sections from the shared metadata schema
 
-import { getRecord } from "/src/assets/js/shared-store.js";
+import { getRecord, getAllRecords } from "/src/assets/js/shared-store.js";
+import {
+  DATASET_TYPE_OPTIONS,
+  SUBJECT_OPTIONS,
+  getPath,
+} from "/src/assets/js/metadata-schema.js";
 
 (() => {
   const DEMO_DOI_BASE = 1400000;
   const DEMO_MOCK_COUNT = 10;
+
+  const $ = (id) => document.getElementById(id);
 
   function escapeHtml(str) {
     return String(str || "")
@@ -22,73 +32,76 @@ import { getRecord } from "/src/assets/js/shared-store.js";
     return d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
   }
 
-  function mulberry32(seed){
+  function mulberry32(seed) {
     let t = seed >>> 0;
-    return function(){
-      t += 0x6D2B79F5;
+    return function () {
+      t += 0x6d2b79f5;
       let r = Math.imul(t ^ (t >>> 15), 1 | t);
       r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
       return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
     };
   }
 
-  // deterministic, but separate instance so dataset page doesn't depend on search page runtime
+  // deterministic, but separate instance so dataset page doesn't depend on other pages
   const rand = mulberry32(584199);
-
-  const subjects = [
-    "Bioinformatics",
-    "Climate",
-    "Computational Fluid Dynamics",
-    "Cybersecurity",
-    "Energy Systems",
-    "Environmental Monitoring",
-    "Fusion",
-    "Geospatial Analytics",
-    "HPC Performance",
-    "Machine Learning",
-    "Materials Science",
-    "Nuclear Energy",
-    "Remote Sensing",
-    "Robotics",
-    "Transportation",
-    "Urban Sensing"
-  ];
 
   function pick(arr) {
     return arr[Math.floor(rand() * arr.length)];
   }
 
-  function makeDemoMock(i){
+  function makeDemoMock(i) {
     const suffix = DEMO_DOI_BASE + i;
     const doi = `10.13139/ORNLNCCS/${suffix}`;
-    const date = new Date(2020 + Math.floor(i/3), 0, 1 + i%28);
+    const date = new Date(2020 + Math.floor(i / 3), 0, 1 + (i % 28));
+    const subjects = [pick(SUBJECT_OPTIONS), pick(SUBJECT_OPTIONS), pick(SUBJECT_OPTIONS)];
+
+    const typeOpt = pick(DATASET_TYPE_OPTIONS);
 
     return {
       _isDemo: true,
       doi,
       title: `Fallback Mock Dataset ${i + 1}`,
-      createdAt: date.toISOString().slice(0,10),
-      updatedAt: date.toISOString().slice(0,10),
-      description: "This is a demo dataset record used for UI prototyping and stakeholder walkthroughs.",
-      subjectsKeywords: `${pick(subjects)}, ${pick(subjects)}, ${pick(subjects)}`,
-      datasetType: "ND Numeric Data",
-      datasetSizeLabel: `${(Math.round((rand()*120 + 5) * 10)/10)} GB`,
-      software: "Paraview (demo)",
+      createdAt: date.toISOString().slice(0, 10),
+      updatedAt: date.toISOString().slice(0, 10),
+      status: "Published",
+
+      description:
+        "This is a demo dataset record used for UI prototyping and stakeholder walkthroughs.",
+      subjects,
+      subjectsKeywords: subjects.join(", "),
+      keywords: ["HPC", "simulation", "benchmarking"],
+
+      datasetType: typeOpt.value,
+      datasetSizeLabel: `${Math.round((rand() * 120 + 5) * 10) / 10} GB`,
+      softwareNeeded: "ParaView (demo)",
+
       authors: [
         { firstName: "Jane", lastName: "Doe", affiliation: "ORNL", orcid: "0000-0000-0000-0000" },
         { firstName: "John", lastName: "Smith", affiliation: "ORNL" },
-        { firstName: "Alex", lastName: "Kim", affiliation: "Georgia Tech" }
+        { firstName: "Alex", lastName: "Kim", affiliation: "Georgia Tech" },
       ],
-      funding: { funderName: "U.S. Department of Energy (demo)", awardNumber: "DE-AC05-00OR22725 (demo)" },
-      related: [
-        { doi: "10.0000/DEMO.RELATED.1" },
-        { url: "https://example.com/demo-related" }
-      ],
-      ack: "Demo acknowledgement text for prototyping."
+
+      fundingInfo: {
+        doeContractNumber: "DE-AC05-00OR22725 (demo)",
+        originatingResearchOrganization: "Oak Ridge National Laboratory (demo)",
+        sponsoringOrganizations: "U.S. Department of Energy (demo)",
+        otherContributingOrganizations: "",
+        olcfProjectIdentifier: "",
+        otherContractNumbers: "",
+        otherIdentifyingNumbers: "",
+      },
+
+      relatedWork: {
+        relatedIdentifier: i % 2 === 0 ? "10.0000/DEMO.RELATED.1" : "https://example.com/demo-related",
+        relatedIdentifierType: i % 2 === 0 ? "DOI" : "URL",
+        relationType: "IsReferencedBy",
+      },
+
+      ack: "Demo acknowledgement text for prototyping.",
     };
   }
 
-  function getDemoMockByDoi(doi){
+  function getDemoMockByDoi(doi) {
     const m = String(doi || "").match(/^10\.13139\/ORNLNCCS\/(\d+)$/);
     if (!m) return null;
     const suffix = Number(m[1]);
@@ -98,11 +111,12 @@ import { getRecord } from "/src/assets/js/shared-store.js";
     return makeDemoMock(i);
   }
 
-  function parseSubjects(ds) {
-    const csv = (ds.subjectsKeywords || "").trim();
-    if (csv) return csv.split(",").map(s => s.trim()).filter(Boolean);
-    if (Array.isArray(ds.keywords)) return ds.keywords.map(s => String(s || "").trim()).filter(Boolean);
-    return [];
+  function getUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      doi: (params.get("doi") || "").trim(),
+      preview: (params.get("preview") || "").trim() === "1",
+    };
   }
 
   function authorDisplayName(a) {
@@ -111,7 +125,7 @@ import { getRecord } from "/src/assets/js/shared-store.js";
   }
 
   function renderAuthors(ds) {
-    const host = document.getElementById("dsAuthors");
+    const host = $("dsAuthors");
     if (!host) return;
 
     const contributors = Array.isArray(ds.authors) ? ds.authors : [];
@@ -139,47 +153,51 @@ import { getRecord } from "/src/assets/js/shared-store.js";
 
     const moreHtml = remaining
       ? `
-      <span class="text-base margin-x-05">,</span>
-      <a href="#" id="moreContribs" class="dlp-moreLink" aria-label="View all contributors">+${remaining} others</a>
-    `
+        <span class="text-base margin-x-05">,</span>
+        <a href="#" id="moreContribs" class="dlp-moreLink" aria-label="View all contributors">+${remaining} others</a>
+      `
       : "";
 
     host.innerHTML = `${namesHtml}${moreHtml}`;
   }
 
   function openContribPopover(ds, anchorEl) {
-    const pop = document.getElementById("contribPopover");
-    const backdrop = document.getElementById("contribBackdrop");
-    const popTitle = document.getElementById("popTitle");
-    const popClose = document.getElementById("popClose");
-    const popSearch = document.getElementById("popSearch");
-    const popMeta = document.getElementById("popMeta");
-    const popList = document.getElementById("popList");
+    const pop = $("contribPopover");
+    const backdrop = $("contribBackdrop");
+    const popTitle = $("popTitle");
+    const popClose = $("popClose");
+    const popSearch = $("popSearch");
+    const popMeta = $("popMeta");
+    const popList = $("popList");
 
     if (!pop || !backdrop || !popTitle || !popClose || !popSearch || !popMeta || !popList) return;
 
     const all = Array.isArray(ds.authors) ? ds.authors : [];
-    let active = all.slice();
+    const active = all.slice();
 
     function renderList(q) {
       const query = (q || "").trim().toLowerCase();
-      const rows = !query ? active : active.filter(p => {
-        const blob = `${authorDisplayName(p)} ${p.affiliation || ""}`.toLowerCase();
-        return blob.includes(query);
-      });
+      const rows = !query
+        ? active
+        : active.filter((p) => {
+            const blob = `${authorDisplayName(p)} ${p.affiliation || ""}`.toLowerCase();
+            return blob.includes(query);
+          });
 
       popMeta.textContent = `${rows.length} of ${active.length} shown`;
 
-      popList.innerHTML = rows.map(p => {
-        const nm = authorDisplayName(p) || "Contributor";
-        const aff = (p.affiliation || "").trim();
-        return `
-          <div class="dlp-contribRow" title="${escapeHtml(nm)} — ${escapeHtml(aff)}">
-            <div class="nm">${escapeHtml(nm)}</div>
-            <div class="aff">${escapeHtml(aff || "—")}</div>
-          </div>
-        `;
-      }).join("");
+      popList.innerHTML = rows
+        .map((p) => {
+          const nm = authorDisplayName(p) || "Contributor";
+          const aff = (p.affiliation || "").trim();
+          return `
+            <div class="dlp-contribRow" title="${escapeHtml(nm)} — ${escapeHtml(aff)}">
+              <div class="nm">${escapeHtml(nm)}</div>
+              <div class="aff">${escapeHtml(aff || "—")}</div>
+            </div>
+          `;
+        })
+        .join("");
     }
 
     function close() {
@@ -206,9 +224,257 @@ import { getRecord } from "/src/assets/js/shared-store.js";
     setTimeout(() => popSearch.focus(), 0);
   }
 
+  function datasetTypeLabel(value) {
+    const v = String(value || "").trim();
+    if (!v) return "—";
+    const opt = DATASET_TYPE_OPTIONS.find((o) => o.value === v);
+    if (opt) return opt.label;
+    // fall back: if it already looks like a label, keep it
+    return v;
+  }
+
+  function parseSubjects(ds) {
+    if (Array.isArray(ds.subjects) && ds.subjects.length) {
+      return ds.subjects.map((s) => String(s || "").trim()).filter(Boolean);
+    }
+
+    const csv = (ds.subjectsKeywords || "").trim();
+    if (csv) return csv.split(",").map((s) => s.trim()).filter(Boolean);
+    return [];
+  }
+
+  function parseKeywords(ds) {
+    if (Array.isArray(ds.keywords) && ds.keywords.length) {
+      return ds.keywords.map((k) => String(k || "").trim()).filter(Boolean);
+    }
+    // legacy: keywords sometimes stored in a single string
+    const csv = (ds.keywordsCsv || "").trim();
+    if (csv) return csv.split(",").map((s) => s.trim()).filter(Boolean);
+    return [];
+  }
+
+  function renderSubjectsAndKeywords(ds) {
+    const sec = $("sectionSubjects");
+    const host = $("dsSubjects");
+    if (!sec || !host) return;
+
+    const subjects = parseSubjects(ds);
+    const keywords = parseKeywords(ds);
+
+    if (!subjects.length && !keywords.length) {
+      sec.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+
+    const parts = [];
+    if (subjects.length) {
+      const links = subjects
+        .map((s) => {
+          const href = `/src/pages/search/index.html?subject=${encodeURIComponent(s)}`;
+          return `<a href="${href}">${escapeHtml(s)}</a>`;
+        })
+        .join(", ");
+      parts.push(`<div><strong>Subjects:</strong> ${links}</div>`);
+    }
+
+    if (keywords.length) {
+      const kw = keywords.map((k) => `<span class="usa-tag">${escapeHtml(k)}</span>`).join(" ");
+      parts.push(`<div class="margin-top-1"><strong>Keywords:</strong> ${kw}</div>`);
+    }
+
+    sec.hidden = false;
+    host.innerHTML = parts.join("");
+  }
+
+  function renderDescription(ds) {
+    const descEl = $("dsDescription");
+    if (!descEl) return;
+    const txt = String(ds.description || "").trim();
+    descEl.innerHTML = txt ? `<p>${escapeHtml(txt)}</p>` : `<p>No description available.</p>`;
+  }
+
+  function renderFunding(ds) {
+    const sec = $("sectionFunding");
+    const dl = $("fundingDl");
+    if (!sec || !dl) return;
+
+    // Pull values using schema paths
+    const rows = [
+      { key: "fundingInfo.doeContractNumber", label: "DOE Contract Number" },
+      { key: "fundingInfo.originatingResearchOrganization", label: "Originating Research Organization" },
+      { key: "fundingInfo.sponsoringOrganizations", label: "Sponsoring Organizations" },
+      { key: "fundingInfo.olcfProjectIdentifier", label: "OLCF Project Identifier" },
+      { key: "fundingInfo.otherContributingOrganizations", label: "Other Contributing Organizations" },
+      { key: "fundingInfo.otherContractNumbers", label: "Other Contract Number(s)" },
+      { key: "fundingInfo.otherIdentifyingNumbers", label: "Other Identifying Numbers" },
+    ];
+
+    // Back-compat fallback if fundingInfo is empty
+    const legacySponsor = ds.funding?.funderName || "";
+    const legacyContract = ds.funding?.awardNumber || "";
+
+    const html = rows
+      .map((r) => {
+        let val = getPath(ds, r.key);
+        val = String(val || "").trim();
+
+        // legacy fill
+        if (!val && r.key === "fundingInfo.sponsoringOrganizations") val = String(legacySponsor || "").trim();
+        if (!val && r.key === "fundingInfo.doeContractNumber") val = String(legacyContract || "").trim();
+
+        // Only show optional rows if they have values, but always show the 3 key items
+        const always = [
+          "fundingInfo.doeContractNumber",
+          "fundingInfo.originatingResearchOrganization",
+          "fundingInfo.sponsoringOrganizations",
+        ];
+
+        if (!val && !always.includes(r.key)) return "";
+
+        return `<dt>${escapeHtml(r.label)}</dt><dd>${escapeHtml(val || "—")}</dd>`;
+      })
+      .filter(Boolean)
+      .join("");
+
+    // If absolutely nothing is available, hide the section
+    const hasAny = !!String(getPath(ds, "fundingInfo.doeContractNumber") || legacyContract || "").trim() ||
+      !!String(getPath(ds, "fundingInfo.originatingResearchOrganization") || "").trim() ||
+      !!String(getPath(ds, "fundingInfo.sponsoringOrganizations") || legacySponsor || "").trim();
+
+    if (!hasAny) {
+      sec.hidden = true;
+      dl.innerHTML = "";
+      return;
+    }
+
+    sec.hidden = false;
+    dl.innerHTML = html;
+  }
+
+  function normalizeRelated(ds) {
+    // New schema uses relatedWork.{relatedIdentifier, relatedIdentifierType, relationType}
+    const rw = ds.relatedWork || {};
+    const id = String(rw.relatedIdentifier || "").trim();
+    const type = String(rw.relatedIdentifierType || "").trim();
+    const rel = String(rw.relationType || "").trim();
+
+    // Legacy array used by older demo builds
+    const legacy = Array.isArray(ds.related) ? ds.related : [];
+
+    const out = [];
+    if (id) out.push({ relatedIdentifier: id, relatedIdentifierType: type, relationType: rel });
+
+    legacy.forEach((r) => {
+      const doiVal = String(r?.doi || "").trim();
+      const urlVal = String(r?.url || "").trim();
+      if (doiVal) out.push({ relatedIdentifier: doiVal, relatedIdentifierType: "DOI", relationType: "Related" });
+      if (urlVal) out.push({ relatedIdentifier: urlVal, relatedIdentifierType: "URL", relationType: "Related" });
+    });
+
+    // Deduplicate
+    const seen = new Set();
+    return out.filter((r) => {
+      const k = `${r.relatedIdentifierType}|${r.relatedIdentifier}|${r.relationType}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  function isLikelyUrl(value) {
+    const v = String(value || "").trim();
+    return /^https?:\/\//i.test(v);
+  }
+
+  function isLikelyDoi(value) {
+    const v = String(value || "").trim();
+    return /^10\.\d{4,9}\//.test(v);
+  }
+
+  function renderRelated(ds) {
+    const sec = $("sectionRelated");
+    const list = $("relatedList");
+    if (!sec || !list) return;
+
+    const items = normalizeRelated(ds);
+    if (!items.length) {
+      sec.hidden = true;
+      list.innerHTML = "";
+      return;
+    }
+
+    sec.hidden = false;
+    list.innerHTML = items
+      .map((r) => {
+        const id = String(r.relatedIdentifier || "").trim();
+        const type = String(r.relatedIdentifierType || "").trim();
+        const rel = String(r.relationType || "").trim();
+
+        let href = "";
+        if (type.toLowerCase() === "doi" || isLikelyDoi(id)) href = `https://doi.org/${id}`;
+        if (!href && isLikelyUrl(id)) href = id;
+
+        const label = rel ? `${rel}: ` : "";
+        const link = href
+          ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(id)}</a>`
+          : escapeHtml(id);
+
+        return `<li>${escapeHtml(label)}${link}</li>`;
+      })
+      .join("");
+  }
+
+  function renderAcknowledgements(ds) {
+    const sec = $("sectionAck");
+    const main = $("dsAckMain");
+    const aside = $("dsAck");
+    const ack = String(ds.ack || "").trim();
+
+    if (aside) aside.textContent = ack;
+    if (!sec || !main) return;
+
+    if (!ack) {
+      sec.hidden = true;
+      main.innerHTML = "";
+      return;
+    }
+
+    sec.hidden = false;
+    main.innerHTML = `<p>${escapeHtml(ack)}</p>`;
+  }
+
+  function renderDetailsCards(ds) {
+    // DOI + dates
+    $("dsDoi").textContent = ds.doi || "—";
+    $("dsRelease").textContent = formatLongDate(ds.createdAt || ds.updatedAt || "");
+    $("crumbDoi").textContent = ds.doi || "—";
+
+    // Subjects sidebar list
+    const subjectsList = parseSubjects(ds);
+    const catsEl = $("dsCategories");
+    if (catsEl) {
+      catsEl.innerHTML =
+        subjectsList
+          .map((s) => {
+            const href = `/src/pages/search/index.html?subject=${encodeURIComponent(s)}`;
+            return `<a href="${href}">${escapeHtml(s)}</a>`;
+          })
+          .join(", ") || "—";
+    }
+
+    // Dataset card values
+    const typeLabel = datasetTypeLabel(ds.datasetType);
+    $("dsType").textContent = typeLabel;
+    $("dsSize").textContent = ds.datasetSizeLabel || "—";
+    $("dsSoftware").textContent = String(ds.softwareNeeded || ds.software || "").trim() || "—";
+  }
+
   function citationForStyle(ds, style) {
     const baseDate = ds.releaseISO || ds.createdAt || ds.updatedAt;
-    const year = baseDate ? new Date(baseDate.includes("T") ? baseDate : `${baseDate}T00:00:00`).getFullYear() : "";
+    const year = baseDate
+      ? new Date(baseDate.includes("T") ? baseDate : `${baseDate}T00:00:00`).getFullYear()
+      : "";
 
     const authors = (Array.isArray(ds.authors) ? ds.authors : [])
       .slice(0, 5)
@@ -279,112 +545,19 @@ import { getRecord } from "/src/assets/js/shared-store.js";
   }
 
   function showToast() {
-    const toast = document.getElementById("copyToast");
+    const toast = $("copyToast");
     if (!toast) return;
     toast.hidden = false;
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => { toast.hidden = true; }, 1400);
+    showToast._t = setTimeout(() => {
+      toast.hidden = true;
+    }, 1400);
   }
 
-  function getUrlParams() {
-    const params = new URLSearchParams(window.location.search);
-    return {
-      doi: (params.get("doi") || "").trim(),
-      preview: (params.get("preview") || "").trim() === "1"
-    };
-  }
-
-  function init() {
-    const { doi, preview } = getUrlParams();
-
-    const banner = document.getElementById("previewBanner");
-    if (banner) banner.hidden = !preview;
-
-    if (!doi) {
-      document.getElementById("dsTitle").textContent = "No DOI provided";
-      document.getElementById("crumbDoi").textContent = "Invalid";
-      return;
-    }
-
-    // Load real record; if missing, attempt demo mock
-    let ds = getRecord(doi);
-    if (!ds) ds = getDemoMockByDoi(doi);
-
-    if (!ds) {
-      document.getElementById("dsTitle").textContent = "Dataset not found";
-      document.getElementById("crumbDoi").textContent = doi;
-      return;
-    }
-
-    document.getElementById("dsTitle").textContent = ds.title || "Untitled Dataset";
-    document.getElementById("crumbDoi").textContent = ds.doi || doi;
-
-    document.getElementById("dsDoi").textContent = ds.doi || doi;
-    document.getElementById("dsRelease").textContent = formatLongDate(ds.createdAt || ds.updatedAt || "");
-
-    // Subjects (links to search via ?subject=)
-    const subjectsList = parseSubjects(ds);
-    const catsEl = document.getElementById("dsCategories"); // id kept for now
-    if (catsEl) {
-      catsEl.innerHTML = subjectsList.map(s => {
-        const href = `/src/pages/search/index.html?subject=${encodeURIComponent(s)}`;
-        return `<a href="${href}">${escapeHtml(s)}</a>`;
-      }).join(", ") || "—";
-    }
-
-    document.getElementById("dsType").textContent = ds.datasetType || "—";
-    document.getElementById("dsSize").textContent = ds.datasetSizeLabel || "—";
-    document.getElementById("dsSoftware").textContent = ds.software || "—";
-
-    const descEl = document.getElementById("dsDescription");
-    if (descEl) {
-      const txt = (ds.description || "").trim();
-      descEl.innerHTML = txt ? `<p>${escapeHtml(txt)}</p>` : `<p>No description available</p>`;
-    }
-
-    const sponsor = ds.fundingInfo?.sponsoringOrganizations || ds.funding?.funderName || "—";
-    const contract = ds.fundingInfo?.doeContractNumber || ds.funding?.awardNumber || "—";
-    const org = ds.fundingInfo?.originatingResearchOrganization || "—";
-
-    document.getElementById("fundingContract").textContent = contract;
-    document.getElementById("fundingOrg").textContent = org;
-    document.getElementById("fundingSponsor").textContent = sponsor;
-
-    const rEl = document.getElementById("relatedList");
-    if (rEl) {
-      const rel = Array.isArray(ds.related) ? ds.related : [];
-      rEl.innerHTML =
-        rel.map(r => {
-          const doiVal = (r.doi || "").trim();
-          const urlVal = (r.url || "").trim();
-          if (doiVal) {
-            const href = `https://doi.org/${doiVal}`;
-            return `<li>DOI: <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(doiVal)}</a></li>`;
-          }
-          if (urlVal) {
-            return `<li>URL: <a href="${escapeHtml(urlVal)}" target="_blank" rel="noopener noreferrer">${escapeHtml(urlVal)}</a></li>`;
-          }
-          return "";
-        }).filter(Boolean).join("") || "<li>No related resources</li>";
-    }
-
-    document.getElementById("dsAck").textContent = ds.ack || "";
-
-    renderAuthors(ds);
-
-    const authorHost = document.getElementById("dsAuthors");
-    if (authorHost) {
-      authorHost.addEventListener("click", (e) => {
-        const a = e.target.closest("#moreContribs");
-        if (!a) return;
-        e.preventDefault();
-        openContribPopover(ds, a);
-      });
-    }
-
-    const citeTextEl = document.getElementById("citeText");
-    const citeStyleEl = document.getElementById("citeStyle");
-    const copyBtn = document.getElementById("copyCite");
+  function initCitation(ds) {
+    const citeTextEl = $("citeText");
+    const citeStyleEl = $("citeStyle");
+    const copyBtn = $("copyCite");
 
     function updateCitation() {
       const style = (citeStyleEl?.value || "apa").toLowerCase();
@@ -403,12 +576,14 @@ import { getRecord } from "/src/assets/js/shared-store.js";
     }
 
     updateCitation();
+  }
 
-    document.getElementById("downloadBtn")?.addEventListener("click", () => {
+  function initActions(ds) {
+    $("downloadBtn")?.addEventListener("click", () => {
       alert("Download via Globus (demo) — integration coming soon.");
     });
 
-    document.getElementById("starBtn")?.addEventListener("click", (e) => {
+    $("starBtn")?.addEventListener("click", (e) => {
       const icon = e.currentTarget.querySelector("i");
       if (icon) {
         const isSaved = icon.classList.contains("fa-solid");
@@ -417,7 +592,59 @@ import { getRecord } from "/src/assets/js/shared-store.js";
       }
     });
 
+    const authorHost = $("dsAuthors");
+    if (authorHost) {
+      authorHost.addEventListener("click", (e) => {
+        const a = e.target.closest("#moreContribs");
+        if (!a) return;
+        e.preventDefault();
+        openContribPopover(ds, a);
+      });
+    }
+  }
+
+  function shouldShowPreviewBanner(ds, previewParam) {
+    if (previewParam) return true;
+    if (ds?._isDemo) return false;
+    const status = String(ds?.status || "").trim();
+    return status && status !== "Published";
+  }
+
+  function init() {
+    const { doi, preview } = getUrlParams();
+
+    if (!doi) {
+      $("dsTitle").textContent = "No DOI provided";
+      $("crumbDoi").textContent = "Invalid";
+      return;
+    }
+
+    // Load real record; if missing, attempt demo mock
+    let ds = getRecord(doi);
+    if (!ds) ds = getDemoMockByDoi(doi);
+
+    if (!ds) {
+      $("dsTitle").textContent = "Dataset not found";
+      $("crumbDoi").textContent = doi;
+      return;
+    }
+
+    // Title + head
+    $("dsTitle").textContent = ds.title || "Untitled Dataset";
     document.title = `${ds.title || "Dataset"} — Constellation`;
+
+    const banner = $("previewBanner");
+    if (banner) banner.hidden = !shouldShowPreviewBanner(ds, preview);
+
+    renderDetailsCards(ds);
+    renderAuthors(ds);
+    renderDescription(ds);
+    renderSubjectsAndKeywords(ds);
+    renderFunding(ds);
+    renderRelated(ds);
+    renderAcknowledgements(ds);
+    initCitation(ds);
+    initActions(ds);
   }
 
   init();
