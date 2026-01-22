@@ -1,14 +1,15 @@
 // search.js - Subjects + Always-on demo mocks
 
 import { getAllRecords } from "/src/assets/js/shared-store.js";
-import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src/assets/js/demo-datasets.js";
+import { makeDemoDataset } from "/src/assets/js/demo-datasets.js";
 
 (() => {
   // ──────────────────────────────────────────────────────────────
   // Demo mocks (always included)
   // ──────────────────────────────────────────────────────────────
   const SHOW_DEMO_MOCKS = true;
-  const DEMO_MOCK_COUNT = DEMO_COUNT_FROM_MODULE;
+  const DEMO_MOCK_COUNT = 10;
+  const DEMO_DOI_BASE = 1400000; // 10.13139/ORNLNCCS/1400000 + i
 
   function mulberry32(seed){
     let t = seed >>> 0;
@@ -88,6 +89,56 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     return copy.slice(0, n);
   }
 
+  function makeDemoMock(i){
+    // Pull the canonical demo record so Homepage/Search/Dataset all match.
+    const rich = makeDemoDataset(i);
+    const suffix = DEMO_DOI_BASE + i;
+    const doi = rich.doi;
+
+    // Use publishedAt/createdAt for display
+    const dateISO = String(rich.publishedAt || rich.createdAt || "").slice(0, 10) || new Date().toISOString().slice(0, 10);
+    const dateObj = new Date(dateISO + "T00:00:00");
+
+    // Derive an approximate "file type" from the first uploaded file
+    const firstName = rich.uploadedFiles?.[0]?.name || "";
+    const extRaw = (String(firstName).split(".").pop() || "").toLowerCase();
+    const extMap = { h5: "HDF5", hdf5: "HDF5", nc: "NetCDF", netcdf: "NetCDF", csv: "CSV", parquet: "Parquet", json: "JSON", vtk: "VTK", zarr: "Zarr" };
+    const fileType = extMap[extRaw] || (extRaw ? extRaw.toUpperCase() : "Unknown");
+
+    // Derive dataset size from the label (e.g., "12.3 GB")
+    const sizeGB = (() => {
+      const m = String(rich.datasetSizeLabel || "").match(/([0-9]+(?:\.[0-9]+)?)\s*GB/i);
+      return m ? Number(m[1]) : 0;
+    })();
+
+    const subject = Array.isArray(rich.subjects) && rich.subjects.length ? rich.subjects[0] : "Unspecified";
+
+    return {
+      id: `demo-${suffix}`,
+      _isDemo: true,
+
+      // Common fields used by search
+      title: rich.title || `Fallback Mock Dataset ${i + 1}`,
+      doi,
+      landingUrl: `/src/pages/dataset/index.html?doi=${encodeURIComponent(doi)}`,
+      dateISO,
+      dateLabel: dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+      subject,
+      fileType,
+      datasetFiles: {
+        count: Array.isArray(rich.uploadedFiles) ? rich.uploadedFiles.length : 0,
+        sizeGB: Number.isFinite(sizeGB) ? sizeGB : 0,
+      },
+      keywords: Array.isArray(rich.keywords) ? rich.keywords.slice(0, 6) : [],
+      contributors: (rich.authors || []).map((a) => ({
+        first: a.firstName || a.first || "",
+        last: a.lastName || a.last || "",
+        affil: a.affiliation || a.affil || "",
+      })),
+      status: "Published",
+    };
+  }
+
   function parseSubjectsFromRecord(r){
     // Subjects and Keywords are separate concepts. Subjects come from r.subjects (array)
     // or legacy r.subjectsKeywords (CSV). Do not fall back to r.keywords here.
@@ -144,38 +195,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   const seenDoi = new Set(realRecords.map(r => r.doi));
 
   const demoMocks = SHOW_DEMO_MOCKS
-    ? Array.from({ length: DEMO_MOCK_COUNT }, (_, i) => {
-        const d = makeDemoDataset(i);
-
-        // Map the rich demo record shape into the lightweight search row shape
-        const created = d.publishedAt || d.createdAt || Date.now();
-        const dateObj = new Date(created);
-
-        const sizeGB = (() => {
-          const m = String(d.datasetSizeLabel || "").match(/([0-9]+(?:\.[0-9]+)?)/);
-          return m ? Number(m[1]) : 0;
-        })();
-
-        return {
-          ...d,
-          id: d.doi,
-          dateISO: String(created).slice(0, 10),
-          dateLabel: dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-          subject: getPrimarySubject(d),
-          fileType: d.datasetType || "ND",
-          datasetFiles: {
-            count: Array.isArray(d.uploadedFiles) ? d.uploadedFiles.length : 0,
-            sizeGB: Number.isFinite(sizeGB) ? sizeGB : 0
-          },
-          keywords: parseKeywordsFromRecord(d),
-          contributors: (d.authors || []).map(a => ({
-            first: a.first || a.firstName || "",
-            last: a.last || a.lastName || "",
-            affil: a.affil || a.affiliation || ""
-          })),
-          landingUrl: `/src/pages/dataset/index.html?doi=${encodeURIComponent(d.doi)}`
-        };
-      }).filter(m => !seenDoi.has(m.doi))
+    ? Array.from({ length: DEMO_MOCK_COUNT }, (_, i) => makeDemoMock(i)).filter(m => !seenDoi.has(m.doi))
     : [];
 
   const allResults = [...realRecords, ...demoMocks];
@@ -240,9 +260,6 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     page: 1
   };
 
-  // Track “See more / less” expansion state for long facet lists
-  const facetExpanded = new Set();
-
   let activeContribs = [];
   let lastFocus = null;
 
@@ -262,160 +279,39 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
 
   function readUrlParams(){
     const params = new URLSearchParams(window.location.search);
-
     const q = (params.get("q") || "").trim();
 
-    // Years: allow repeated (?year=2024&year=2023) or comma-separated (?year=2024,2023)
-    const yearAll = params.getAll("year").map(s => (s || "").trim()).filter(Boolean);
-    const yearSingle = (params.get("year") || "").trim();
-    const years = yearAll.length
-      ? yearAll
-      : (yearSingle ? yearSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
+    // subject is new; accept category as a backward-compatible alias
+    const subject = (params.get("subject") || params.get("category") || "").trim();
 
-    // Subjects: allow repeated (?subject=A&subject=B) and accept category as an alias (single)
-    const subjectAll = params.getAll("subject").map(s => (s || "").trim()).filter(Boolean);
-    const subjectAlias = (params.get("category") || "").trim();
-    const subjectsParam = subjectAll.length ? subjectAll : [];
-    if(subjectAlias) subjectsParam.push(subjectAlias);
-
-    // File Types: allow repeated (?type=CSV&type=HDF5) or comma-separated
-    const typeAll = params.getAll("type").map(s => (s || "").trim()).filter(Boolean);
-    const typeSingle = (params.get("type") || "").trim();
-    const types = typeAll.length
-      ? typeAll
-      : (typeSingle ? typeSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
-
-    // Keywords: allow repeated (?keyword=HPC&keyword=AI) or comma-separated (?keyword=HPC,AI)
+    // keyword can be repeated (?keyword=HPC&keyword=AI) or comma-separated (?keyword=HPC,AI)
     const keywordAll = params.getAll("keyword").map(s => (s || "").trim()).filter(Boolean);
     const keywordSingle = (params.get("keyword") || "").trim();
     const keywords = keywordAll.length
       ? keywordAll
       : (keywordSingle ? keywordSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
 
-    const sort = (params.get("sort") || "").trim();
-    const perPage = (params.get("perPage") || "").trim();
-    const page = (params.get("page") || "").trim();
-
-    return {
-      q,
-      years,
-      subjects: subjectsParam,
-      types,
-      keywords,
-      sort,
-      perPage,
-      page
-    };
+    return { q, subject, keywords };
   }
 
-    // URL <-> state sync
-  let suppressUrlSync = false;
-
   function applyUrlParams(){
-    const { q, years, subjects: sub, types, keywords, sort, perPage, page } = readUrlParams();
-
-    // Reset state first
-    state.q = "";
-    state.years.clear();
-    state.subjects.clear();
-    state.types.clear();
-    state.keywords.clear();
-    state.sort = "relevance";
-    state.perPage = 10;
-    state.page = 1;
+    const { q, subject, keywords } = readUrlParams();
 
     if(q){
       state.q = q;
       qEl.value = q;
-    } else {
-      qEl.value = "";
     }
 
-    // Years are derived from data; accept any value (so shared URLs always hydrate),
-    // but only add 4-digit-looking years for sanity.
-    (years || []).forEach(y => {
-      const yy = String(y || "").trim();
-      if(yy) state.years.add(yy);
-    });
-
-    // Subjects are from a known list; only apply if we recognize them (prevents weird URLs)
-    (sub || []).forEach(s => {
-      const ss = String(s || "").trim();
-      if(ss && subjects.includes(ss)) state.subjects.add(ss);
-    });
-
-    // Types are dynamic based on file types list; accept any
-    (types || []).forEach(t => {
-      const tt = String(t || "").trim();
-      if(tt) state.types.add(tt);
-    });
+    if(subject && subjects.includes(subject)){
+      state.subjects.add(subject);
+    }
 
     // Keywords are dynamic; accept any value so shared URLs always hydrate.
     (keywords || []).forEach(k => {
-      const kk = String(k || "").trim();
-      if(kk) state.keywords.add(kk);
+      if(k) state.keywords.add(k);
     });
 
-    if(sort){
-      state.sort = sort;
-      if(sortEl) sortEl.value = sort;
-    } else {
-      if(sortEl) sortEl.value = "relevance";
-    }
-
-    if(perPage){
-      const v = perPage.toLowerCase();
-      state.perPage = (v === "all") ? Infinity : Number(perPage);
-      if(perPageEl) perPageEl.value = (v === "all") ? "all" : String(Number(perPage) || 10);
-    } else {
-      state.perPage = 10;
-      if(perPageEl) perPageEl.value = "10";
-    }
-
-    if(page){
-      const p = Number(page);
-      if(Number.isFinite(p) && p >= 1) state.page = Math.floor(p);
-    } else {
-      state.page = 1;
-    }
-
     syncSearchClearVisibility();
-  }
-
-  function stateToSearchParams(){
-    const params = new URLSearchParams();
-
-    const q = (state.q || "").trim();
-    if(q) params.set("q", q);
-
-    // Use repeated params for multi-select facets
-    Array.from(state.years).sort((a,b) => String(b).localeCompare(String(a))).forEach(y => params.append("year", y));
-    Array.from(state.subjects).sort((a,b) => String(a).localeCompare(String(b))).forEach(s => params.append("subject", s));
-    Array.from(state.types).sort((a,b) => String(a).localeCompare(String(b))).forEach(t => params.append("type", t));
-    Array.from(state.keywords).sort((a,b) => String(a).localeCompare(String(b))).forEach(k => params.append("keyword", k));
-
-    if(state.sort && state.sort !== "relevance") params.set("sort", state.sort);
-
-    if(state.perPage === Infinity) params.set("perPage", "all");
-    else if(state.perPage && state.perPage !== 10) params.set("perPage", String(state.perPage));
-
-    if(state.page && state.page !== 1) params.set("page", String(state.page));
-
-    return params;
-  }
-
-  function syncUrlFromState(mode = "replace"){
-    if(suppressUrlSync) return;
-    const params = stateToSearchParams();
-    const qs = params.toString();
-    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-
-    // Avoid redundant history operations
-    const current = window.location.pathname + window.location.search;
-    if(current === url) return;
-
-    if(mode === "push") window.history.pushState({}, "", url);
-    else window.history.replaceState({}, "", url);
   }
 
   function matchesSearch(r, q){
@@ -472,68 +368,6 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
       cb.addEventListener("change", (e) => onChange(e.target.value, e.target.checked));
     });
-  }
-
-
-  function applyFacetLimit(listEl, key, limit){
-    if(!listEl) return;
-
-    const expanded = facetExpanded.has(key);
-
-    const items = Array.from(listEl.querySelectorAll(".usa-checkbox"));
-    const needsToggle = items.length > limit;
-
-    // Hide or show items beyond limit
-    items.forEach((el, idx) => {
-      if(!needsToggle) {
-        el.classList.remove("facetHidden");
-        return;
-      }
-      const hide = !expanded && idx >= limit;
-      el.classList.toggle("facetHidden", hide);
-    });
-
-    // Create or update toggle control
-    let wrap = listEl.parentElement?.querySelector(`[data-facet-toggle="${key}"]`);
-    if(needsToggle){
-      if(!wrap){
-        wrap = document.createElement("div");
-        wrap.className = "facetToggleWrap";
-        wrap.setAttribute("data-facet-toggle", key);
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "usa-button usa-button--unstyled facetToggle";
-        btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-        btn.textContent = expanded ? "See less" : "See more";
-
-        btn.addEventListener("click", () => {
-          if(facetExpanded.has(key)) facetExpanded.delete(key);
-          else facetExpanded.add(key);
-          // Re-render facets in-place
-          renderFacets();
-        });
-
-        wrap.appendChild(btn);
-        listEl.insertAdjacentElement("afterend", wrap);
-      } else {
-        const btn = wrap.querySelector("button");
-        if(btn){
-          btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-          btn.textContent = expanded ? "See less" : "See more";
-        }
-      }
-    } else {
-      // No toggle needed; remove any previous toggle.
-      if(wrap) wrap.remove();
-    }
-  }
-
-  function renderFacetUSWDSLimited(listEl, values, selectedSet, onChange, sortMode, opts){
-    renderFacetUSWDS(listEl, values, selectedSet, onChange, sortMode);
-    const limit = (opts && Number(opts.limit)) || 6;
-    const key = (opts && opts.key) || listEl?.id || "facet";
-    applyFacetLimit(listEl, key, limit);
   }
 
   function scoreResult(r, q){
@@ -649,7 +483,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
 
     state.page = 1;
     renderFacets();
-    update({ history: "push" });
+    update();
   });
 
   function contributorsSummaryHTML(result){
@@ -793,7 +627,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     if(Number.isNaN(nextPage)) return;
 
     state.page = nextPage;
-    update({ history: "push" });
+    update();
   });
 
   function renderResults(rows, pageInfo){
@@ -876,20 +710,20 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
       if(!keys.some(x => x.value === k)) keys.push({ value: k, count: 0 });
     });
 
-    const onYear = (val, checked) => { checked ? state.years.add(val) : state.years.delete(val); state.page = 1; update({ history: "push" }); };
-    const onSub  = (val, checked) => { checked ? state.subjects.add(val) : state.subjects.delete(val); state.page = 1; update({ history: "push" }); };
-    const onType = (val, checked) => { checked ? state.types.add(val) : state.types.delete(val); state.page = 1; update({ history: "push" }); };
-    const onKey  = (val, checked) => { checked ? state.keywords.add(val) : state.keywords.delete(val); state.page = 1; update({ history: "push" }); };
+    const onYear = (val, checked) => { checked ? state.years.add(val) : state.years.delete(val); state.page = 1; update(); };
+    const onSub  = (val, checked) => { checked ? state.subjects.add(val) : state.subjects.delete(val); state.page = 1; update(); };
+    const onType = (val, checked) => { checked ? state.types.add(val) : state.types.delete(val); state.page = 1; update(); };
+    const onKey  = (val, checked) => { checked ? state.keywords.add(val) : state.keywords.delete(val); state.page = 1; update(); };
 
-    renderFacetUSWDSLimited(yearListEl, years, state.years, onYear, "yearDesc", { limit: 6, key: "year-d" });
-    renderFacetUSWDSLimited(catListEl, subs, state.subjects, onSub, undefined, { limit: 6, key: "subject-d" });
-    if(keywordListEl) renderFacetUSWDSLimited(keywordListEl, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-d" });
-    renderFacetUSWDSLimited(typeListEl, types, state.types, onType, undefined, { limit: 6, key: "type-d" });
+    renderFacetUSWDS(yearListEl, years, state.years, onYear, "yearDesc");
+    renderFacetUSWDS(catListEl, subs, state.subjects, onSub);
+    if(keywordListEl) renderFacetUSWDS(keywordListEl, keys, state.keywords, onKey);
+    renderFacetUSWDS(typeListEl, types, state.types, onType);
 
-    renderFacetUSWDSLimited(yearListM, years, state.years, onYear, "yearDesc", { limit: 6, key: "year-m" });
-    renderFacetUSWDSLimited(catListM, subs, state.subjects, onSub, undefined, { limit: 6, key: "subject-m" });
-    if(keywordListM) renderFacetUSWDSLimited(keywordListM, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-m" });
-    renderFacetUSWDSLimited(typeListM, types, state.types, onType, undefined, { limit: 6, key: "type-m" });
+    renderFacetUSWDS(yearListM, years, state.years, onYear, "yearDesc");
+    renderFacetUSWDS(catListM, subs, state.subjects, onSub);
+    if(keywordListM) renderFacetUSWDS(keywordListM, keys, state.keywords, onKey);
+    renderFacetUSWDS(typeListM, types, state.types, onType);
   }
 
 
@@ -966,7 +800,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     if(lastDrawerFocus && typeof lastDrawerFocus.focus === "function") lastDrawerFocus.focus();
   }
 
-  function update(opts = {}){
+  function update(){
     const filtered = sortResults(applyFilters());
     const pageInfo = paginate(filtered);
 
@@ -975,8 +809,6 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     renderPager(pageInfo.totalPages);
 
     if(!pop.hidden) closePopover();
-
-    syncUrlFromState(opts.history || "replace");
   }
 
   function clearAll(){
@@ -991,7 +823,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     syncSearchClearVisibility();
 
     renderFacets();
-    update({ history: "push" });
+    update();
   }
 
   let t = null;
@@ -1015,7 +847,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
 
     syncSearchClearVisibility();
     renderFacets();
-    update({ history: "push" });
+    update();
 
     qEl.focus();
   });
@@ -1029,14 +861,14 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   sortEl.addEventListener("change", () => {
     state.sort = sortEl.value;
     state.page = 1;
-    update({ history: "push" });
+    update();
   });
 
   perPageEl.addEventListener("change", () => {
     const v = perPageEl.value;
     state.perPage = (v === "all") ? Infinity : Number(v);
     state.page = 1;
-    update({ history: "push" });
+    update();
   });
 
   if(clearBtn) clearBtn.addEventListener("click", clearAll);
@@ -1098,15 +930,6 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     state.perPage = 10;
 
     applyUrlParams();
-
-    window.addEventListener("popstate", () => {
-      suppressUrlSync = true;
-      applyUrlParams();
-      renderFacets();
-      syncFacetCheckboxes();
-      update();
-      suppressUrlSync = false;
-    });
 
     wireSectionToggles(document);
 

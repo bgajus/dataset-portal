@@ -37,7 +37,46 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
 
     activityEmpty: $("dashActivityEmpty"),
     activityList: $("dashActivity"),
+
+    // User profile (avatar + name)
+    dashAvatar: $("dashAvatar"),
+    dashAvatarImg: $("dashAvatarImg"),
+    dashAvatarInitials: $("dashAvatarInitials"),
+    dashUserName: $("dashUserName"),
   };
+
+  function applyUserProfile() {
+    try {
+      const profile = window.DatasetPortal?.getUserProfile?.();
+      if (!profile) return;
+      const first = String(profile.firstName || "").trim();
+      const last = String(profile.lastName || "").trim();
+      const initials = `${first ? first[0].toUpperCase() : ""}${last ? last[0].toUpperCase() : ""}` || "??";
+
+      // Avatar photo fallback to initials
+      const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
+      if (hasAvatar && els.dashAvatarImg) {
+        els.dashAvatarImg.src = profile.avatarDataUrl;
+        els.dashAvatarImg.alt = `${first} ${last}`.trim() || "User avatar";
+        els.dashAvatarImg.hidden = false;
+        if (els.dashAvatarInitials) els.dashAvatarInitials.hidden = true;
+      } else {
+        if (els.dashAvatarImg) {
+          els.dashAvatarImg.removeAttribute("src");
+          els.dashAvatarImg.alt = "";
+          els.dashAvatarImg.hidden = true;
+        }
+        if (els.dashAvatarInitials) {
+          els.dashAvatarInitials.textContent = initials;
+          els.dashAvatarInitials.hidden = false;
+        }
+      }
+
+      if (els.dashUserName) els.dashUserName.textContent = first || "there";
+    } catch (e) {
+      // no-op for demo
+    }
+  }
 
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (s) => ({
@@ -259,6 +298,7 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   });
 
   // Init
+  applyUserProfile();
   syncStats();
   renderActivity();
 

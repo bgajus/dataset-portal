@@ -113,7 +113,7 @@
   flex-wrap: wrap;
 }
 
-/* Draft chip */
+/* Record status chip */
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -121,10 +121,16 @@
   border-radius: 999px;
   font-size: 0.9rem;
   font-weight: 600;
-  background: #119bf1;
+  background: #119bf1; /* default (Draft) */
   color: #fff;
   white-space: nowrap;
 }
+
+/* Color-coded states */
+.status-chip[data-status="draft"] { background: #119bf1; }
+.status-chip[data-status="in-review"] { background: #f59a00; }
+.status-chip[data-status="needs-updates"] { background: #b50909; }
+.status-chip[data-status="published"] { background: #2e8540; }
 .started-on { color: #565c65; white-space: nowrap; }
 
 /* Divider */
@@ -196,6 +202,52 @@
 .acc-status[data-state="complete"] { background: var(--chip-bg-complete); color: var(--chip-text-complete); }
 .acc-status[data-state="neutral"] { background: var(--chip-bg-neutral); color: var(--chip-text-neutral); }
 
+/* Chip styles (used inside .acc-status for clickable Missing chips) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+
+  /* Reset default button styling (since Missing is a button) */
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.2;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+button.chip {
+  cursor: pointer;
+}
+
+button.chip:focus,
+button.chip:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+.chip--missing {
+  background: var(--chip-bg-incomplete);
+  color: var(--chip-text-incomplete);
+}
+
+.chip--complete {
+  background: var(--chip-bg-complete);
+  color: var(--chip-text-complete);
+}
+
+.chip--neutral {
+  background: var(--chip-bg-neutral);
+  color: var(--chip-text-neutral);
+}
+
 /* Upload panel */
 .uploaded-panel {
   border: 1px solid #dfe1e2;
@@ -265,3 +317,12 @@
   color: #565c65;
 }
 .modal-close:hover { color: #1b1b1b; }
+
+/* Disable styles for <a> buttons (e.g., Upload with Globus) when record is locked */
+.usa-button.is-disabled,
+a.usa-button.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  text-decoration: none;
+}

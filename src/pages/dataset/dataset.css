@@ -194,6 +194,33 @@
   text-decoration-thickness: 2px;
 }
 
+/* Keywords chips (Details card) */
+.dlp-keywords{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .15rem;
+}
+
+.dlp-keywordChip{
+  display: inline-flex;
+  align-items: center;
+  padding: .28rem .6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(88,65,153,.30);
+  background: rgba(88,65,153,.06);
+  color: var(--brand);
+  font-size: .85rem;
+  font-weight: 750;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.dlp-keywordsEmpty{
+  color: var(--dlp-muted);
+  font-weight: 650;
+}
+
 /* Citation */
 .dlp-citeBox{
   border: 1px solid var(--dlp-border);

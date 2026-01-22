@@ -297,6 +297,14 @@ body[data-auth="false"] [data-requires-auth="true"]{
   background: var(--brand);
   color: #fff;
   border: none;
+  /*
+    Keep avatar rendering stable whether we show an <img> or initials.
+    We position both layers absolutely so we never end up with a "split" circle
+    if the browser overrides the native [hidden] styling.
+  */
+  position: relative;
+  overflow: hidden;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -309,8 +317,30 @@ body[data-auth="false"] [data-requires-auth="true"]{
 }
 
 .portal-avatar__initials{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+/* Avatar image support (Settings page upload) */
+.portal-avatar__img{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Defensive: don't let author CSS override the native [hidden] behavior */
+.portal-avatar__img[hidden],
+.portal-avatar__initials[hidden]{
+  display: none !important;
 }
 
 .portal-authnav{
