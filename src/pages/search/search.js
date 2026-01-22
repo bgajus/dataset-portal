@@ -292,6 +292,9 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     page: 1
   };
 
+  // Track “See more / less” expansion state for long facet lists
+  const facetExpanded = new Set();
+
   let activeContribs = [];
   let lastFocus = null;
 
@@ -400,6 +403,68 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
       cb.addEventListener("change", (e) => onChange(e.target.value, e.target.checked));
     });
+  }
+
+
+  function applyFacetLimit(listEl, key, limit){
+    if(!listEl) return;
+
+    const expanded = facetExpanded.has(key);
+
+    const items = Array.from(listEl.querySelectorAll(".usa-checkbox"));
+    const needsToggle = items.length > limit;
+
+    // Hide or show items beyond limit
+    items.forEach((el, idx) => {
+      if(!needsToggle) {
+        el.classList.remove("facetHidden");
+        return;
+      }
+      const hide = !expanded && idx >= limit;
+      el.classList.toggle("facetHidden", hide);
+    });
+
+    // Create or update toggle control
+    let wrap = listEl.parentElement?.querySelector(`[data-facet-toggle="${key}"]`);
+    if(needsToggle){
+      if(!wrap){
+        wrap = document.createElement("div");
+        wrap.className = "facetToggleWrap";
+        wrap.setAttribute("data-facet-toggle", key);
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "usa-button usa-button--unstyled facetToggle";
+        btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+        btn.textContent = expanded ? "See less" : "See more";
+
+        btn.addEventListener("click", () => {
+          if(facetExpanded.has(key)) facetExpanded.delete(key);
+          else facetExpanded.add(key);
+          // Re-render facets in-place
+          renderFacets();
+        });
+
+        wrap.appendChild(btn);
+        listEl.insertAdjacentElement("afterend", wrap);
+      } else {
+        const btn = wrap.querySelector("button");
+        if(btn){
+          btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+          btn.textContent = expanded ? "See less" : "See more";
+        }
+      }
+    } else {
+      // No toggle needed; remove any previous toggle.
+      if(wrap) wrap.remove();
+    }
+  }
+
+  function renderFacetUSWDSLimited(listEl, values, selectedSet, onChange, sortMode, opts){
+    renderFacetUSWDS(listEl, values, selectedSet, onChange, sortMode);
+    const limit = (opts && Number(opts.limit)) || 6;
+    const key = (opts && opts.key) || listEl?.id || "facet";
+    applyFacetLimit(listEl, key, limit);
   }
 
   function scoreResult(r, q){
@@ -747,15 +812,15 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     const onType = (val, checked) => { checked ? state.types.add(val) : state.types.delete(val); state.page = 1; update(); };
     const onKey  = (val, checked) => { checked ? state.keywords.add(val) : state.keywords.delete(val); state.page = 1; update(); };
 
-    renderFacetUSWDS(yearListEl, years, state.years, onYear, "yearDesc");
-    renderFacetUSWDS(catListEl, subs, state.subjects, onSub);
-    if(keywordListEl) renderFacetUSWDS(keywordListEl, keys, state.keywords, onKey);
-    renderFacetUSWDS(typeListEl, types, state.types, onType);
+    renderFacetUSWDSLimited(yearListEl, years, state.years, onYear, "yearDesc", { limit: 6, key: "year-d" });
+    renderFacetUSWDSLimited(catListEl, subs, state.subjects, onSub, undefined, { limit: 6, key: "subject-d" });
+    if(keywordListEl) renderFacetUSWDSLimited(keywordListEl, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-d" });
+    renderFacetUSWDSLimited(typeListEl, types, state.types, onType, undefined, { limit: 6, key: "type-d" });
 
-    renderFacetUSWDS(yearListM, years, state.years, onYear, "yearDesc");
-    renderFacetUSWDS(catListM, subs, state.subjects, onSub);
-    if(keywordListM) renderFacetUSWDS(keywordListM, keys, state.keywords, onKey);
-    renderFacetUSWDS(typeListM, types, state.types, onType);
+    renderFacetUSWDSLimited(yearListM, years, state.years, onYear, "yearDesc", { limit: 6, key: "year-m" });
+    renderFacetUSWDSLimited(catListM, subs, state.subjects, onSub, undefined, { limit: 6, key: "subject-m" });
+    if(keywordListM) renderFacetUSWDSLimited(keywordListM, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-m" });
+    renderFacetUSWDSLimited(typeListM, types, state.types, onType, undefined, { limit: 6, key: "type-m" });
   }
 
 
