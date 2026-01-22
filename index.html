@@ -85,46 +85,38 @@
       <!-- Main content container region (MATCHES search/editor) -->
       <div class="padding-y-4">
         <div class="grid-container-widescreen">
-          <section aria-label="Browse by category">
+          <!-- Browse by Subject -->
+          <section aria-label="Browse by subject">
             <header class="home-sectionhead">
-              <h2 class="home-sectionhead__title">Browse by category</h2>
+              <h2 class="home-sectionhead__title">Browse by subject</h2>
               <p class="home-sectionhead__sub">
-                Jump straight into search results filtered by category.
+                Jump straight into search results filtered by subject.
               </p>
             </header>
 
-            <div class="home-cats" role="list">
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Climate">
-                Climate
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Energy">
-                Energy
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Materials">
-                Materials
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Biology">
-                Biology
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Chemistry">
-                Chemistry
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Physics">
-                Physics
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Earth%20Science">
-                Earth Science
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Computer%20Science">
-                Computer Science
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Engineering">
-                Engineering
-              </a>
-              <a role="listitem" class="home-catcard" href="/src/pages/search/index.html?category=Other">
-                Other
-              </a>
-            </div>
+            <div id="homeSubjects" class="home-cats" role="list" aria-live="polite"></div>
+
+            <button
+              id="homeSubjectsToggle"
+              class="usa-button usa-button--unstyled home-see-more"
+              type="button"
+              aria-expanded="false"
+              hidden
+            >
+              See more
+            </button>
+          </section>
+
+          <!-- Latest Published Datasets -->
+          <section class="margin-top-5" aria-label="Latest published datasets">
+            <header class="home-sectionhead">
+              <h2 class="home-sectionhead__title">Latest published datasets</h2>
+              <p class="home-sectionhead__sub">
+                Recently published datasets across the repository.
+              </p>
+            </header>
+
+            <div id="homeLatest" class="home-latest" aria-live="polite"></div>
           </section>
         </div>
       </div>
@@ -136,32 +128,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
 
     <!-- Shared includes loader -->
-    <script src="/src/assets/js/includes.js"></script>
+    <script type="module" src="/src/assets/js/includes.js"></script>
 
-    <!-- Home search behavior (clear button) -->
-    <script>
-      (function(){
-        const input = document.getElementById('homeSearch');
-        const clearBtn = document.getElementById('homeClear');
-        if(!input || !clearBtn) return;
-
-        function sync(){
-          const v = (input.value || '').trim();
-          clearBtn.hidden = v.length === 0;
-        }
-
-        // Initial sync (covers autofill / bfcache)
-        sync();
-
-        input.addEventListener('input', sync);
-        input.addEventListener('blur', sync);
-
-        clearBtn.addEventListener('click', () => {
-          input.value = '';
-          sync();
-          input.focus();
-        });
-      })();
-    </script>
+    <!-- Homepage behaviors (subjects toggle + latest datasets) -->
+    <script type="module" src="/src/assets/js/home.js"></script>
   </body>
 </html>

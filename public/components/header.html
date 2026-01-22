@@ -1,0 +1,94 @@
+<header class="portal-header" role="banner">
+  <!-- Announcement Bar -->
+  <div class="portal-announcement" aria-label="Announcement">
+    <div class="portal-shell">
+      <p class="portal-announcement__text">
+        We’ve just launched a new update! Checkout the <a href="javascript:void(0)" class="portal-announcement__link">new dashboard</a>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Main nav row -->
+  <div class="portal-mainnav">
+    <div class="portal-shell portal-mainnav__inner">
+      <a class="portal-logo" href="/" aria-label="Constellation home">
+        <img src="/constellation_logo.svg" alt="Constellation" class="portal-logo__img" />
+      </a>
+
+      <nav class="portal-primary" aria-label="Primary">
+        <a class="portal-primary__link" href="/src/pages/search/index.html">Dataset Search</a>
+        <a class="portal-primary__link" href="javascript:void(0)">FAQs</a>
+        <a class="portal-primary__link" href="javascript:void(0)">Depositor Guide</a>
+      </nav>
+
+      <div class="portal-auth" aria-label="Account">
+        <!-- Logged out -->
+        <div class="portal-auth__loggedout" data-requires-auth="false">
+          <a class="portal-auth__signup" href="javascript:void(0)">Sign Up</a>
+          <a href="/src/pages/dashboard/index.html" class="usa-link--unstyled">
+            <button type="button" class="usa-button btnBrandSolid" aria-label="Log in">Log In</button>
+          </a>
+        </div>
+
+        <!-- Logged in -->
+        <div class="portal-auth__loggedin" data-requires-auth="true" hidden>
+          <button type="button" class="portal-avatar" id="avatarBtn" aria-expanded="false" aria-haspopup="true" aria-controls="userMenu">
+            <img class="portal-avatar__img" id="avatarImg" alt="" hidden />
+            <span class="portal-avatar__initials" id="avatarInitials" aria-hidden="true">BG</span>
+            <span class="usa-sr-only">User menu</span>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div id="userMenu" class="usa-menu usa-menu--vertical" hidden role="menu" aria-labelledby="avatarBtn">
+            <ul class="usa-menu__list">
+              <li class="usa-menu__item">
+                <a class="usa-menu__link" href="/src/pages/dashboard/index.html" data-path="/dashboard">
+                  <i class="fa-solid fa-square-poll-vertical" aria-hidden="true"></i> Dashboard
+                </a>
+              </li>
+              <li class="usa-menu__item">
+                <a class="usa-menu__link" href="/src/pages/my-datasets/index.html" data-path="/my-datasets">
+                  <i class="fa-solid fa-table-list" aria-hidden="true"></i> My Datasets
+                </a>
+              </li>
+              <li class="usa-menu__item">
+                <a class="usa-menu__link" href="javascript:void(0)" data-path="/analytics">
+                  <i class="fa-solid fa-chart-line" aria-hidden="true"></i> Analytics & Reports
+                </a>
+              </li>
+              <li class="usa-menu__item">
+                <a class="usa-menu__link" href="javascript:void(0)" data-path="/notifications">
+                  <i class="fa-solid fa-bell" aria-hidden="true"></i> Notifications
+                </a>
+              </li>
+              <li class="usa-menu__item">
+                <a class="usa-menu__link" href="/src/pages/settings/index.html" data-path="/settings">
+                  <i class="fa-solid fa-gear" aria-hidden="true"></i> Settings
+                </a>
+              </li>
+              <li class="usa-menu__separator"></li>
+              <li class="usa-menu__item">
+                <a class="usa-menu__link text-red" href="javascript:void(0)" id="signOutBtn">
+                  <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sign Out
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth nav row (only when logged in) -->
+  <div class="portal-authnav" data-requires-auth="true" hidden>
+    <div class="portal-shell">
+      <nav class="portal-authnav__menu" aria-label="Account navigation">
+        <a class="portal-authnav__item" href="/src/pages/dashboard/index.html" data-path="/dashboard"><i class="fa-solid fa-square-poll-vertical" aria-hidden="true"></i><span>Dashboard</span></a>
+        <a class="portal-authnav__item" href="/src/pages/my-datasets/index.html" data-path="/my-datasets"><i class="fa-solid fa-table-list" aria-hidden="true"></i><span>My Datasets</span></a>
+        <a class="portal-authnav__item" href="javascript:void(0)" data-path="/analytics"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Analytics &amp; Reports</span></a>
+        <a class="portal-authnav__item" href="javascript:void(0)" data-path="/notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notifications</span></a>
+        <a class="portal-authnav__item" href="/src/pages/settings/index.html" data-path="/settings"><i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span></a>
+      </nav>
+    </div>
+  </div>
+</header>

@@ -12,8 +12,8 @@
  */
 
 const INCLUDE_MAP = {
-  'portal-header': '/src/components/header.html',
-  'portal-footer': '/src/components/footer.html',
+  'portal-header': '/components/header.html',
+  'portal-footer': '/components/footer.html',
 };
 
 // ──────────────────────────────────────────────────────────────
