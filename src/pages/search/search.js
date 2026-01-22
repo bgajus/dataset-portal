@@ -45,10 +45,109 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
 
   const fileTypes = ["CSV","HDF5","Parquet","NetCDF","JSON","GeoTIFF","Zarr","FASTQ","BAM","SQLite","TXT","TSV"];
 
+  // Demo mocks are always included for the public search demo.
+  // Make their keywords realistic so the Keyword facet reflects dataset-style tags.
+  const keywordPoolsBySubject = {
+    "Bioinformatics": ["genomics", "proteomics", "sequence alignment", "FASTQ", "variant calling"],
+    "Climate": ["climate", "weather", "downscaling", "NetCDF", "reanalysis"],
+    "Computational Fluid Dynamics": ["CFD", "turbulence", "LES", "aerodynamics", "simulation"],
+    "Cybersecurity": ["cybersecurity", "network", "anomaly detection", "malware", "telemetry"],
+    "Energy Systems": ["grid", "load", "optimization", "renewables", "dispatch"],
+    "Environmental Monitoring": ["air quality", "sensors", "time series", "calibration", "monitoring"],
+    "Fusion": ["fusion", "plasma", "tokamak", "MHD", "transport"],
+    "Geospatial Analytics": ["GIS", "GeoTIFF", "tiling", "spatial analysis", "geospatial"],
+    "HPC Performance": ["HPC", "Frontier", "benchmarking", "MPI", "OpenMP"],
+    "Machine Learning": ["machine learning", "training", "inference", "hyperparameters", "model"],
+    "Materials Science": ["materials", "microstructure", "phase field", "DFT", "mechanics"],
+    "Nuclear Energy": ["nuclear", "reactor", "neutronics", "thermal hydraulics", "safety"],
+    "Remote Sensing": ["remote sensing", "satellite", "radiance", "classification", "calibration"],
+    "Robotics": ["robotics", "SLAM", "navigation", "control", "sensor fusion"],
+    "Transportation": ["transportation", "traffic", "mobility", "routing", "demand"],
+    "Urban Sensing": ["urban", "IoT", "mobility", "sensor network", "spatiotemporal"],
+  };
+
+  const keywordGeneralPool = [
+    "simulation",
+    "workflow",
+    "dataset",
+    "analysis",
+    "visualization",
+    "Parquet",
+    "HDF5",
+    "Zarr",
+    "JSON",
+  ];
+
+  function pickN(arr, n) {
+    const copy = (Array.isArray(arr) ? arr : []).slice();
+    // Fisher–Yates shuffle using seeded rand()
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy.slice(0, n);
+  }
+
   function makeDemoMock(i){
     const suffix = DEMO_DOI_BASE + i;
     const doi = `10.13139/ORNLNCCS/${suffix}`;
     const date = new Date(2020 + Math.floor(i/3), 0, 1 + i%28);
+
+    // Demo fallback records are meant to help demo filtering UX.
+    // Important: Each record must be deterministic by DOI (so Search + Dataset landing match),
+    // and varied enough to meaningfully demo filtering.
+    const r = mulberry32(584199 ^ suffix);
+
+    const pickLocal = (arr) => arr[Math.floor(r() * arr.length)];
+    const pickNLocal = (arr, n) => {
+      const a = Array.isArray(arr) ? arr.slice() : [];
+      // Fisher–Yates shuffle using the per-record RNG
+      for (let j = a.length - 1; j > 0; j--) {
+        const k = Math.floor(r() * (j + 1));
+        [a[j], a[k]] = [a[k], a[j]];
+      }
+      return a.slice(0, Math.max(0, Math.min(n, a.length)));
+    };
+
+    const subject = pickLocal(subjects);
+
+    const keywordPoolBySubject = {
+      "Bioinformatics": ["genomics", "proteomics", "sequence", "annotation", "pipeline"],
+      "Climate": ["climate", "weather", "modeling", "forecasting", "reanalysis"],
+      "Computational Fluid Dynamics": ["CFD", "turbulence", "mesh", "Navier-Stokes", "simulation"],
+      "Cybersecurity": ["security", "anomaly detection", "encryption", "malware", "threat"],
+      "Energy Systems": ["energy", "grid", "optimization", "demand", "simulation"],
+      "Environmental Monitoring": ["sensors", "monitoring", "air quality", "time series", "remote sensing"],
+      "Fusion": ["plasma", "tokamak", "MHD", "simulation", "diagnostics"],
+      "Geospatial Analytics": ["GIS", "geospatial", "mapping", "raster", "vector"],
+      "HPC Performance": ["HPC", "benchmarking", "scaling", "MPI", "OpenMP", "profiling"],
+      "Machine Learning": ["machine learning", "training", "inference", "GPU", "HPC"],
+      "Materials Science": ["materials", "molecular dynamics", "DFT", "simulation", "microstructure"],
+      "Nuclear Energy": ["nuclear", "reactor", "neutronics", "thermal hydraulics", "simulation"],
+      "Remote Sensing": ["remote sensing", "satellite", "imagery", "classification", "geospatial"],
+      "Robotics": ["robotics", "planning", "control", "SLAM", "simulation"],
+      "Transportation": ["traffic", "mobility", "routing", "simulation", "optimization"],
+      "Urban Sensing": ["urban", "IoT", "sensors", "geospatial", "time series"]
+    };
+
+    const basePool = keywordPoolBySubject[subject] || ["HPC", "simulation", "benchmarking"];
+
+    // Ensure some overlap across records for demoing keyword filters.
+    const globalOverlap = ["HPC", "simulation", "benchmarking"];
+    const pool = Array.from(new Set(basePool.concat(pickNLocal(globalOverlap, 2))));
+
+    const kwCount = clamp(2 + Math.floor(r() * 3), 2, 5);
+    const kw = pickNLocal(pool, kwCount);
+
+    const contributorPool = [
+      { first:"Jane", last:"Doe", affil:"ORNL" },
+      { first:"John", last:"Smith", affil:"ORNL" },
+      { first:"Alex", last:"Kim", affil:"Georgia Tech" },
+      { first:"Priya", last:"Patel", affil:"UT Knoxville" },
+      { first:"Miguel", last:"Santos", affil:"NVIDIA" },
+      { first:"Emily", last:"Chen", affil:"LLNL" }
+    ];
+    const contributors = pickNLocal(contributorPool, clamp(1 + Math.floor(r() * 4), 1, 5));
 
     return {
       id: `demo-${suffix}`,
@@ -60,22 +159,36 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
       landingUrl: `/src/pages/dataset/index.html?doi=${encodeURIComponent(doi)}`,
       dateISO: date.toISOString().slice(0,10),
       dateLabel: date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-      subject: pick(subjects),
-      fileType: pick(fileTypes),
+      subject,
+      fileType: pickLocal(fileTypes),
       datasetFiles: {
-        count: clamp(Math.floor(rand()*220), 2, 220),
-        sizeGB: clamp(Math.round((rand()*120 + rand()*40) * 10)/10, 0.2, 180)
+        count: clamp(Math.floor(r()*220), 2, 220),
+        sizeGB: clamp(Math.round((r()*120 + r()*40) * 10)/10, 0.2, 180)
       },
-      keywords: ["mock","test","fallback","data"],
-      contributors: [{ first:"Jane", last:"Doe", affil:"ORNL" }],
+      keywords: Array.from(new Set(kw)).slice(0, 6),
+      contributors,
       status: "Published"
     };
   }
 
   function parseSubjectsFromRecord(r){
-    const csv = (r.subjectsKeywords || "").trim();
+    // Subjects and Keywords are separate concepts. Subjects come from r.subjects (array)
+    // or legacy r.subjectsKeywords (CSV). Do not fall back to r.keywords here.
+    if (Array.isArray(r.subjects) && r.subjects.length) {
+      return r.subjects.map(s => String(s || "").trim()).filter(Boolean);
+    }
+    const csv = String(r.subjectsKeywords || "").trim();
     if (csv) return csv.split(",").map(s => s.trim()).filter(Boolean);
-    if (Array.isArray(r.keywords)) return r.keywords.map(s => String(s || "").trim()).filter(Boolean);
+    return [];
+  }
+
+  function parseKeywordsFromRecord(r){
+    if (Array.isArray(r.keywords) && r.keywords.length) {
+      return r.keywords.map(k => String(k || "").trim()).filter(Boolean);
+    }
+    // Best-effort legacy support: some older records stored keywords as a CSV string.
+    const csv = String(r.keywordsCsv || r.keywordsCSV || r.keywordsText || "").trim();
+    if (csv) return csv.split(",").map(s => s.trim()).filter(Boolean);
     return [];
   }
 
@@ -100,7 +213,7 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
       subject: getPrimarySubject(r),
       fileType: r.fileType || "Unknown",
       datasetFiles: r.datasetFiles || { count: 0, sizeGB: 0 },
-      keywords: r.keywords || parseSubjectsFromRecord(r),
+      keywords: parseKeywordsFromRecord(r),
       contributors: (r.authors || r.contributors || []).map(a => ({
         first: a.first || a.firstName || "",
         last: a.last || a.lastName || "",
@@ -143,10 +256,12 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
 
   const yearListEl = document.getElementById("yearList");
   const catListEl = document.getElementById("catList");     // id kept (renders Subjects)
+  const keywordListEl = document.getElementById("keywordList");
   const typeListEl = document.getElementById("typeList");
 
   const yearListM = document.getElementById("yearListM");
   const catListM = document.getElementById("catListM");     // id kept
+  const keywordListM = document.getElementById("keywordListM");
   const typeListM = document.getElementById("typeListM");
 
   const openFiltersBtn = document.getElementById("openFilters");
@@ -171,6 +286,7 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     years: new Set(),
     subjects: new Set(),
     types: new Set(),
+    keywords: new Set(),
     sort: "relevance",
     perPage: 10,
     page: 1
@@ -200,11 +316,18 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     // subject is new; accept category as a backward-compatible alias
     const subject = (params.get("subject") || params.get("category") || "").trim();
 
-    return { q, subject };
+    // keyword can be repeated (?keyword=HPC&keyword=AI) or comma-separated (?keyword=HPC,AI)
+    const keywordAll = params.getAll("keyword").map(s => (s || "").trim()).filter(Boolean);
+    const keywordSingle = (params.get("keyword") || "").trim();
+    const keywords = keywordAll.length
+      ? keywordAll
+      : (keywordSingle ? keywordSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
+
+    return { q, subject, keywords };
   }
 
   function applyUrlParams(){
-    const { q, subject } = readUrlParams();
+    const { q, subject, keywords } = readUrlParams();
 
     if(q){
       state.q = q;
@@ -214,6 +337,11 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     if(subject && subjects.includes(subject)){
       state.subjects.add(subject);
     }
+
+    // Keywords are dynamic; accept any value so shared URLs always hydrate.
+    (keywords || []).forEach(k => {
+      if(k) state.keywords.add(k);
+    });
 
     syncSearchClearVisibility();
   }
@@ -229,11 +357,24 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     return blob.includes(needle);
   }
 
-  function buildFacetValues(items, getVal){
+    function buildFacetValues(items, getVal){
     const map = new Map();
     items.forEach(it => {
       const v = getVal(it) || "Unknown";
       map.set(v, (map.get(v) || 0) + 1);
+    });
+    return [...map.entries()].map(([value, count]) => ({ value, count }));
+  }
+
+  function buildFacetValuesMulti(items, getVals){
+    const map = new Map();
+    items.forEach(it => {
+      const vals = getVals(it) || [];
+      vals.forEach(vRaw => {
+        const v = String(vRaw || "").trim();
+        if(!v) return;
+        map.set(v, (map.get(v) || 0) + 1);
+      });
     });
     return [...map.entries()].map(([value, count]) => ({ value, count }));
   }
@@ -301,6 +442,13 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
 
         if(state.types.size && !state.types.has(r.fileType || "Unknown")) return false;
 
+        if(state.keywords.size){
+          const sel = new Set(Array.from(state.keywords).map(k => String(k || "").trim().toLowerCase()).filter(Boolean));
+          const rowKeys = (r.keywords || []).map(k => String(k || "").trim().toLowerCase()).filter(Boolean);
+          const hit = rowKeys.some(k => sel.has(k));
+          if(!hit) return false;
+        }
+
         if(!matchesSearch(r, q)) return false;
 
         return true;
@@ -342,6 +490,7 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     state.years.forEach(v => chips.push({ key:`year:${v}`, label:`${v}` }));
     state.subjects.forEach(v => chips.push({ key:`subject:${v}`, label:`${v}` }));
     state.types.forEach(v => chips.push({ key:`type:${v}`, label:`${v}` }));
+    state.keywords.forEach(v => chips.push({ key:`keyword:${v}`, label:`${v}` }));
 
     chipsEl.innerHTML = chips.length
       ? chips.map(c => `
@@ -362,6 +511,7 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     if(type === "year") state.years.delete(val);
     if(type === "subject") state.subjects.delete(val);
     if(type === "type") state.types.delete(val);
+    if(type === "keyword") state.keywords.delete(val);
 
     state.page = 1;
     renderFacets();
@@ -575,19 +725,39 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     const years = buildFacetValues(base, r => (r.dateISO || r.createdAt || "").slice(0,4));
     const subs  = buildFacetValues(base, r => r.subject || "Unspecified");
     const types = buildFacetValues(base, r => r.fileType || "Unknown");
+    const keys  = buildFacetValuesMulti(base, r => (r.keywords || []));
+
+    // Normalize selected keywords to the facet's canonical casing when possible.
+    const keyCanon = new Map(keys.map(k => [String(k.value || "").trim().toLowerCase(), k.value]));
+    const nextSelected = new Set();
+    state.keywords.forEach(k => {
+      const lk = String(k || "").trim().toLowerCase();
+      if(!lk) return;
+      nextSelected.add(keyCanon.get(lk) || k);
+    });
+    state.keywords = nextSelected;
+
+    // Ensure selected keywords still render even if zero-count under current base.
+    state.keywords.forEach(k => {
+      if(!keys.some(x => x.value === k)) keys.push({ value: k, count: 0 });
+    });
 
     const onYear = (val, checked) => { checked ? state.years.add(val) : state.years.delete(val); state.page = 1; update(); };
     const onSub  = (val, checked) => { checked ? state.subjects.add(val) : state.subjects.delete(val); state.page = 1; update(); };
     const onType = (val, checked) => { checked ? state.types.add(val) : state.types.delete(val); state.page = 1; update(); };
+    const onKey  = (val, checked) => { checked ? state.keywords.add(val) : state.keywords.delete(val); state.page = 1; update(); };
 
     renderFacetUSWDS(yearListEl, years, state.years, onYear, "yearDesc");
     renderFacetUSWDS(catListEl, subs, state.subjects, onSub);
+    if(keywordListEl) renderFacetUSWDS(keywordListEl, keys, state.keywords, onKey);
     renderFacetUSWDS(typeListEl, types, state.types, onType);
 
     renderFacetUSWDS(yearListM, years, state.years, onYear, "yearDesc");
     renderFacetUSWDS(catListM, subs, state.subjects, onSub);
+    if(keywordListM) renderFacetUSWDS(keywordListM, keys, state.keywords, onKey);
     renderFacetUSWDS(typeListM, types, state.types, onType);
   }
+
 
   function renderPopList(list, q){
     const query = q.trim().toLowerCase();
@@ -678,6 +848,7 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     state.years.clear();
     state.subjects.clear();
     state.types.clear();
+    state.keywords.clear();
     state.page = 1;
 
     qEl.value = "";
@@ -773,10 +944,12 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
 
     sync("yearList", state.years);
     sync("catList", state.subjects);
+    sync("keywordList", state.keywords);
     sync("typeList", state.types);
 
     sync("yearListM", state.years);
     sync("catListM", state.subjects);
+    sync("keywordListM", state.keywords);
     sync("typeListM", state.types);
   }
 

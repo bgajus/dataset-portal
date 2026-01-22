@@ -49,55 +49,179 @@ import {
     return arr[Math.floor(rand() * arr.length)];
   }
 
+  function clamp(n, min, max) {
+    const num = Number(n);
+    if (!Number.isFinite(num)) return min;
+    return Math.min(max, Math.max(min, num));
+  }
+
   function makeDemoMock(i) {
     const suffix = DEMO_DOI_BASE + i;
     const doi = `10.13139/ORNLNCCS/${suffix}`;
     const date = new Date(2020 + Math.floor(i / 3), 0, 1 + (i % 28));
-    const subjects = [pick(SUBJECT_OPTIONS), pick(SUBJECT_OPTIONS), pick(SUBJECT_OPTIONS)];
 
-    const typeOpt = pick(DATASET_TYPE_OPTIONS);
+    // Deterministic per DOI so Search + Dataset landing match.
+    const r = mulberry32(584199 ^ suffix);
+    const pickLocal = (arr) => arr[Math.floor(r() * arr.length)];
+    const pickNLocal = (arr, n) => {
+      const a = Array.isArray(arr) ? arr.slice() : [];
+      for (let j = a.length - 1; j > 0; j--) {
+        const k = Math.floor(r() * (j + 1));
+        [a[j], a[k]] = [a[k], a[j]];
+      }
+      return a.slice(0, Math.max(0, Math.min(n, a.length)));
+    };
+
+    const primarySubject = pickLocal(SUBJECT_OPTIONS);
+    const extraSubjects = pickNLocal(
+      SUBJECT_OPTIONS.filter((s) => s !== primarySubject),
+      clamp(Math.floor(r() * 2), 0, 2)
+    );
+    const subjects = [primarySubject, ...extraSubjects];
+
+    const keywordPoolBySubject = {
+      "Bioinformatics": ["genomics", "proteomics", "sequence", "annotation", "pipeline"],
+      "Climate": ["climate", "weather", "modeling", "forecasting", "reanalysis"],
+      "Computational Fluid Dynamics": ["CFD", "turbulence", "mesh", "Navier-Stokes", "simulation"],
+      "Cybersecurity": ["security", "anomaly detection", "encryption", "malware", "threat"],
+      "Energy Systems": ["energy", "grid", "optimization", "demand", "simulation"],
+      "Environmental Monitoring": ["sensors", "monitoring", "air quality", "time series", "remote sensing"],
+      "Fusion": ["plasma", "tokamak", "MHD", "simulation", "diagnostics"],
+      "Geospatial Analytics": ["GIS", "geospatial", "mapping", "raster", "vector"],
+      "HPC Performance": ["HPC", "benchmarking", "scaling", "MPI", "OpenMP", "profiling"],
+      "Machine Learning": ["machine learning", "training", "inference", "GPU", "HPC"],
+      "Materials Science": ["materials", "molecular dynamics", "DFT", "simulation", "microstructure"],
+      "Nuclear Energy": ["nuclear", "reactor", "neutronics", "thermal hydraulics", "simulation"],
+      "Remote Sensing": ["remote sensing", "satellite", "imagery", "classification", "geospatial"],
+      "Robotics": ["robotics", "planning", "control", "SLAM", "simulation"],
+      "Transportation": ["traffic", "mobility", "routing", "simulation", "optimization"],
+      "Urban Sensing": ["urban", "IoT", "sensors", "geospatial", "time series"],
+    };
+
+    const globalOverlap = ["HPC", "simulation", "benchmarking"];
+    const basePool = keywordPoolBySubject[primarySubject] || globalOverlap;
+    const pool = Array.from(new Set(basePool.concat(pickNLocal(globalOverlap, 2))));
+    const kwCount = clamp(3 + Math.floor(r() * 3), 3, 6);
+    const keywords = Array.from(new Set(pickNLocal(pool, kwCount)));
+
+    const typeOpt = pickLocal(DATASET_TYPE_OPTIONS);
+
+    const titleBySubject = {
+      "Bioinformatics": "Genome Assembly Benchmark Suite",
+      "Climate": "Regional Climate Reanalysis Collection",
+      "Computational Fluid Dynamics": "High-Resolution Turbulence Simulation Outputs",
+      "Cybersecurity": "Network Intrusion Detection Feature Set",
+      "Energy Systems": "Grid Optimization Scenario Dataset",
+      "Environmental Monitoring": "Air Quality Sensor Timeseries",
+      "Fusion": "Tokamak Edge Plasma Simulation Data",
+      "Geospatial Analytics": "Land Cover Change Detection Tiles",
+      "HPC Performance": "Application Scaling and Profiling Dataset",
+      "Machine Learning": "GPU Training Metrics and Checkpoints",
+      "Materials Science": "Microstructure Characterization and Models",
+      "Nuclear Energy": "Reactor Neutronics Benchmark Data",
+      "Remote Sensing": "Satellite Imagery Classification Labels",
+      "Robotics": "Autonomous Navigation Test Runs",
+      "Transportation": "Traffic Flow Simulation Scenarios",
+      "Urban Sensing": "Smart City IoT Sensor Readings",
+    };
+
+    const title = `${titleBySubject[primarySubject] || "Fallback Mock Dataset"} (${i + 1})`;
+
+    const authorPool = [
+      { firstName: "Jane", lastName: "Doe", affiliation: "ORNL", orcid: "0000-0002-1825-0097" },
+      { firstName: "John", lastName: "Smith", affiliation: "ORNL" },
+      { firstName: "Alex", lastName: "Kim", affiliation: "Georgia Tech" },
+      { firstName: "Priya", lastName: "Patel", affiliation: "UT Knoxville" },
+      { firstName: "Miguel", lastName: "Santos", affiliation: "NVIDIA" },
+      { firstName: "Emily", lastName: "Chen", affiliation: "LLNL" },
+      { firstName: "Sam", lastName: "Nguyen", affiliation: "PNNL" },
+      { firstName: "Ava", lastName: "Johnson", affiliation: "UNC Chapel Hill" },
+    ];
+    const authors = pickNLocal(authorPool, clamp(2 + Math.floor(r() * 4), 2, 6));
+
+    const funderPool = [
+      "U.S. Department of Energy (DOE)",
+      "DOE Office of Science",
+      "DOE Advanced Scientific Computing Research (ASCR)",
+      "National Science Foundation (NSF)",
+    ];
+    const sponsor = pickLocal(funderPool);
+
+    const originatingOrg = pickLocal([
+      "Oak Ridge National Laboratory (ORNL)",
+      "National Center for Computational Sciences (NCCS)",
+      "Oak Ridge Leadership Computing Facility (OLCF)",
+    ]);
+
+    const contractSuffix = String(22725 + (suffix % 40)).padStart(5, "0");
+    const doeContractNumber = `DE-AC05-00OR${contractSuffix} (demo)`;
+
+    const relatedIsDoi = r() > 0.5;
+    const relatedIdentifier = relatedIsDoi
+      ? `10.0000/DEMO.RELATED.${(suffix % 7) + 1}`
+      : `https://example.com/demo-related/${suffix}`;
+
+    const ackPool = [
+      "This research used resources of the Oak Ridge Leadership Computing Facility at ORNL.",
+      "We acknowledge the support of the U.S. Department of Energy and our collaborating institutions.",
+      "Compute time was provided under an allocation on Frontier (demo).",
+      "We thank the project team for contributions to data generation and validation (demo).",
+    ];
+
+    const descriptionPool = [
+      `Demo dataset for ${primarySubject}. Includes representative outputs and metadata for UI walkthroughs.`,
+      `A curated collection of results supporting ${primarySubject.toLowerCase()} workflows. Provided as a demo record.`,
+      `Benchmark-ready artifacts for ${primarySubject.toLowerCase()} analysis and validation (demo).`,
+    ];
+
+    // Provide a small pseudo file list so the "files" section feels real in demos.
+    const fileCount = clamp(3 + Math.floor(r() * 8), 3, 10);
+    const uploadedFiles = Array.from({ length: fileCount }).map((_, idx) => {
+      const ext = pickLocal(["csv", "h5", "nc", "json", "vtk", "parquet"]);
+      const sizeMB = clamp(Math.round((r() * 900 + 25) * 10) / 10, 5, 1200);
+      return {
+        name: `${primarySubject.replaceAll(" ", "_").toLowerCase()}_${suffix}_${idx + 1}.${ext}`,
+        size: `${sizeMB} MB`,
+      };
+    });
 
     return {
       _isDemo: true,
       doi,
-      title: `Fallback Mock Dataset ${i + 1}`,
+      title,
       createdAt: date.toISOString().slice(0, 10),
       updatedAt: date.toISOString().slice(0, 10),
       status: "Published",
 
-      description:
-        "This is a demo dataset record used for UI prototyping and stakeholder walkthroughs.",
+      description: pickLocal(descriptionPool),
       subjects,
       subjectsKeywords: subjects.join(", "),
-      keywords: ["HPC", "simulation", "benchmarking"],
+      keywords,
 
       datasetType: typeOpt.value,
-      datasetSizeLabel: `${Math.round((rand() * 120 + 5) * 10) / 10} GB`,
-      softwareNeeded: "ParaView (demo)",
+      datasetSizeLabel: `${Math.round((r() * 120 + 5) * 10) / 10} GB`,
+      softwareNeeded: pickLocal(["ParaView", "Python", "MATLAB", "R"]) + " (demo)",
 
-      authors: [
-        { firstName: "Jane", lastName: "Doe", affiliation: "ORNL", orcid: "0000-0000-0000-0000" },
-        { firstName: "John", lastName: "Smith", affiliation: "ORNL" },
-        { firstName: "Alex", lastName: "Kim", affiliation: "Georgia Tech" },
-      ],
+      authors,
 
       fundingInfo: {
-        doeContractNumber: "DE-AC05-00OR22725 (demo)",
-        originatingResearchOrganization: "Oak Ridge National Laboratory (demo)",
-        sponsoringOrganizations: "U.S. Department of Energy (demo)",
-        otherContributingOrganizations: "",
-        olcfProjectIdentifier: "",
+        doeContractNumber,
+        originatingResearchOrganization: `${originatingOrg} (demo)`,
+        sponsoringOrganizations: `${sponsor} (demo)`,
+        otherContributingOrganizations: pickLocal(["", "Georgia Tech", "UT Knoxville", "LLNL"]) || "",
+        olcfProjectIdentifier: r() > 0.6 ? `OLCF-${(suffix % 9000) + 1000}` : "",
         otherContractNumbers: "",
         otherIdentifyingNumbers: "",
       },
 
       relatedWork: {
-        relatedIdentifier: i % 2 === 0 ? "10.0000/DEMO.RELATED.1" : "https://example.com/demo-related",
-        relatedIdentifierType: i % 2 === 0 ? "DOI" : "URL",
-        relationType: "IsReferencedBy",
+        relatedIdentifier,
+        relatedIdentifierType: relatedIsDoi ? "DOI" : "URL",
+        relationType: pickLocal(["IsReferencedBy", "IsSupplementTo", "IsDerivedFrom"]),
       },
 
-      ack: "Demo acknowledgement text for prototyping.",
+      ack: pickLocal(ackPool) + " (demo)",
+      uploadedFiles,
     };
   }
 
@@ -253,40 +377,6 @@ import {
     return [];
   }
 
-  function renderSubjectsAndKeywords(ds) {
-    const sec = $("sectionSubjects");
-    const host = $("dsSubjects");
-    if (!sec || !host) return;
-
-    const subjects = parseSubjects(ds);
-    const keywords = parseKeywords(ds);
-
-    if (!subjects.length && !keywords.length) {
-      sec.hidden = true;
-      host.innerHTML = "";
-      return;
-    }
-
-    const parts = [];
-    if (subjects.length) {
-      const links = subjects
-        .map((s) => {
-          const href = `/src/pages/search/index.html?subject=${encodeURIComponent(s)}`;
-          return `<a href="${href}">${escapeHtml(s)}</a>`;
-        })
-        .join(", ");
-      parts.push(`<div><strong>Subjects:</strong> ${links}</div>`);
-    }
-
-    if (keywords.length) {
-      const kw = keywords.map((k) => `<span class="usa-tag">${escapeHtml(k)}</span>`).join(" ");
-      parts.push(`<div class="margin-top-1"><strong>Keywords:</strong> ${kw}</div>`);
-    }
-
-    sec.hidden = false;
-    host.innerHTML = parts.join("");
-  }
-
   function renderDescription(ds) {
     const descEl = $("dsDescription");
     if (!descEl) return;
@@ -426,22 +516,9 @@ import {
   }
 
   function renderAcknowledgements(ds) {
-    const sec = $("sectionAck");
-    const main = $("dsAckMain");
     const aside = $("dsAck");
     const ack = String(ds.ack || "").trim();
-
-    if (aside) aside.textContent = ack;
-    if (!sec || !main) return;
-
-    if (!ack) {
-      sec.hidden = true;
-      main.innerHTML = "";
-      return;
-    }
-
-    sec.hidden = false;
-    main.innerHTML = `<p>${escapeHtml(ack)}</p>`;
+    if (aside) aside.textContent = ack || "—";
   }
 
   function renderDetailsCards(ds) {
@@ -461,6 +538,20 @@ import {
             return `<a href="${href}">${escapeHtml(s)}</a>`;
           })
           .join(", ") || "—";
+    }
+
+    // Keywords chips (sidebar)
+    const keywords = parseKeywords(ds);
+    const kwEl = $("dsKeywords");
+    if (kwEl) {
+      kwEl.innerHTML = keywords.length
+        ? keywords
+            .map((k) => {
+              const href = `/src/pages/search/index.html?keyword=${encodeURIComponent(k)}`;
+              return `<a class="dlp-keywordChip" href="${href}" aria-label="Filter search by keyword ${escapeHtml(k)}">${escapeHtml(k)}</a>`;
+            })
+            .join("")
+        : "—";
     }
 
     // Dataset card values
@@ -639,7 +730,6 @@ import {
     renderDetailsCards(ds);
     renderAuthors(ds);
     renderDescription(ds);
-    renderSubjectsAndKeywords(ds);
     renderFunding(ds);
     renderRelated(ds);
     renderAcknowledgements(ds);
