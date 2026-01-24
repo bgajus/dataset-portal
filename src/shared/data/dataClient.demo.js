@@ -4,32 +4,101 @@ import { getDemoDatasets, getDemoDatasetByDoi } from "../../assets/js/demo-datas
 import { getAllRecords } from "../../assets/js/shared-store.js";
 
 /**
- * Normalize demo/store records into the canonical model.
- * We treat demo as canonical, so normalization is light and defensive.
+ * Normalize demo/store records into the canonical model WITHOUT dropping extra fields.
+ * Preserve original record shape for dataset landing/editor, while ensuring canonical fields exist.
+ *
+ * Key behavior:
+ * - If status is missing:
+ *   - demo records (_isDemo) default to "Published" so public pages can show them
+ *   - real/store records default to "Draft"
+ * - If publishedYear is missing:
+ *   - derive it from publishedAt/createdAt/updatedAt so facets can bucket by year
  */
 function normalize(records) {
-  return (Array.isArray(records) ? records : []).map((r) => ({
-    doi: String(r.doi || "").trim(),
-    title: String(r.title || "").trim(),
-    description: String(r.description || "").trim(),
-    subjects: Array.isArray(r.subjects) ? r.subjects.filter(Boolean) : [],
-    keywords: Array.isArray(r.keywords) ? r.keywords.filter(Boolean) : [],
-    publishedYear: Number.isFinite(r.publishedYear)
-      ? r.publishedYear
-      : (r.publishedYear == null ? null : Number(r.publishedYear) || null),
-    fileTypes: Array.isArray(r.fileTypes) ? r.fileTypes.filter(Boolean) : [],
-    status: r.status || "Draft",
+  return (Array.isArray(records) ? records : []).map((r) => {
+    const base = { ...(r || {}) };
 
-    publishedAt: r.publishedAt,
-    updatedAt: r.updatedAt,
-    datasetSizeBytes: r.datasetSizeBytes ?? null,
+    const isDemo = base._isDemo === true;
 
-    // Detail-only fields (optional)
-    contributors: Array.isArray(r.contributors) ? r.contributors : (Array.isArray(r.authors) ? r.authors : undefined),
-    funding: Array.isArray(r.funding) ? r.funding : undefined,
-    relatedWorks: Array.isArray(r.relatedWorks) ? r.relatedWorks : (Array.isArray(r.relatedIdentifiers) ? r.relatedIdentifiers : undefined),
-    acknowledgements: typeof r.acknowledgements === "string" ? r.acknowledgements : undefined,
-  }));
+    const doi = String(base.doi || "").trim();
+    const title = String(base.title || "").trim();
+    const description = String(base.description || "").trim();
+
+    const subjects = Array.isArray(base.subjects)
+      ? base.subjects.map((s) => String(s || "").trim()).filter(Boolean)
+      : [];
+
+    const keywords = Array.isArray(base.keywords)
+      ? base.keywords.map((k) => String(k || "").trim()).filter(Boolean)
+      : [];
+
+    const fileTypes = Array.isArray(base.fileTypes)
+      ? base.fileTypes.map((t) => String(t || "").trim()).filter(Boolean)
+      : [];
+
+    // Published year:
+    // Prefer explicit publishedYear, else derive from publishedAt/createdAt/updatedAt.
+    let publishedYear = Number.isFinite(base.publishedYear)
+      ? base.publishedYear
+      : base.publishedYear == null
+        ? null
+        : Number(base.publishedYear) || null;
+
+    if (publishedYear == null) {
+      const iso =
+        String(base.publishedAt || "").trim() ||
+        String(base.createdAt || "").trim() ||
+        String(base.updatedAt || "").trim();
+
+      // Accept "YYYY-MM-DD" or full ISO, just grab the first 4 digits.
+      const m = iso.match(/^(\d{4})/);
+      if (m) {
+        const y = Number(m[1]);
+        if (Number.isFinite(y)) publishedYear = y;
+      }
+    }
+
+    // ✅ IMPORTANT: demo defaults to Published; real defaults to Draft
+    const status = base.status || (isDemo ? "Published" : "Draft");
+
+    const contributors = Array.isArray(base.contributors)
+      ? base.contributors
+      : Array.isArray(base.authors)
+        ? base.authors
+        : undefined;
+
+    const funding = Array.isArray(base.funding) ? base.funding : undefined;
+
+    const relatedWorks = Array.isArray(base.relatedWorks)
+      ? base.relatedWorks
+      : Array.isArray(base.relatedIdentifiers)
+        ? base.relatedIdentifiers
+        : undefined;
+
+    const acknowledgements =
+      typeof base.acknowledgements === "string"
+        ? base.acknowledgements
+        : typeof base.ack === "string"
+          ? base.ack
+          : undefined;
+
+    return {
+      ...base,
+      doi,
+      title,
+      description,
+      subjects,
+      keywords,
+      fileTypes,
+      publishedYear,
+      status,
+      contributors,
+      funding,
+      relatedWorks,
+      acknowledgements,
+      datasetSizeBytes: base.datasetSizeBytes ?? null,
+    };
+  });
 }
 
 function buildBuckets(values) {
@@ -112,18 +181,19 @@ function applySort(records, sort) {
   if (s === "sizeAsc") return [...records].sort(bySizeAsc);
   if (s === "sizeDesc") return [...records].sort(bySizeDesc);
 
-  // "relevance" (demo): stable default
   return [...records].sort(byYearDesc);
 }
 
 function paginate(records, page = 1, perPage = 10) {
   const p = Math.max(1, Number(page) || 1);
-  const pp = Math.max(1, Number(perPage) || 10);
+  const pp = perPage === Infinity ? Infinity : Math.max(1, Number(perPage) || 10);
+
   const total = records.length;
-  const pageCount = Math.max(1, Math.ceil(total / pp));
+  const pageCount = pp === Infinity ? 1 : Math.max(1, Math.ceil(total / pp));
   const clampedPage = Math.min(p, pageCount);
-  const start = (clampedPage - 1) * pp;
-  const end = start + pp;
+  const start = (clampedPage - 1) * (pp === Infinity ? total : pp);
+  const end = pp === Infinity ? total : start + pp;
+
   return { slice: records.slice(start, end), total, page: clampedPage, perPage: pp, pageCount };
 }
 
@@ -131,11 +201,27 @@ export function createDemoClient() {
   return {
     async searchDatasets(params = {}, options = {}) {
       void options;
-      const real = normalize(getAllRecords());
-      const base = real.length ? real : normalize(getDemoDatasets());
+
+      const realAll = normalize(getAllRecords());
+      const demoAll = normalize(getDemoDatasets());
+
+      // Public search asks for Published-only; if the user has only Draft/In Review locally,
+      // still show demo Published datasets for the demo until real Published exists.
+      const wantsPublishedOnly =
+        Array.isArray(params.status) &&
+        params.status.length === 1 &&
+        params.status[0] === "Published";
+
+      let base;
+      if (wantsPublishedOnly) {
+        const realPublished = realAll.filter((r) => r.status === "Published");
+        base = realPublished.length ? realPublished : demoAll.filter((r) => r.status === "Published");
+      } else {
+        base = realAll.length ? realAll : demoAll;
+      }
 
       const filtered = applyFilters(base, params);
-      const facets = buildFacets(filtered); // contextual facets
+      const facets = buildFacets(filtered);
 
       const sorted = applySort(filtered, params.sort);
       const { slice, total, page, perPage, pageCount } = paginate(sorted, params.page, params.perPage);

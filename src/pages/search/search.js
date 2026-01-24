@@ -1,189 +1,19 @@
-// search.js - Subjects + Always-on demo mocks
+// /src/pages/search/search.js
+// Search page - rewired to dataClient (canonical model)
+// Preserves:
+// - URL state persistence + back/forward
+// - Filter chips
+// - Facet "show 6 + see more/less"
+// - Pagination + per-page
+// - Sorting
+// - Mobile filter drawer + Apply/Clear
+// - Contributors popover
 
-import { getAllRecords } from "/src/assets/js/shared-store.js";
-import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src/assets/js/demo-datasets.js";
+import { searchDatasets } from "/src/shared/data/dataClient.js";
 
 (() => {
   // ──────────────────────────────────────────────────────────────
-  // Demo mocks (always included)
-  // ──────────────────────────────────────────────────────────────
-  const SHOW_DEMO_MOCKS = true;
-  const DEMO_MOCK_COUNT = DEMO_COUNT_FROM_MODULE;
-
-  function mulberry32(seed){
-    let t = seed >>> 0;
-    return function(){
-      t += 0x6D2B79F5;
-      let r = Math.imul(t ^ (t >>> 15), 1 | t);
-      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  const rand = mulberry32(584199);
-
-  const pick = (arr) => arr[Math.floor(rand() * arr.length)];
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-
-  const subjects = [
-    "Bioinformatics",
-    "Climate",
-    "Computational Fluid Dynamics",
-    "Cybersecurity",
-    "Energy Systems",
-    "Environmental Monitoring",
-    "Fusion",
-    "Geospatial Analytics",
-    "HPC Performance",
-    "Machine Learning",
-    "Materials Science",
-    "Nuclear Energy",
-    "Remote Sensing",
-    "Robotics",
-    "Transportation",
-    "Urban Sensing"
-  ];
-
-  const fileTypes = ["CSV","HDF5","Parquet","NetCDF","JSON","GeoTIFF","Zarr","FASTQ","BAM","SQLite","TXT","TSV"];
-
-  // Demo mocks are always included for the public search demo.
-  // Make their keywords realistic so the Keyword facet reflects dataset-style tags.
-  const keywordPoolsBySubject = {
-    "Bioinformatics": ["genomics", "proteomics", "sequence alignment", "FASTQ", "variant calling"],
-    "Climate": ["climate", "weather", "downscaling", "NetCDF", "reanalysis"],
-    "Computational Fluid Dynamics": ["CFD", "turbulence", "LES", "aerodynamics", "simulation"],
-    "Cybersecurity": ["cybersecurity", "network", "anomaly detection", "malware", "telemetry"],
-    "Energy Systems": ["grid", "load", "optimization", "renewables", "dispatch"],
-    "Environmental Monitoring": ["air quality", "sensors", "time series", "calibration", "monitoring"],
-    "Fusion": ["fusion", "plasma", "tokamak", "MHD", "transport"],
-    "Geospatial Analytics": ["GIS", "GeoTIFF", "tiling", "spatial analysis", "geospatial"],
-    "HPC Performance": ["HPC", "Frontier", "benchmarking", "MPI", "OpenMP"],
-    "Machine Learning": ["machine learning", "training", "inference", "hyperparameters", "model"],
-    "Materials Science": ["materials", "microstructure", "phase field", "DFT", "mechanics"],
-    "Nuclear Energy": ["nuclear", "reactor", "neutronics", "thermal hydraulics", "safety"],
-    "Remote Sensing": ["remote sensing", "satellite", "radiance", "classification", "calibration"],
-    "Robotics": ["robotics", "SLAM", "navigation", "control", "sensor fusion"],
-    "Transportation": ["transportation", "traffic", "mobility", "routing", "demand"],
-    "Urban Sensing": ["urban", "IoT", "mobility", "sensor network", "spatiotemporal"],
-  };
-
-  const keywordGeneralPool = [
-    "simulation",
-    "workflow",
-    "dataset",
-    "analysis",
-    "visualization",
-    "Parquet",
-    "HDF5",
-    "Zarr",
-    "JSON",
-  ];
-
-  function pickN(arr, n) {
-    const copy = (Array.isArray(arr) ? arr : []).slice();
-    // Fisher–Yates shuffle using seeded rand()
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy.slice(0, n);
-  }
-
-  function parseSubjectsFromRecord(r){
-    // Subjects and Keywords are separate concepts. Subjects come from r.subjects (array)
-    // or legacy r.subjectsKeywords (CSV). Do not fall back to r.keywords here.
-    if (Array.isArray(r.subjects) && r.subjects.length) {
-      return r.subjects.map(s => String(s || "").trim()).filter(Boolean);
-    }
-    const csv = String(r.subjectsKeywords || "").trim();
-    if (csv) return csv.split(",").map(s => s.trim()).filter(Boolean);
-    return [];
-  }
-
-  function parseKeywordsFromRecord(r){
-    if (Array.isArray(r.keywords) && r.keywords.length) {
-      return r.keywords.map(k => String(k || "").trim()).filter(Boolean);
-    }
-    // Best-effort legacy support: some older records stored keywords as a CSV string.
-    const csv = String(r.keywordsCsv || r.keywordsCSV || r.keywordsText || "").trim();
-    if (csv) return csv.split(",").map(s => s.trim()).filter(Boolean);
-    return [];
-  }
-
-  function getPrimarySubject(r){
-    const list = parseSubjectsFromRecord(r);
-    const known = list.find(s => subjects.includes(s));
-    return known || list[0] || "Unspecified";
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // Load records + always append demo mocks
-  // ──────────────────────────────────────────────────────────────
-  // Only Published records should appear in public search results.
-  const realRecordsRaw = getAllRecords().filter(r => String(r.status || "").toLowerCase() === "published");
-  let realRecords = realRecordsRaw.map(r => {
-    const created = r.createdAt || Date.now();
-    return {
-      ...r,
-      id: r.id || r.doi,
-      dateISO: r.dateISO || (r.createdAt ? String(r.createdAt).slice(0,10) : new Date().toISOString().slice(0,10)),
-      dateLabel: r.dateLabel || new Date(created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-      subject: getPrimarySubject(r),
-      fileType: r.fileType || "Unknown",
-      datasetFiles: r.datasetFiles || { count: 0, sizeGB: 0 },
-      keywords: parseKeywordsFromRecord(r),
-      contributors: (r.authors || r.contributors || []).map(a => ({
-        first: a.first || a.firstName || "",
-        last: a.last || a.lastName || "",
-        affil: a.affil || a.affiliation || ""
-      })),
-      landingUrl: r.landingUrl || `/src/pages/dataset/index.html?doi=${encodeURIComponent(r.doi)}`
-    };
-  });
-
-  // De-dupe by DOI in case a real record shares a demo DOI
-  const seenDoi = new Set(realRecords.map(r => r.doi));
-
-  const demoMocks = SHOW_DEMO_MOCKS
-    ? Array.from({ length: DEMO_MOCK_COUNT }, (_, i) => {
-        const d = makeDemoDataset(i);
-
-        // Map the rich demo record shape into the lightweight search row shape
-        const created = d.publishedAt || d.createdAt || Date.now();
-        const dateObj = new Date(created);
-
-        const sizeGB = (() => {
-          const m = String(d.datasetSizeLabel || "").match(/([0-9]+(?:\.[0-9]+)?)/);
-          return m ? Number(m[1]) : 0;
-        })();
-
-        return {
-          ...d,
-          id: d.doi,
-          dateISO: String(created).slice(0, 10),
-          dateLabel: dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-          subject: getPrimarySubject(d),
-          fileType: d.datasetType || "ND",
-          datasetFiles: {
-            count: Array.isArray(d.uploadedFiles) ? d.uploadedFiles.length : 0,
-            sizeGB: Number.isFinite(sizeGB) ? sizeGB : 0
-          },
-          keywords: parseKeywordsFromRecord(d),
-          contributors: (d.authors || []).map(a => ({
-            first: a.first || a.firstName || "",
-            last: a.last || a.lastName || "",
-            affil: a.affil || a.affiliation || ""
-          })),
-          landingUrl: `/src/pages/dataset/index.html?doi=${encodeURIComponent(d.doi)}`
-        };
-      }).filter(m => !seenDoi.has(m.doi))
-    : [];
-
-  const allResults = [...realRecords, ...demoMocks];
-
-  console.log("Search records loaded:", { real: realRecords.length, demo: demoMocks.length, total: allResults.length });
-
-  // ──────────────────────────────────────────────────────────────
-  // DOM selectors
+  // DOM selectors (match index.html)
   // ──────────────────────────────────────────────────────────────
   const qEl = document.getElementById("q");
   const clearSearchBtn = document.getElementById("clearSearch");
@@ -203,12 +33,12 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   const pagerList = document.getElementById("pagerList");
 
   const yearListEl = document.getElementById("yearList");
-  const catListEl = document.getElementById("catList");     // id kept (renders Subjects)
+  const catListEl = document.getElementById("catList"); // subjects
   const keywordListEl = document.getElementById("keywordList");
   const typeListEl = document.getElementById("typeList");
 
   const yearListM = document.getElementById("yearListM");
-  const catListM = document.getElementById("catListM");     // id kept
+  const catListM = document.getElementById("catListM");
   const keywordListM = document.getElementById("keywordListM");
   const typeListM = document.getElementById("typeListM");
 
@@ -229,92 +59,219 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   const popViewRecord = document.getElementById("popViewRecord");
   const backdrop = document.getElementById("backdrop");
 
+  // ──────────────────────────────────────────────────────────────
+  // State
+  // ──────────────────────────────────────────────────────────────
   const state = {
     q: "",
-    years: new Set(),
+    years: new Set(), // stored as strings in URL ("2024")
     subjects: new Set(),
     types: new Set(),
     keywords: new Set(),
     sort: "relevance",
     perPage: 10,
-    page: 1
+    page: 1,
   };
 
   // Track “See more / less” expansion state for long facet lists
   const facetExpanded = new Set();
 
+  // Popover state
   let activeContribs = [];
   let lastFocus = null;
 
-  const fmtName = (p) => `${p.last}, ${p.first}`;
+  // Prevent URL write during popstate hydration
+  let suppressUrlSync = false;
 
-  function escapeHtml(str){
-    return String(str).replace(/[&<>"']/g, s => ({
-      "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  // Last fetched results (for popover lookup)
+  let lastResultRows = [];
+
+  // ──────────────────────────────────────────────────────────────
+  // Utilities
+  // ──────────────────────────────────────────────────────────────
+  function escapeHtml(str) {
+    return String(str || "").replace(/[&<>"']/g, (s) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
     }[s]));
   }
 
-  function syncSearchClearVisibility(){
-    if(!qEl || !clearSearchBtn) return;
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
+
+  function syncSearchClearVisibility() {
+    if (!qEl || !clearSearchBtn) return;
     const val = (qEl.value || "").trim();
     clearSearchBtn.hidden = val.length === 0;
   }
 
-  function readUrlParams(){
+  function toYearNumberSet(yearStrings) {
+    const out = new Set();
+    (yearStrings || []).forEach((y) => {
+      const n = Number(String(y || "").trim());
+      if (Number.isFinite(n)) out.add(n);
+    });
+    return out;
+  }
+
+  function fromYearNumbersToStrings(yearNumbers) {
+    return (yearNumbers || []).map((n) => String(n));
+  }
+
+  function mapSortToClient(value) {
+    // UI: relevance, dateDesc/dateAsc, sizeDesc/sizeAsc, titleAsc/titleDesc
+    // dataClient: relevance, yearDesc/yearAsc, sizeDesc/sizeAsc, titleAsc/titleDesc
+    if (value === "dateDesc") return "yearDesc";
+    if (value === "dateAsc") return "yearAsc";
+    return value || "relevance";
+  }
+
+  function mapSortToUi(value) {
+    if (value === "yearDesc") return "dateDesc";
+    if (value === "yearAsc") return "dateAsc";
+    return value || "relevance";
+  }
+
+  function formatShortDate(iso) {
+    if (!iso) return "—";
+    const d = new Date(String(iso).includes("T") ? iso : `${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function parseSizeGBFromLabel(label) {
+    const m = String(label || "").match(/([0-9]+(?:\.[0-9]+)?)/);
+    if (!m) return 0;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function bytesToGB(bytes) {
+    const b = Number(bytes);
+    if (!Number.isFinite(b) || b <= 0) return 0;
+    return Math.round((b / (1024 ** 3)) * 10) / 10; // 1 decimal
+  }
+
+  function firstNonEmpty(arr) {
+    return (Array.isArray(arr) ? arr : []).map((x) => String(x || "").trim()).find(Boolean) || "";
+  }
+
+  function contributorName(p) {
+    // Supports both canonical and legacy-ish contributor objects
+    const first =
+      String(p?.first || p?.firstName || "").trim();
+    const last =
+      String(p?.last || p?.lastName || "").trim();
+    const name =
+      String(p?.name || "").trim();
+
+    if (last || first) return `${last}${last && first ? ", " : ""}${first}`;
+    if (name) return name;
+    return "Contributor";
+  }
+
+  // Convert canonical dataset to the lightweight shape this UI expects
+  function toRow(ds) {
+    const doi = String(ds?.doi || "").trim();
+    const title = String(ds?.title || "Untitled").trim();
+    const description = String(ds?.description || "").trim();
+
+    const subjects = Array.isArray(ds?.subjects) ? ds.subjects : [];
+    const keywords = Array.isArray(ds?.keywords) ? ds.keywords : [];
+    const fileTypes = Array.isArray(ds?.fileTypes) ? ds.fileTypes : [];
+
+    const primarySubject = firstNonEmpty(subjects) || "Unspecified";
+    const fileType = String(ds?.datasetType || "").trim() || firstNonEmpty(fileTypes) || "Unknown";
+
+    // Prefer publishedYear for "Published Year" facet, but UI displays a date label.
+    const dateISO = (() => {
+      // If we have an ISO date, use it. Otherwise create Jan 01 from publishedYear.
+      const iso = String(ds?.publishedAt || ds?.createdAt || ds?.updatedAt || "").trim();
+      if (iso) return iso.slice(0, 10);
+      const y = Number(ds?.publishedYear);
+      return Number.isFinite(y) ? `${y}-01-01` : "";
+    })();
+
+    const dateLabel = formatShortDate(dateISO);
+
+    // Dataset files: prefer uploadedFiles count; size from bytes if present; fallback to label parsing.
+    const count = Array.isArray(ds?.uploadedFiles) ? ds.uploadedFiles.length : 0;
+    const sizeGB =
+      Number.isFinite(ds?.datasetSizeBytes)
+        ? bytesToGB(ds.datasetSizeBytes)
+        : parseSizeGBFromLabel(ds?.datasetSizeLabel);
+
+    const contributors = Array.isArray(ds?.contributors)
+      ? ds.contributors
+      : (Array.isArray(ds?.authors) ? ds.authors : []);
+
+    return {
+      id: doi || ds?.id || crypto.randomUUID(),
+      doi,
+      title,
+      description,
+      subject: primarySubject,
+      fileType,
+      dateISO: dateISO || "",
+      dateLabel,
+      datasetFiles: { count, sizeGB },
+      keywords: keywords.map((k) => String(k || "").trim()).filter(Boolean),
+      contributors: contributors.map((p) => ({
+        first: p?.first || p?.firstName || "",
+        last: p?.last || p?.lastName || "",
+        name: p?.name || "",
+        affil: p?.affil || p?.affiliation || "",
+      })),
+      landingUrl: `/src/pages/dataset/index.html?doi=${encodeURIComponent(doi)}`,
+      _raw: ds,
+    };
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // URL state
+  // ──────────────────────────────────────────────────────────────
+  function readUrlParams() {
     const params = new URLSearchParams(window.location.search);
 
     const q = (params.get("q") || "").trim();
 
-    // Years: allow repeated (?year=2024&year=2023) or comma-separated (?year=2024,2023)
-    const yearAll = params.getAll("year").map(s => (s || "").trim()).filter(Boolean);
+    const yearAll = params.getAll("year").map((s) => (s || "").trim()).filter(Boolean);
     const yearSingle = (params.get("year") || "").trim();
     const years = yearAll.length
       ? yearAll
-      : (yearSingle ? yearSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
+      : (yearSingle ? yearSingle.split(",").map((s) => s.trim()).filter(Boolean) : []);
 
-    // Subjects: allow repeated (?subject=A&subject=B) and accept category as an alias (single)
-    const subjectAll = params.getAll("subject").map(s => (s || "").trim()).filter(Boolean);
-    const subjectAlias = (params.get("category") || "").trim();
+    const subjectAll = params.getAll("subject").map((s) => (s || "").trim()).filter(Boolean);
+    const subjectAlias = (params.get("category") || "").trim(); // legacy alias
     const subjectsParam = subjectAll.length ? subjectAll : [];
-    if(subjectAlias) subjectsParam.push(subjectAlias);
+    if (subjectAlias) subjectsParam.push(subjectAlias);
 
-    // File Types: allow repeated (?type=CSV&type=HDF5) or comma-separated
-    const typeAll = params.getAll("type").map(s => (s || "").trim()).filter(Boolean);
+    const typeAll = params.getAll("type").map((s) => (s || "").trim()).filter(Boolean);
     const typeSingle = (params.get("type") || "").trim();
     const types = typeAll.length
       ? typeAll
-      : (typeSingle ? typeSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
+      : (typeSingle ? typeSingle.split(",").map((s) => s.trim()).filter(Boolean) : []);
 
-    // Keywords: allow repeated (?keyword=HPC&keyword=AI) or comma-separated (?keyword=HPC,AI)
-    const keywordAll = params.getAll("keyword").map(s => (s || "").trim()).filter(Boolean);
+    const keywordAll = params.getAll("keyword").map((s) => (s || "").trim()).filter(Boolean);
     const keywordSingle = (params.get("keyword") || "").trim();
     const keywords = keywordAll.length
       ? keywordAll
-      : (keywordSingle ? keywordSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
+      : (keywordSingle ? keywordSingle.split(",").map((s) => s.trim()).filter(Boolean) : []);
 
     const sort = (params.get("sort") || "").trim();
     const perPage = (params.get("perPage") || "").trim();
     const page = (params.get("page") || "").trim();
 
-    return {
-      q,
-      years,
-      subjects: subjectsParam,
-      types,
-      keywords,
-      sort,
-      perPage,
-      page
-    };
+    return { q, years, subjects: subjectsParam, types, keywords, sort, perPage, page };
   }
 
-    // URL <-> state sync
-  let suppressUrlSync = false;
-
-  function applyUrlParams(){
+  function applyUrlParams() {
     const { q, years, subjects: sub, types, keywords, sort, perPage, page } = readUrlParams();
 
-    // Reset state first
     state.q = "";
     state.years.clear();
     state.subjects.clear();
@@ -324,57 +281,52 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     state.perPage = 10;
     state.page = 1;
 
-    if(q){
+    if (q) {
       state.q = q;
       qEl.value = q;
     } else {
       qEl.value = "";
     }
 
-    // Years are derived from data; accept any value (so shared URLs always hydrate),
-    // but only add 4-digit-looking years for sanity.
-    (years || []).forEach(y => {
+    (years || []).forEach((y) => {
       const yy = String(y || "").trim();
-      if(yy) state.years.add(yy);
+      if (yy) state.years.add(yy);
     });
 
-    // Subjects are from a known list; only apply if we recognize them (prevents weird URLs)
-    (sub || []).forEach(s => {
+    (sub || []).forEach((s) => {
       const ss = String(s || "").trim();
-      if(ss && subjects.includes(ss)) state.subjects.add(ss);
+      if (ss) state.subjects.add(ss);
     });
 
-    // Types are dynamic based on file types list; accept any
-    (types || []).forEach(t => {
+    (types || []).forEach((t) => {
       const tt = String(t || "").trim();
-      if(tt) state.types.add(tt);
+      if (tt) state.types.add(tt);
     });
 
-    // Keywords are dynamic; accept any value so shared URLs always hydrate.
-    (keywords || []).forEach(k => {
+    (keywords || []).forEach((k) => {
       const kk = String(k || "").trim();
-      if(kk) state.keywords.add(kk);
+      if (kk) state.keywords.add(kk);
     });
 
-    if(sort){
+    if (sort) {
       state.sort = sort;
-      if(sortEl) sortEl.value = sort;
+      if (sortEl) sortEl.value = sort;
     } else {
-      if(sortEl) sortEl.value = "relevance";
+      if (sortEl) sortEl.value = "relevance";
     }
 
-    if(perPage){
+    if (perPage) {
       const v = perPage.toLowerCase();
       state.perPage = (v === "all") ? Infinity : Number(perPage);
-      if(perPageEl) perPageEl.value = (v === "all") ? "all" : String(Number(perPage) || 10);
+      if (perPageEl) perPageEl.value = (v === "all") ? "all" : String(Number(perPage) || 10);
     } else {
       state.perPage = 10;
-      if(perPageEl) perPageEl.value = "10";
+      if (perPageEl) perPageEl.value = "10";
     }
 
-    if(page){
+    if (page) {
       const p = Number(page);
-      if(Number.isFinite(p) && p >= 1) state.page = Math.floor(p);
+      if (Number.isFinite(p) && p >= 1) state.page = Math.floor(p);
     } else {
       state.page = 1;
     }
@@ -382,110 +334,90 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     syncSearchClearVisibility();
   }
 
-  function stateToSearchParams(){
+  function stateToSearchParams() {
     const params = new URLSearchParams();
 
     const q = (state.q || "").trim();
-    if(q) params.set("q", q);
+    if (q) params.set("q", q);
 
-    // Use repeated params for multi-select facets
-    Array.from(state.years).sort((a,b) => String(b).localeCompare(String(a))).forEach(y => params.append("year", y));
-    Array.from(state.subjects).sort((a,b) => String(a).localeCompare(String(b))).forEach(s => params.append("subject", s));
-    Array.from(state.types).sort((a,b) => String(a).localeCompare(String(b))).forEach(t => params.append("type", t));
-    Array.from(state.keywords).sort((a,b) => String(a).localeCompare(String(b))).forEach(k => params.append("keyword", k));
+    Array.from(state.years)
+      .sort((a, b) => String(b).localeCompare(String(a)))
+      .forEach((y) => params.append("year", y));
 
-    if(state.sort && state.sort !== "relevance") params.set("sort", state.sort);
+    Array.from(state.subjects)
+      .sort((a, b) => String(a).localeCompare(String(b)))
+      .forEach((s) => params.append("subject", s));
 
-    if(state.perPage === Infinity) params.set("perPage", "all");
-    else if(state.perPage && state.perPage !== 10) params.set("perPage", String(state.perPage));
+    Array.from(state.types)
+      .sort((a, b) => String(a).localeCompare(String(b)))
+      .forEach((t) => params.append("type", t));
 
-    if(state.page && state.page !== 1) params.set("page", String(state.page));
+    Array.from(state.keywords)
+      .sort((a, b) => String(a).localeCompare(String(b)))
+      .forEach((k) => params.append("keyword", k));
+
+    if (state.sort && state.sort !== "relevance") params.set("sort", state.sort);
+
+    if (state.perPage === Infinity) params.set("perPage", "all");
+    else if (state.perPage && state.perPage !== 10) params.set("perPage", String(state.perPage));
+
+    if (state.page && state.page !== 1) params.set("page", String(state.page));
 
     return params;
   }
 
-  function syncUrlFromState(mode = "replace"){
-    if(suppressUrlSync) return;
+  function syncUrlFromState(mode = "replace") {
+    if (suppressUrlSync) return;
     const params = stateToSearchParams();
     const qs = params.toString();
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
 
-    // Avoid redundant history operations
     const current = window.location.pathname + window.location.search;
-    if(current === url) return;
+    if (current === url) return;
 
-    if(mode === "push") window.history.pushState({}, "", url);
+    if (mode === "push") window.history.pushState({}, "", url);
     else window.history.replaceState({}, "", url);
   }
 
-  function matchesSearch(r, q){
-    if(!q) return true;
-    const needle = q.trim().toLowerCase();
-    const blob = [
-      r.title || "", r.doi || "", r.subject || "", r.fileType || "",
-      (r.keywords || []).join(" "),
-      (r.contributors || []).slice(0, 40).map(fmtName).join(" ")
-    ].join(" ").toLowerCase();
-    return blob.includes(needle);
-  }
-
-    function buildFacetValues(items, getVal){
-    const map = new Map();
-    items.forEach(it => {
-      const v = getVal(it) || "Unknown";
-      map.set(v, (map.get(v) || 0) + 1);
-    });
-    return [...map.entries()].map(([value, count]) => ({ value, count }));
-  }
-
-  function buildFacetValuesMulti(items, getVals){
-    const map = new Map();
-    items.forEach(it => {
-      const vals = getVals(it) || [];
-      vals.forEach(vRaw => {
-        const v = String(vRaw || "").trim();
-        if(!v) return;
-        map.set(v, (map.get(v) || 0) + 1);
-      });
-    });
-    return [...map.entries()].map(([value, count]) => ({ value, count }));
-  }
-
-  function renderFacetUSWDS(listEl, values, selectedSet, onChange, sortMode){
+  // ──────────────────────────────────────────────────────────────
+  // Facets rendering (USWDS checkbox lists + show 6 toggle)
+  // ──────────────────────────────────────────────────────────────
+  function renderFacetUSWDS(listEl, values, selectedSet, onChange, sortMode) {
     let sorted = values.slice();
-    if(sortMode === "yearDesc") sorted.sort((a,b) => Number(b.value) - Number(a.value));
-    else sorted.sort((a,b) => a.value.localeCompare(b.value));
 
-    listEl.innerHTML = sorted.map(({value, count}, idx) => {
-      const id = `${listEl.id}-${idx}-${value}`.replace(/\s+/g,"-");
-      const checked = selectedSet.has(value) ? "checked" : "";
-      return `
+    if (sortMode === "yearDesc") sorted.sort((a, b) => Number(b.value) - Number(a.value));
+    else sorted.sort((a, b) => String(a.value).localeCompare(String(b.value)));
+
+    listEl.innerHTML = sorted
+      .map(({ value, count }, idx) => {
+        const id = `${listEl.id}-${idx}-${value}`.replace(/\s+/g, "-");
+        const checked = selectedSet.has(String(value)) ? "checked" : "";
+        return `
         <div class="usa-checkbox margin-bottom-1">
-          <input class="usa-checkbox__input" id="${escapeHtml(id)}" type="checkbox" value="${escapeHtml(value)}" ${checked}>
+          <input class="usa-checkbox__input" id="${escapeHtml(id)}" type="checkbox" value="${escapeHtml(String(value))}" ${checked}>
           <label class="usa-checkbox__label" for="${escapeHtml(id)}">
-            ${escapeHtml(value)} <span class="text-base">(${count})</span>
+            ${escapeHtml(String(value))} <span class="text-base">(${count})</span>
           </label>
         </div>
       `;
-    }).join("");
+      })
+      .join("");
 
-    listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    listEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
       cb.addEventListener("change", (e) => onChange(e.target.value, e.target.checked));
     });
   }
 
-
-  function applyFacetLimit(listEl, key, limit){
-    if(!listEl) return;
+  function applyFacetLimit(listEl, key, limit) {
+    if (!listEl) return;
 
     const expanded = facetExpanded.has(key);
 
     const items = Array.from(listEl.querySelectorAll(".usa-checkbox"));
     const needsToggle = items.length > limit;
 
-    // Hide or show items beyond limit
     items.forEach((el, idx) => {
-      if(!needsToggle) {
+      if (!needsToggle) {
         el.classList.remove("facetHidden");
         return;
       }
@@ -493,10 +425,9 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
       el.classList.toggle("facetHidden", hide);
     });
 
-    // Create or update toggle control
     let wrap = listEl.parentElement?.querySelector(`[data-facet-toggle="${key}"]`);
-    if(needsToggle){
-      if(!wrap){
+    if (needsToggle) {
+      if (!wrap) {
         wrap = document.createElement("div");
         wrap.className = "facetToggleWrap";
         wrap.setAttribute("data-facet-toggle", key);
@@ -508,158 +439,92 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
         btn.textContent = expanded ? "See less" : "See more";
 
         btn.addEventListener("click", () => {
-          if(facetExpanded.has(key)) facetExpanded.delete(key);
+          if (facetExpanded.has(key)) facetExpanded.delete(key);
           else facetExpanded.add(key);
-          // Re-render facets in-place
-          renderFacets();
+          // Re-apply limit without rebuilding counts (fast + stable)
+          applyFacetLimit(listEl, key, limit);
+          const btn2 = wrap.querySelector("button");
+          if (btn2) {
+            btn2.setAttribute("aria-expanded", facetExpanded.has(key) ? "true" : "false");
+            btn2.textContent = facetExpanded.has(key) ? "See less" : "See more";
+          }
         });
 
         wrap.appendChild(btn);
         listEl.insertAdjacentElement("afterend", wrap);
       } else {
         const btn = wrap.querySelector("button");
-        if(btn){
+        if (btn) {
           btn.setAttribute("aria-expanded", expanded ? "true" : "false");
           btn.textContent = expanded ? "See less" : "See more";
         }
       }
     } else {
-      // No toggle needed; remove any previous toggle.
-      if(wrap) wrap.remove();
+      if (wrap) wrap.remove();
     }
   }
 
-  function renderFacetUSWDSLimited(listEl, values, selectedSet, onChange, sortMode, opts){
+  function renderFacetUSWDSLimited(listEl, values, selectedSet, onChange, sortMode, opts) {
     renderFacetUSWDS(listEl, values, selectedSet, onChange, sortMode);
     const limit = (opts && Number(opts.limit)) || 6;
     const key = (opts && opts.key) || listEl?.id || "facet";
     applyFacetLimit(listEl, key, limit);
   }
 
-  function scoreResult(r, q){
-    if(!q) return 0;
-    const needle = q.trim().toLowerCase();
-    let score = 0;
-
-    const t = (r.title || "").toLowerCase();
-    const doi = (r.doi || "").toLowerCase();
-    const subj = (r.subject || "").toLowerCase();
-    const ft = (r.fileType || "").toLowerCase();
-    const keys = (r.keywords || []).join(" ").toLowerCase();
-    const contrib = (r.contributors || []).slice(0, 40).map(fmtName).join(" ").toLowerCase();
-
-    if(t.includes(needle)) score += 20;
-    if(keys.includes(needle)) score += 12;
-    if(subj.includes(needle)) score += 8;
-    if(contrib.includes(needle)) score += 6;
-    if(ft.includes(needle)) score += 3;
-    if(doi.includes(needle)) score += 2;
-
-    const year = Number((r.dateISO || r.createdAt || "").slice(0,4));
-    if (!isNaN(year)) score += (year - 2018) * 0.3;
-
-    return score;
-  }
-
-  function applyFilters(){
-    const q = state.q.trim();
-    return allResults
-      .map(r => ({ ...r, _score: scoreResult(r, q) }))
-      .filter(r => {
-        // Exclude Draft records from public search
-        if ((r.status || "").toLowerCase() === "draft") return false;
-
-        const y = (r.dateISO || r.createdAt || "").slice(0,4);
-        if(state.years.size && !state.years.has(y)) return false;
-
-        if(state.subjects.size && !state.subjects.has(r.subject || "Unspecified")) return false;
-
-        if(state.types.size && !state.types.has(r.fileType || "Unknown")) return false;
-
-        if(state.keywords.size){
-          const sel = new Set(Array.from(state.keywords).map(k => String(k || "").trim().toLowerCase()).filter(Boolean));
-          const rowKeys = (r.keywords || []).map(k => String(k || "").trim().toLowerCase()).filter(Boolean);
-          const hit = rowKeys.some(k => sel.has(k));
-          if(!hit) return false;
-        }
-
-        if(!matchesSearch(r, q)) return false;
-
-        return true;
-      });
-  }
-
-  function sortResults(rows){
-    const s = state.sort;
-    const copy = rows.slice();
-    copy.sort((a,b) => {
-      if(s === "relevance") return (b._score ?? 0) - (a._score ?? 0);
-      if(s === "dateDesc") return (b.dateISO || b.createdAt || "").localeCompare(a.dateISO || a.createdAt || "");
-      if(s === "dateAsc") return (a.dateISO || a.createdAt || "").localeCompare(b.dateISO || b.createdAt || "");
-      if(s === "titleAsc") return (a.title || "").localeCompare(b.title || "");
-      if(s === "titleDesc") return (b.title || "").localeCompare(a.title || "");
-
-      if(s === "sizeDesc") return (b.datasetFiles?.sizeGB ?? 0) - (a.datasetFiles?.sizeGB ?? 0);
-      if(s === "sizeAsc")  return (a.datasetFiles?.sizeGB ?? 0) - (b.datasetFiles?.sizeGB ?? 0);
-
-      return 0;
-    });
-    return copy;
-  }
-
-  function wireSectionToggles(root){
-    root.querySelectorAll(".filterSection").forEach(section => {
-      const btn = section.querySelector(".filterHeader");
-      if(!btn) return;
-      btn.addEventListener("click", () => {
-        const expanded = btn.getAttribute("aria-expanded") === "true";
-        btn.setAttribute("aria-expanded", String(!expanded));
-        section.classList.toggle("is-collapsed", expanded);
-      });
-    });
-  }
-
-  function renderChips(){
+  // ──────────────────────────────────────────────────────────────
+  // Chips
+  // ──────────────────────────────────────────────────────────────
+  function renderChips() {
     const chips = [];
-    state.years.forEach(v => chips.push({ key:`year:${v}`, label:`${v}` }));
-    state.subjects.forEach(v => chips.push({ key:`subject:${v}`, label:`${v}` }));
-    state.types.forEach(v => chips.push({ key:`type:${v}`, label:`${v}` }));
-    state.keywords.forEach(v => chips.push({ key:`keyword:${v}`, label:`${v}` }));
+    state.years.forEach((v) => chips.push({ key: `year:${v}`, label: `${v}` }));
+    state.subjects.forEach((v) => chips.push({ key: `subject:${v}`, label: `${v}` }));
+    state.types.forEach((v) => chips.push({ key: `type:${v}`, label: `${v}` }));
+    state.keywords.forEach((v) => chips.push({ key: `keyword:${v}`, label: `${v}` }));
 
     chipsEl.innerHTML = chips.length
-      ? chips.map(c => `
+      ? chips
+          .map(
+            (c) => `
           <span class="chip">
             ${escapeHtml(c.label)}
             <button type="button" aria-label="Remove ${escapeHtml(c.label)}" data-remove="${escapeHtml(c.key)}">×</button>
           </span>
-        `).join("")
+        `
+          )
+          .join("")
       : `<span class="usa-hint">No filters applied.</span>`;
   }
 
   chipsEl.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-remove]");
-    if(!btn) return;
+    if (!btn) return;
     const key = btn.getAttribute("data-remove");
     const [type, val] = key.split(":");
 
-    if(type === "year") state.years.delete(val);
-    if(type === "subject") state.subjects.delete(val);
-    if(type === "type") state.types.delete(val);
-    if(type === "keyword") state.keywords.delete(val);
+    if (type === "year") state.years.delete(val);
+    if (type === "subject") state.subjects.delete(val);
+    if (type === "type") state.types.delete(val);
+    if (type === "keyword") state.keywords.delete(val);
 
     state.page = 1;
     renderFacets();
     update({ history: "push" });
   });
 
-  function contributorsSummaryHTML(result){
+  // ──────────────────────────────────────────────────────────────
+  // Results rendering + pagination
+  // ──────────────────────────────────────────────────────────────
+  function contributorsSummaryHTML(result) {
     const contributors = result.contributors || [];
     const topN = 3;
     const topPeople = contributors.slice(0, topN);
     const remaining = Math.max(0, contributors.length - topPeople.length);
 
     const names = topPeople
-      .map(p => `<span class="name" title="${escapeHtml(fmtName(p))}">${escapeHtml(fmtName(p))}</span>`)
+      .map((p) => {
+        const nm = contributorName(p);
+        return `<span class="name" title="${escapeHtml(nm)}">${escapeHtml(nm)}</span>`;
+      })
       .join(`<span class="sep">,</span> `);
 
     const more = remaining
@@ -676,38 +541,22 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     return `<div class="contribSummary">${names}${more}</div>`;
   }
 
-  function getPerPage(){
+  function getPerPage() {
     return state.perPage === Infinity ? Infinity : Number(state.perPage);
   }
 
-  function paginate(rows){
-    const per = getPerPage();
-    if(per === Infinity) return { pageRows: rows, totalPages: 1, start: 1, end: rows.length };
+  function renderPager(pageCount) {
+    // Match prior behavior: hide entire row when no paging is needed, except when perPage=All
+    pagingRow.hidden = (pageCount <= 1 && getPerPage() !== Infinity);
 
-    const totalPages = Math.max(1, Math.ceil(rows.length / per));
-    state.page = Math.max(1, Math.min(state.page, totalPages));
-
-    const startIdx = (state.page - 1) * per;
-    const endIdx = Math.min(rows.length, startIdx + per);
-    return {
-      pageRows: rows.slice(startIdx, endIdx),
-      totalPages,
-      start: rows.length ? startIdx + 1 : 0,
-      end: endIdx
-    };
-  }
-
-  function renderPager(totalPages){
-    pagingRow.hidden = (totalPages <= 1 && getPerPage() !== Infinity);
-
-    if(getPerPage() === Infinity){
+    if (getPerPage() === Infinity) {
       pager.hidden = true;
       pagerList.innerHTML = "";
       pagingRow.hidden = false;
       return;
     }
 
-    if(totalPages <= 1){
+    if (pageCount <= 1) {
       pager.hidden = true;
       pagerList.innerHTML = "";
       return;
@@ -716,20 +565,22 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     pager.hidden = false;
 
     const current = state.page;
+    const totalPages = pageCount;
+
     const items = [];
-    const addPage = (p) => items.push({ type:"page", p });
-    const addEllipsis = () => items.push({ type:"ellipsis" });
+    const addPage = (p) => items.push({ type: "page", p });
+    const addEllipsis = () => items.push({ type: "ellipsis" });
 
     const windowSize = 1;
     const pages = new Set([1, totalPages]);
-    for(let p = current - windowSize; p <= current + windowSize; p++){
-      if(p >= 1 && p <= totalPages) pages.add(p);
+    for (let p = current - windowSize; p <= current + windowSize; p++) {
+      if (p >= 1 && p <= totalPages) pages.add(p);
     }
-    const sorted = [...pages].sort((a,b) => a-b);
+    const sorted = [...pages].sort((a, b) => a - b);
 
     let prev = null;
-    for(const p of sorted){
-      if(prev !== null && p - prev > 1) addEllipsis();
+    for (const p of sorted) {
+      if (prev !== null && p - prev > 1) addEllipsis();
       addPage(p);
       prev = p;
     }
@@ -747,27 +598,29 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
         </a>
       </li>
 
-      ${items.map(it => {
-        if(it.type === "ellipsis"){
+      ${items
+        .map((it) => {
+          if (it.type === "ellipsis") {
+            return `
+              <li class="usa-pagination__item usa-pagination__overflow" role="presentation">
+                <span>…</span>
+              </li>
+            `;
+          }
+          const isCurrent = it.p === current;
           return `
-            <li class="usa-pagination__item usa-pagination__overflow" role="presentation">
-              <span>…</span>
+            <li class="usa-pagination__item usa-pagination__page-no">
+              <a
+                class="usa-pagination__button ${isCurrent ? "usa-current" : ""}"
+                href="#"
+                aria-label="Page ${it.p}"
+                ${isCurrent ? 'aria-current="page"' : ""}
+                data-page="${it.p}"
+              >${it.p}</a>
             </li>
           `;
-        }
-        const isCurrent = it.p === current;
-        return `
-          <li class="usa-pagination__item usa-pagination__page-no">
-            <a
-              class="usa-pagination__button ${isCurrent ? "usa-current" : ""}"
-              href="#"
-              aria-label="Page ${it.p}"
-              ${isCurrent ? 'aria-current="page"' : ""}
-              data-page="${it.p}"
-            >${it.p}</a>
-          </li>
-        `;
-      }).join("")}
+        })
+        .join("")}
 
       <li class="usa-pagination__item usa-pagination__arrow">
         <a
@@ -785,34 +638,44 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
 
   pager.addEventListener("click", (e) => {
     const a = e.target.closest("a[data-page]");
-    if(!a) return;
+    if (!a) return;
     e.preventDefault();
-    if(a.getAttribute("aria-disabled") === "true") return;
+    if (a.getAttribute("aria-disabled") === "true") return;
 
     const nextPage = Number(a.getAttribute("data-page"));
-    if(Number.isNaN(nextPage)) return;
+    if (Number.isNaN(nextPage)) return;
 
     state.page = nextPage;
     update({ history: "push" });
   });
 
-  function renderResults(rows, pageInfo){
+  function renderResults(rows, responseMeta) {
     const q = state.q.trim();
-    const hasPaging = getPerPage() !== Infinity;
+    const per = getPerPage();
 
-    if(rows.length === 0){
-      metaEl.innerHTML = q ? `We found <strong>0</strong> records for “${escapeHtml(q)}”.` : `We found <strong>0</strong> records.`;
-    } else if(hasPaging){
+    const total = Number(responseMeta?.total || rows.length);
+    const page = Number(responseMeta?.page || 1);
+    const perPage = per === Infinity ? total : Number(responseMeta?.perPage || per);
+    const start = total ? (page - 1) * perPage + 1 : 0;
+    const end = total ? Math.min(total, (page - 1) * perPage + rows.length) : 0;
+
+    if (total === 0) {
       metaEl.innerHTML = q
-        ? `Showing <strong>${pageInfo.start}–${pageInfo.end}</strong> of <strong>${rows.length}</strong> records for “${escapeHtml(q)}”.`
-        : `Showing <strong>${pageInfo.start}–${pageInfo.end}</strong> of <strong>${rows.length}</strong> records.`;
+        ? `We found <strong>0</strong> records for “${escapeHtml(q)}”.`
+        : `We found <strong>0</strong> records.`;
+    } else if (per !== Infinity) {
+      metaEl.innerHTML = q
+        ? `Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> records for “${escapeHtml(q)}”.`
+        : `Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> records.`;
     } else {
       metaEl.innerHTML = q
-        ? `We found <strong>${rows.length}</strong> records for “${escapeHtml(q)}”.`
-        : `We found <strong>${rows.length}</strong> records.`;
+        ? `We found <strong>${total}</strong> records for “${escapeHtml(q)}”.`
+        : `We found <strong>${total}</strong> records.`;
     }
 
-    resultsEl.innerHTML = pageInfo.pageRows.map(r => `
+    resultsEl.innerHTML = rows
+      .map(
+        (r) => `
       <article class="resultCard">
         <div class="resultGrid">
           <div>
@@ -846,69 +709,164 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
           </div>
         </div>
       </article>
-    `).join("");
+    `
+      )
+      .join("");
 
-    emptyEl.hidden = rows.length !== 0;
+    emptyEl.hidden = total !== 0;
   }
 
-  function renderFacets(){
-    const base = allResults
-      .filter(r => (r.status || "").toLowerCase() !== "draft")
-      .filter(r => matchesSearch(r, state.q));
+  // ──────────────────────────────────────────────────────────────
+  // Facets (use dataClient facets, but with "q-only" base like your previous UX)
+  // ──────────────────────────────────────────────────────────────
+  async function renderFacets() {
+    // Build facets based on q only (not selected facets), matching old behavior.
+    const q = state.q.trim();
 
-    const years = buildFacetValues(base, r => (r.dateISO || r.createdAt || "").slice(0,4));
-    const subs  = buildFacetValues(base, r => r.subject || "Unspecified");
-    const types = buildFacetValues(base, r => r.fileType || "Unknown");
-    const keys  = buildFacetValuesMulti(base, r => (r.keywords || []));
+    const facetParams = {
+      q,
+      // Published-only for public search
+      status: ["Published"],
+      // No other filters
+      subjects: [],
+      keywords: [],
+      fileTypes: [],
+      years: [],
+      // cheap request (pagination irrelevant for facets)
+      page: 1,
+      perPage: 1,
+      sort: "relevance",
+    };
 
-    // Normalize selected keywords to the facet's canonical casing when possible.
-    const keyCanon = new Map(keys.map(k => [String(k.value || "").trim().toLowerCase(), k.value]));
-    const nextSelected = new Set();
-    state.keywords.forEach(k => {
-      const lk = String(k || "").trim().toLowerCase();
-      if(!lk) return;
-      nextSelected.add(keyCanon.get(lk) || k);
+    let facetResp;
+    try {
+      facetResp = await searchDatasets(facetParams);
+    } catch (e) {
+      console.warn("search: facets fetch failed", e);
+      facetResp = { facets: { years: [], subjects: [], keywords: [], fileTypes: [] } };
+    }
+
+    const facets = facetResp?.facets || {};
+
+    // Years come as numbers in the demo client; UI expects strings.
+    const years = (facets.years || []).map((x) => ({
+      value: String(x.value),
+      count: x.count,
+    }));
+
+    const subs = (facets.subjects || []).map((x) => ({ value: String(x.value), count: x.count }));
+    const keys = (facets.keywords || []).map((x) => ({ value: String(x.value), count: x.count }));
+    const types = (facets.fileTypes || []).map((x) => ({ value: String(x.value), count: x.count }));
+
+    // Ensure selected values still appear even if not present in q-only facets
+    Array.from(state.years).forEach((y) => {
+      if (!years.some((x) => x.value === y)) years.push({ value: y, count: 0 });
     });
-    state.keywords = nextSelected;
-
-    // Ensure selected keywords still render even if zero-count under current base.
-    state.keywords.forEach(k => {
-      if(!keys.some(x => x.value === k)) keys.push({ value: k, count: 0 });
+    Array.from(state.subjects).forEach((s) => {
+      if (!subs.some((x) => x.value === s)) subs.push({ value: s, count: 0 });
+    });
+    Array.from(state.keywords).forEach((k) => {
+      if (!keys.some((x) => x.value === k)) keys.push({ value: k, count: 0 });
+    });
+    Array.from(state.types).forEach((t) => {
+      if (!types.some((x) => x.value === t)) types.push({ value: t, count: 0 });
     });
 
-    const onYear = (val, checked) => { checked ? state.years.add(val) : state.years.delete(val); state.page = 1; update({ history: "push" }); };
-    const onSub  = (val, checked) => { checked ? state.subjects.add(val) : state.subjects.delete(val); state.page = 1; update({ history: "push" }); };
-    const onType = (val, checked) => { checked ? state.types.add(val) : state.types.delete(val); state.page = 1; update({ history: "push" }); };
-    const onKey  = (val, checked) => { checked ? state.keywords.add(val) : state.keywords.delete(val); state.page = 1; update({ history: "push" }); };
+    const onYear = (val, checked) => {
+      checked ? state.years.add(val) : state.years.delete(val);
+      state.page = 1;
+      update({ history: "push" });
+    };
+    const onSub = (val, checked) => {
+      checked ? state.subjects.add(val) : state.subjects.delete(val);
+      state.page = 1;
+      update({ history: "push" });
+    };
+    const onType = (val, checked) => {
+      checked ? state.types.add(val) : state.types.delete(val);
+      state.page = 1;
+      update({ history: "push" });
+    };
+    const onKey = (val, checked) => {
+      checked ? state.keywords.add(val) : state.keywords.delete(val);
+      state.page = 1;
+      update({ history: "push" });
+    };
 
     renderFacetUSWDSLimited(yearListEl, years, state.years, onYear, "yearDesc", { limit: 6, key: "year-d" });
     renderFacetUSWDSLimited(catListEl, subs, state.subjects, onSub, undefined, { limit: 6, key: "subject-d" });
-    if(keywordListEl) renderFacetUSWDSLimited(keywordListEl, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-d" });
+    if (keywordListEl) renderFacetUSWDSLimited(keywordListEl, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-d" });
     renderFacetUSWDSLimited(typeListEl, types, state.types, onType, undefined, { limit: 6, key: "type-d" });
 
     renderFacetUSWDSLimited(yearListM, years, state.years, onYear, "yearDesc", { limit: 6, key: "year-m" });
     renderFacetUSWDSLimited(catListM, subs, state.subjects, onSub, undefined, { limit: 6, key: "subject-m" });
-    if(keywordListM) renderFacetUSWDSLimited(keywordListM, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-m" });
+    if (keywordListM) renderFacetUSWDSLimited(keywordListM, keys, state.keywords, onKey, undefined, { limit: 6, key: "keyword-m" });
     renderFacetUSWDSLimited(typeListM, types, state.types, onType, undefined, { limit: 6, key: "type-m" });
   }
 
+  function syncFacetCheckboxes() {
+    const sync = (rootId, selectedSet) => {
+      const root = document.getElementById(rootId);
+      if (!root) return;
+      root.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.checked = selectedSet.has(cb.value);
+      });
+    };
 
-  function renderPopList(list, q){
-    const query = q.trim().toLowerCase();
-    const rows = !query ? list : list.filter(p => `${fmtName(p)} ${p.affil || ""}`.toLowerCase().includes(query));
-    popMeta.textContent = `${rows.length} of ${list.length} shown`;
+    sync("yearList", state.years);
+    sync("catList", state.subjects);
+    sync("keywordList", state.keywords);
+    sync("typeList", state.types);
 
-    popList.innerHTML = rows.map(p => `
-      <div class="contrib-row" title="${escapeHtml(fmtName(p))} — ${escapeHtml(p.affil || "")}">
-        <div class="nm">${escapeHtml(fmtName(p))}</div>
-        <div class="aff">${escapeHtml(p.affil || "")}</div>
-      </div>
-    `).join("");
+    sync("yearListM", state.years);
+    sync("catListM", state.subjects);
+    sync("keywordListM", state.keywords);
+    sync("typeListM", state.types);
   }
 
-  function openPopoverForResult(resultId, anchorEl){
-    const r = allResults.find(x => x.id === resultId);
-    if(!r) return;
+  // ──────────────────────────────────────────────────────────────
+  // Section toggles (accordion-like)
+  // ──────────────────────────────────────────────────────────────
+  function wireSectionToggles(root) {
+    root.querySelectorAll(".filterSection").forEach((section) => {
+      const btn = section.querySelector(".filterHeader");
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        const expanded = btn.getAttribute("aria-expanded") === "true";
+        btn.setAttribute("aria-expanded", String(!expanded));
+        section.classList.toggle("is-collapsed", expanded);
+      });
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Popover
+  // ──────────────────────────────────────────────────────────────
+  function renderPopList(list, q) {
+    const query = q.trim().toLowerCase();
+    const rows = !query
+      ? list
+      : list.filter((p) => `${contributorName(p)} ${p.affil || ""}`.toLowerCase().includes(query));
+
+    popMeta.textContent = `${rows.length} of ${list.length} shown`;
+
+    popList.innerHTML = rows
+      .map((p) => {
+        const nm = contributorName(p);
+        const aff = String(p.affil || "").trim();
+        return `
+          <div class="contrib-row" title="${escapeHtml(nm)} — ${escapeHtml(aff)}">
+            <div class="nm">${escapeHtml(nm)}</div>
+            <div class="aff">${escapeHtml(aff || "—")}</div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function openPopoverForResult(resultId, anchorEl) {
+    const r = lastResultRows.find((x) => x.id === resultId);
+    if (!r) return;
 
     activeContribs = r.contributors || [];
     lastFocus = anchorEl;
@@ -938,16 +896,20 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     setTimeout(() => popSearch.focus(), 0);
   }
 
-  function closePopover(){
+  function closePopover() {
     pop.hidden = true;
     pop.setAttribute("aria-hidden", "true");
     backdrop.hidden = true;
     activeContribs = [];
-    if(lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
+    if (lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // Mobile drawer
+  // ──────────────────────────────────────────────────────────────
   let lastDrawerFocus = null;
-  function openDrawer(){
+
+  function openDrawer() {
     lastDrawerFocus = document.activeElement;
     filterDrawer.hidden = false;
     filterBackdrop.hidden = false;
@@ -955,31 +917,68 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     document.body.style.overflow = "hidden";
     setTimeout(() => {
       const first = filterDrawer.querySelector("button, input, select, a");
-      if(first) first.focus();
+      if (first) first.focus();
     }, 0);
   }
-  function closeDrawer(){
+
+  function closeDrawer() {
     filterDrawer.hidden = true;
     filterBackdrop.hidden = true;
     openFiltersBtn.setAttribute("aria-expanded", "false");
     document.body.style.overflow = "";
-    if(lastDrawerFocus && typeof lastDrawerFocus.focus === "function") lastDrawerFocus.focus();
+    if (lastDrawerFocus && typeof lastDrawerFocus.focus === "function") lastDrawerFocus.focus();
   }
 
-  function update(opts = {}){
-    const filtered = sortResults(applyFilters());
-    const pageInfo = paginate(filtered);
+  // ──────────────────────────────────────────────────────────────
+  // Data fetch + render
+  // ──────────────────────────────────────────────────────────────
+  async function update(opts = {}) {
+    // Build query params for dataClient
+    const q = state.q.trim();
 
-    renderResults(filtered, pageInfo);
+    const yearsNum = Array.from(toYearNumberSet(Array.from(state.years)));
+    const perPage = state.perPage === Infinity ? 100000 : Number(state.perPage || 10);
+
+    const params = {
+      q,
+      status: ["Published"], // public search
+      years: yearsNum,
+      subjects: Array.from(state.subjects),
+      keywords: Array.from(state.keywords),
+      fileTypes: Array.from(state.types),
+      sort: mapSortToClient(state.sort),
+      page: state.page,
+      perPage,
+    };
+
+    let resp;
+    try {
+      resp = await searchDatasets(params);
+    } catch (e) {
+      console.error("search: searchDatasets failed", e);
+      resp = { results: [], total: 0, page: 1, perPage: perPage, pageCount: 1 };
+    }
+
+    // Keep UI dropdown synced (especially when URL had yearAsc/yearDesc variants in older links)
+    if (sortEl) sortEl.value = mapSortToUi(state.sort);
+
+    // Convert to UI rows
+    const rows = (resp.results || []).map(toRow);
+
+    // Save for popover lookup
+    lastResultRows = rows.slice();
+
+    // Render
+    renderResults(rows, resp);
     renderChips();
-    renderPager(pageInfo.totalPages);
+    renderPager(Number(resp.pageCount || 1));
 
-    if(!pop.hidden) closePopover();
+    if (!pop.hidden) closePopover();
 
     syncUrlFromState(opts.history || "replace");
   }
 
-  function clearAll(){
+  function clearAll() {
     state.q = "";
     state.years.clear();
     state.subjects.clear();
@@ -990,11 +989,17 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     qEl.value = "";
     syncSearchClearVisibility();
 
-    renderFacets();
-    update({ history: "push" });
+    renderFacets().then(() => {
+      syncFacetCheckboxes();
+      update({ history: "push" });
+    });
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // Event wiring
+  // ──────────────────────────────────────────────────────────────
   let t = null;
+
   qEl.addEventListener("input", () => {
     clearTimeout(t);
     const val = qEl.value || "";
@@ -1003,8 +1008,11 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     t = setTimeout(() => {
       state.q = val;
       state.page = 1;
-      renderFacets();
-      update();
+
+      renderFacets().then(() => {
+        syncFacetCheckboxes();
+        update();
+      });
     }, 140);
   });
 
@@ -1014,15 +1022,18 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     state.page = 1;
 
     syncSearchClearVisibility();
-    renderFacets();
-    update({ history: "push" });
+
+    renderFacets().then(() => {
+      syncFacetCheckboxes();
+      update({ history: "push" });
+    });
 
     qEl.focus();
   });
 
-  if(searchGoBtn){
+  if (searchGoBtn) {
     searchGoBtn.addEventListener("click", () => {
-      if(qEl) qEl.focus();
+      if (qEl) qEl.focus();
     });
   }
 
@@ -1039,19 +1050,19 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     update({ history: "push" });
   });
 
-  if(clearBtn) clearBtn.addEventListener("click", clearAll);
-  if(emptyClear) emptyClear.addEventListener("click", clearAll);
+  if (clearBtn) clearBtn.addEventListener("click", clearAll);
+  if (emptyClear) emptyClear.addEventListener("click", clearAll);
 
-  if(openFiltersBtn) openFiltersBtn.addEventListener("click", openDrawer);
-  if(closeFiltersBtn) closeFiltersBtn.addEventListener("click", closeDrawer);
-  if(filterBackdrop) filterBackdrop.addEventListener("click", closeDrawer);
+  if (openFiltersBtn) openFiltersBtn.addEventListener("click", openDrawer);
+  if (closeFiltersBtn) closeFiltersBtn.addEventListener("click", closeDrawer);
+  if (filterBackdrop) filterBackdrop.addEventListener("click", closeDrawer);
 
-  if(clearBtnMobile) clearBtnMobile.addEventListener("click", clearAll);
-  if(applyFiltersMobile) applyFiltersMobile.addEventListener("click", closeDrawer);
+  if (clearBtnMobile) clearBtnMobile.addEventListener("click", clearAll);
+  if (applyFiltersMobile) applyFiltersMobile.addEventListener("click", closeDrawer);
 
   resultsEl.addEventListener("click", (e) => {
     const btn = e.target.closest('button[data-action="open-pop"]');
-    if(!btn) return;
+    if (!btn) return;
     openPopoverForResult(btn.getAttribute("data-result-id"), btn);
   });
 
@@ -1059,37 +1070,28 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   backdrop.addEventListener("click", closePopover);
 
   popSearch.addEventListener("input", () => {
-    if(!activeContribs.length) return;
+    if (!activeContribs.length) return;
     renderPopList(activeContribs, popSearch.value);
   });
 
   document.addEventListener("keydown", (e) => {
-    if(e.key !== "Escape") return;
-    if(!pop.hidden){ closePopover(); return; }
-    if(!filterDrawer.hidden){ closeDrawer(); return; }
+    if (e.key !== "Escape") return;
+    if (!pop.hidden) {
+      closePopover();
+      return;
+    }
+    if (!filterDrawer.hidden) {
+      closeDrawer();
+      return;
+    }
   });
 
-  function syncFacetCheckboxes(){
-    const sync = (rootId, selectedSet) => {
-      const root = document.getElementById(rootId);
-      if(!root) return;
-      root.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        cb.checked = selectedSet.has(cb.value);
-      });
-    };
+  // Facet checkbox changes are delegated inside renderFacetUSWDS via onChange handlers.
 
-    sync("yearList", state.years);
-    sync("catList", state.subjects);
-    sync("keywordList", state.keywords);
-    sync("typeList", state.types);
-
-    sync("yearListM", state.years);
-    sync("catListM", state.subjects);
-    sync("keywordListM", state.keywords);
-    sync("typeListM", state.types);
-  }
-
-  function init(){
+  // ──────────────────────────────────────────────────────────────
+  // Init
+  // ──────────────────────────────────────────────────────────────
+  async function init() {
     qEl.value = "";
     state.q = "";
     syncSearchClearVisibility();
@@ -1097,22 +1099,29 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     perPageEl.value = "10";
     state.perPage = 10;
 
+    // Hydrate from URL
     applyUrlParams();
 
-    window.addEventListener("popstate", () => {
+    // Normalize older links that might have yearAsc/yearDesc in sort
+    // (we keep UI values dateAsc/dateDesc)
+    if (state.sort === "yearAsc") state.sort = "dateAsc";
+    if (state.sort === "yearDesc") state.sort = "dateDesc";
+    if (sortEl) sortEl.value = state.sort;
+
+    window.addEventListener("popstate", async () => {
       suppressUrlSync = true;
       applyUrlParams();
-      renderFacets();
+      await renderFacets();
       syncFacetCheckboxes();
-      update();
+      await update();
       suppressUrlSync = false;
     });
 
     wireSectionToggles(document);
 
-    renderFacets();
+    await renderFacets();
     syncFacetCheckboxes();
-    update();
+    await update();
   }
 
   init();

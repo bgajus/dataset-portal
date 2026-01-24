@@ -3,10 +3,12 @@
 // - Search clear button
 // - Render Browse by Subject (show 10 with See more/less)
 // - Render Latest Published Datasets (4 cards)
+//
+// Rewired to use dataClient, with a safe fallback to SUBJECT_OPTIONS
+// so the homepage never shows an empty Subjects section due to vocab/API issues.
 
 import { SUBJECT_OPTIONS } from "/src/assets/js/metadata-schema.js";
-import { getAllRecords } from "/src/assets/js/shared-store.js";
-import { getDemoDatasets } from "/src/assets/js/demo-datasets.js";
+import { getLatestPublished, getVocabularies } from "../../shared/data/dataClient.js";
 
 const SUBJECT_CARD_DEFAULT_COUNT = 10;
 const LATEST_CARD_COUNT = 4;
@@ -37,20 +39,6 @@ function isoToDateValue(iso) {
   return Number.isFinite(t) ? t : 0;
 }
 
-function getHomepageDatasets() {
-  const real = getAllRecords();
-
-  // Homepage should only surface Published datasets.
-  const published = Array.isArray(real)
-    ? real.filter((r) => String(r.status || "").toLowerCase() === "published")
-    : [];
-
-  if (published.length) return published;
-
-  // Fallback: use the SAME demo datasets as Search/Dataset landing pages.
-  return getDemoDatasets();
-}
-
 function renderSearchClear() {
   const input = $("homeSearch");
   const clearBtn = $("homeClear");
@@ -72,12 +60,28 @@ function renderSearchClear() {
   });
 }
 
-function renderSubjects() {
+async function renderSubjects() {
   const host = $("homeSubjects");
   const toggle = $("homeSubjectsToggle");
   if (!host || !toggle) return;
 
-  const subjects = Array.isArray(SUBJECT_OPTIONS) ? SUBJECT_OPTIONS.slice() : [];
+  // Prefer vocabularies (future-proof for DKAN/API),
+  // but fall back to SUBJECT_OPTIONS so UI is never blank.
+  let subjects = [];
+
+  try {
+    const vocabs = await getVocabularies();
+    if (Array.isArray(vocabs?.subjects) && vocabs.subjects.length) {
+      subjects = vocabs.subjects.slice();
+    }
+  } catch (e) {
+    console.warn("Homepage: getVocabularies() failed, falling back to SUBJECT_OPTIONS", e);
+  }
+
+  if (!subjects.length) {
+    subjects = Array.isArray(SUBJECT_OPTIONS) ? SUBJECT_OPTIONS.slice() : [];
+  }
+
   const total = subjects.length;
 
   const state = {
@@ -106,7 +110,6 @@ function renderSubjects() {
     toggle.setAttribute("aria-expanded", state.expanded ? "true" : "false");
     toggle.textContent = state.expanded ? "See less" : "See more";
 
-    // Update helper text for screen readers
     if (needsToggle) {
       toggle.setAttribute(
         "aria-label",
@@ -123,22 +126,26 @@ function renderSubjects() {
   render();
 }
 
-function renderLatestPublished() {
+async function renderLatestPublished() {
   const host = $("homeLatest");
   if (!host) return;
 
-  const all = getHomepageDatasets();
+  let latest = [];
+  try {
+    latest = await getLatestPublished(LATEST_CARD_COUNT);
+  } catch (e) {
+    console.warn("Homepage: getLatestPublished() failed", e);
+    latest = [];
+  }
 
-  // “Latest published” uses createdAt (demo) or publishedAt/createdAt (real)
-  const normalized = all
+  const normalized = (Array.isArray(latest) ? latest : [])
     .map((r) => {
-      const created = r.createdAt || r.publishedAt || r.publishedDate || r.updatedAt || "";
+      const created = r.publishedAt || r.createdAt || r.publishedDate || r.updatedAt || "";
       return {
         doi: String(r.doi || "").trim(),
         title: String(r.title || "Untitled dataset").trim(),
         description: String(r.description || "").trim(),
         createdAt: created,
-        _isDemo: !!r._isDemo,
       };
     })
     .filter((r) => r.doi);
@@ -182,10 +189,10 @@ function renderLatestPublished() {
   `;
 }
 
-function initHomepage() {
+async function initHomepage() {
   renderSearchClear();
-  renderSubjects();
-  renderLatestPublished();
+  await renderSubjects();
+  await renderLatestPublished();
 }
 
 initHomepage();
