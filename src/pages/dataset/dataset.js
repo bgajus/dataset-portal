@@ -1,24 +1,12 @@
 // /src/pages/dataset/dataset.js
 // Dataset landing page
-// - Supports real store records + deterministic demo mocks
-// - Polished to render key sections from the shared metadata schema
+// - Uses shared dataClient (demo or api) so DKAN wiring is automatic
+// - Renders key sections from the shared metadata schema
 
-import { getRecord, getAllRecords } from "/src/assets/js/shared-store.js";
-import {
-  DEMO_DOI_BASE,
-  DEMO_MOCK_COUNT,
-  makeDemoDataset,
-  getDemoDatasetByDoi,
-} from "/src/assets/js/demo-datasets.js";
-import {
-  DATASET_TYPE_OPTIONS,
-  SUBJECT_OPTIONS,
-  getPath,
-} from "/src/assets/js/metadata-schema.js";
+import { getDatasetByDoi } from "/src/shared/data/dataClient.js";
+import { DATASET_TYPE_OPTIONS, getPath } from "/src/assets/js/metadata-schema.js";
 
 (() => {
-  // Demo constants are imported from /src/assets/js/demo-datasets.js
-
   const $ = (id) => document.getElementById(id);
 
   function escapeHtml(str) {
@@ -32,40 +20,9 @@ import {
 
   function formatLongDate(iso) {
     if (!iso) return "—";
-    const d = new Date(iso.includes("T") ? iso : `${iso}T00:00:00`);
+    const d = new Date(String(iso).includes("T") ? iso : `${iso}T00:00:00`);
     if (Number.isNaN(d.getTime())) return "—";
     return d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
-  }
-
-  function mulberry32(seed) {
-    let t = seed >>> 0;
-    return function () {
-      t += 0x6d2b79f5;
-      let r = Math.imul(t ^ (t >>> 15), 1 | t);
-      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
-  // deterministic, but separate instance so dataset page doesn't depend on other pages
-  const rand = mulberry32(584199);
-
-  function pick(arr) {
-    return arr[Math.floor(rand() * arr.length)];
-  }
-
-  function clamp(n, min, max) {
-    const num = Number(n);
-    if (!Number.isFinite(num)) return min;
-    return Math.min(max, Math.max(min, num));
-  }
-
-  function makeDemoMock(i) {
-    return makeDemoDataset(i);
-  }
-
-  function getDemoMockByDoi(doi) {
-    return getDemoDatasetByDoi(doi);
   }
 
   function getUrlParams() {
@@ -102,7 +59,11 @@ import {
         return `
           <span class="dlp-author">
             ${escapeHtml(nm)}
-            ${hasOrcid ? `<span class="dlp-orcid" title="ORCID: ${escapeHtml(p.orcid)}" aria-hidden="true">i</span>` : ""}
+            ${
+              hasOrcid
+                ? `<span class="dlp-orcid" title="ORCID: ${escapeHtml(p.orcid)}" aria-hidden="true">i</span>`
+                : ""
+            }
           </span>
         `;
       })
@@ -186,7 +147,6 @@ import {
     if (!v) return "—";
     const opt = DATASET_TYPE_OPTIONS.find((o) => o.value === v);
     if (opt) return opt.label;
-    // fall back: if it already looks like a label, keep it
     return v;
   }
 
@@ -204,7 +164,6 @@ import {
     if (Array.isArray(ds.keywords) && ds.keywords.length) {
       return ds.keywords.map((k) => String(k || "").trim()).filter(Boolean);
     }
-    // legacy: keywords sometimes stored in a single string
     const csv = (ds.keywordsCsv || "").trim();
     if (csv) return csv.split(",").map((s) => s.trim()).filter(Boolean);
     return [];
@@ -222,7 +181,6 @@ import {
     const dl = $("fundingDl");
     if (!sec || !dl) return;
 
-    // Pull values using schema paths
     const rows = [
       { key: "fundingInfo.doeContractNumber", label: "DOE Contract Number" },
       { key: "fundingInfo.originatingResearchOrganization", label: "Originating Research Organization" },
@@ -233,7 +191,7 @@ import {
       { key: "fundingInfo.otherIdentifyingNumbers", label: "Other Identifying Numbers" },
     ];
 
-    // Back-compat fallback if fundingInfo is empty
+    // Legacy fallback
     const legacySponsor = ds.funding?.funderName || "";
     const legacyContract = ds.funding?.awardNumber || "";
 
@@ -242,11 +200,9 @@ import {
         let val = getPath(ds, r.key);
         val = String(val || "").trim();
 
-        // legacy fill
         if (!val && r.key === "fundingInfo.sponsoringOrganizations") val = String(legacySponsor || "").trim();
         if (!val && r.key === "fundingInfo.doeContractNumber") val = String(legacyContract || "").trim();
 
-        // Only show optional rows if they have values, but always show the 3 key items
         const always = [
           "fundingInfo.doeContractNumber",
           "fundingInfo.originatingResearchOrganization",
@@ -260,8 +216,8 @@ import {
       .filter(Boolean)
       .join("");
 
-    // If absolutely nothing is available, hide the section
-    const hasAny = !!String(getPath(ds, "fundingInfo.doeContractNumber") || legacyContract || "").trim() ||
+    const hasAny =
+      !!String(getPath(ds, "fundingInfo.doeContractNumber") || legacyContract || "").trim() ||
       !!String(getPath(ds, "fundingInfo.originatingResearchOrganization") || "").trim() ||
       !!String(getPath(ds, "fundingInfo.sponsoringOrganizations") || legacySponsor || "").trim();
 
@@ -276,13 +232,11 @@ import {
   }
 
   function normalizeRelated(ds) {
-    // New schema uses relatedWork.{relatedIdentifier, relatedIdentifierType, relationType}
     const rw = ds.relatedWork || {};
     const id = String(rw.relatedIdentifier || "").trim();
     const type = String(rw.relatedIdentifierType || "").trim();
     const rel = String(rw.relationType || "").trim();
 
-    // Legacy array used by older demo builds
     const legacy = Array.isArray(ds.related) ? ds.related : [];
 
     const out = [];
@@ -295,7 +249,6 @@ import {
       if (urlVal) out.push({ relatedIdentifier: urlVal, relatedIdentifierType: "URL", relationType: "Related" });
     });
 
-    // Deduplicate
     const seen = new Set();
     return out.filter((r) => {
       const k = `${r.relatedIdentifierType}|${r.relatedIdentifier}|${r.relationType}`;
@@ -306,13 +259,11 @@ import {
   }
 
   function isLikelyUrl(value) {
-    const v = String(value || "").trim();
-    return /^https?:\/\//i.test(v);
+    return /^https?:\/\//i.test(String(value || "").trim());
   }
 
   function isLikelyDoi(value) {
-    const v = String(value || "").trim();
-    return /^10\.\d{4,9}\//.test(v);
+    return /^10\.\d{4,9}\//.test(String(value || "").trim());
   }
 
   function renderRelated(ds) {
@@ -357,7 +308,11 @@ import {
   function renderDetailsCards(ds) {
     // DOI + dates
     $("dsDoi").textContent = ds.doi || "—";
-    $("dsRelease").textContent = formatLongDate(ds.createdAt || ds.updatedAt || "");
+
+    // Prefer DKAN-style publishedAt; fall back to createdAt/updatedAt
+    const dateIso = ds.publishedAt || ds.releaseISO || ds.createdAt || ds.updatedAt || "";
+    $("dsRelease").textContent = formatLongDate(dateIso);
+
     $("crumbDoi").textContent = ds.doi || "—";
 
     // Subjects sidebar list
@@ -381,7 +336,9 @@ import {
         ? keywords
             .map((k) => {
               const href = `/src/pages/search/index.html?keyword=${encodeURIComponent(k)}`;
-              return `<a class="dlp-keywordChip" href="${href}" aria-label="Filter search by keyword ${escapeHtml(k)}">${escapeHtml(k)}</a>`;
+              return `<a class="dlp-keywordChip" href="${href}" aria-label="Filter search by keyword ${escapeHtml(
+                k
+              )}">${escapeHtml(k)}</a>`;
             })
             .join("")
         : "—";
@@ -395,9 +352,9 @@ import {
   }
 
   function citationForStyle(ds, style) {
-    const baseDate = ds.releaseISO || ds.createdAt || ds.updatedAt;
+    const baseDate = ds.publishedAt || ds.releaseISO || ds.createdAt || ds.updatedAt;
     const year = baseDate
-      ? new Date(baseDate.includes("T") ? baseDate : `${baseDate}T00:00:00`).getFullYear()
+      ? new Date(String(baseDate).includes("T") ? baseDate : `${baseDate}T00:00:00`).getFullYear()
       : "";
 
     const authors = (Array.isArray(ds.authors) ? ds.authors : [])
@@ -413,7 +370,10 @@ import {
 
     const others = (Array.isArray(ds.authors) ? ds.authors : []).length > 5 ? ", et al." : "";
     const title = ds.title || "Untitled Dataset";
-    const doiUrl = ds.doi ? `https://doi.org/${ds.doi}` : "";
+
+    // If ds.doi is a real DOI, link it. For DKAN PoC (uuid), omit doi.org link.
+    const doiVal = String(ds.doi || "").trim();
+    const doiUrl = /^10\.\d{4,9}\//.test(doiVal) ? `https://doi.org/${doiVal}` : "";
 
     if (style === "mla") return `${authors}${others}. "${title}." Oak Ridge National Laboratory, ${year || "n.d."}. ${doiUrl}.`;
     if (style === "chicago") return `${authors}${others}. "${title}." Oak Ridge National Laboratory, ${year || "n.d."}. ${doiUrl}.`;
@@ -437,7 +397,7 @@ import {
         `  author       = {${bibAuthors}},`,
         `  year         = {${year || ""}},`,
         `  publisher    = {Oak Ridge National Laboratory},`,
-        `  doi          = {${ds.doi || ""}},`,
+        `  doi          = {${doiVal || ""}},`,
         `  url          = {${doiUrl}}`,
         `}`,
       ].join("\n");
@@ -534,7 +494,7 @@ import {
     return status && status !== "Published";
   }
 
-  function init() {
+  async function init() {
     const { doi, preview } = getUrlParams();
 
     if (!doi) {
@@ -543,9 +503,14 @@ import {
       return;
     }
 
-    // Load real record; if missing, attempt demo mock
-    let ds = getRecord(doi);
-    if (!ds) ds = getDemoMockByDoi(doi);
+    // 🔑 Source of truth now comes from dataClient (demo OR DKAN OR future API)
+    let ds = null;
+    try {
+      ds = await getDatasetByDoi(doi, { preview });
+    } catch (e) {
+      // leave ds null; we handle not-found below
+      // console.warn("dataset: getDatasetByDoi failed", e);
+    }
 
     if (!ds) {
       $("dsTitle").textContent = "Dataset not found";
@@ -553,7 +518,6 @@ import {
       return;
     }
 
-    // Title + head
     $("dsTitle").textContent = ds.title || "Untitled Dataset";
     document.title = `${ds.title || "Dataset"} — Constellation`;
 
