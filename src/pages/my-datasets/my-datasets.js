@@ -1,10 +1,14 @@
+// src/pages/my-datasets/my-datasets.js
 import { getAllRecords } from "/src/assets/js/shared-store.js";
+import { getSession, getMyDatasets } from "/src/shared/data/dataClient.js";
 
 // My Datasets
 // - Sortable columns + search
 // - Filter popover (Status)
 // - Count chip in card header
 // - Pagination (USWDS markup) like screenshot
+// - API mode: uses Drupal JSON:API to fetch authenticated user's datasets (workflow read)
+// - Demo mode: falls back to local store records
 
 (() => {
   const tableBody = document.getElementById("datasetsBody");
@@ -57,6 +61,26 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
       " " +
       d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
     );
+  }
+
+  function normalizeStatusLabel(status) {
+    const s = String(status || "Draft").trim();
+    // We want consistent labels for UI + getStatusClass()
+    // Examples we may see:
+    // - "published" (Drupal moderation_state)
+    // - "Published" (your canonical model)
+    // - "in_review" / "in review"
+    // - "needs_updates" / "needs updates"
+    const low = s.toLowerCase();
+
+    if (low === "published") return "Published";
+    if (low === "draft") return "Draft";
+
+    if (low === "in_review" || low === "in review") return "In Review";
+    if (low === "needs_updates" || low === "needs updates") return "Needs Updates";
+
+    // Title-case fallback for unknowns
+    return s.length ? s[0].toUpperCase() + s.slice(1) : "Draft";
   }
 
   function getStatusClass(status) {
@@ -351,47 +375,126 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     }
   }
 
-  // --- Init ---
-  allDatasets = getAllRecords();
-  applyFiltersAndSort();
+  function setEmptyStateMessage(html) {
+    if (!emptyState) return;
+    emptyState.hidden = false;
 
-  // Search debounce
-  searchFilter?.addEventListener("input", () => {
-    clearTimeout(searchFilter._t);
-    searchFilter._t = setTimeout(applyFiltersAndSort, 200);
-  });
+    // If the empty state already has a structured layout, keep it;
+    // otherwise, safely replace its contents.
+    emptyState.innerHTML = html;
+  }
 
-  // Sortable columns
-  document.querySelectorAll("#datasetsTable thead th[data-sort]").forEach((th) => {
-    const btn = th.querySelector(".md-thBtn");
-    if (!btn) return;
+  async function loadDatasets() {
+    const mode = (import.meta.env.VITE_DATA_MODE || "demo").toLowerCase();
 
-    btn.addEventListener("click", () => {
-      const column = th.dataset.sort;
-      if (sortColumn === column) {
-        sortDirection = sortDirection === "asc" ? "desc" : "asc";
-      } else {
-        sortColumn = column;
-        sortDirection = "asc";
+    // API mode: attempt workflow read via JSON:API
+    if (mode === "api") {
+      try {
+        const session = await getSession();
+
+        if (!session?.isAuthenticated) {
+          allDatasets = [];
+          datasetCountChip.textContent = "0 datasets";
+          if (paginationBar) paginationBar.hidden = true;
+          setEmptyStateMessage(`
+            <div class="usa-prose">
+              <h2 class="margin-top-0">Log in required</h2>
+              <p>Log in to view your datasets.</p>
+            </div>
+          `);
+          return;
+        }
+
+        const resp = await getMyDatasets({ limit: 200, offset: 0 });
+
+        const results = Array.isArray(resp?.results) ? resp.results : [];
+
+        // Normalize to the shape this page expects
+        allDatasets = results.map((ds) => {
+          const status = normalizeStatusLabel(ds.status);
+
+          return {
+            title: ds.title || "Untitled",
+            doi: ds.doi || "—",
+            createdAt: ds.createdAt || "",
+            // JSON:API doesn’t expose "submittedAt" by default; use updatedAt as a reasonable proxy for now.
+            submittedAt: ds.submittedAt || ds.updatedAt || "",
+            status,
+          };
+        });
+
+        // If authenticated but no datasets:
+if (!allDatasets.length) {
+  datasetCountChip.textContent = "0 datasets";
+  if (paginationBar) paginationBar.hidden = true;
+
+  // Render the original-styled empty state (keeps your working logic)
+  setEmptyStateMessage(`
+    <div class="my-datasets-empty">
+      <h3>No datasets yet</h3>
+      <p>You haven’t created any datasets.</p>
+    </div>
+  `);
+
+  return;
+}
+
+
+        return;
+      } catch (e) {
+        // If API mode fails, fall back to demo so the page still works.
+        // Also surface a helpful message.
+        console.error("My Datasets: API workflow read failed; falling back to demo records.", e);
       }
-      applyFiltersAndSort();
+    }
+
+    // Demo mode (or API fallback)
+    allDatasets = getAllRecords();
+  }
+
+  // --- Init (async) ---
+  (async () => {
+    await loadDatasets();
+    applyFiltersAndSort();
+
+    // Search debounce
+    searchFilter?.addEventListener("input", () => {
+      clearTimeout(searchFilter._t);
+      searchFilter._t = setTimeout(applyFiltersAndSort, 200);
     });
-  });
 
-  // Filter popover wiring
-  filterBtn?.addEventListener("click", () => {
-    if (filterPopover?.hidden) openFilters();
-    else closeFilters();
-  });
+    // Sortable columns
+    document.querySelectorAll("#datasetsTable thead th[data-sort]").forEach((th) => {
+      const btn = th.querySelector(".md-thBtn");
+      if (!btn) return;
 
-  filterBackdrop?.addEventListener("click", () => closeFilters());
-  filterCloseBtn?.addEventListener("click", () => closeFilters());
+      btn.addEventListener("click", () => {
+        const column = th.dataset.sort;
+        if (sortColumn === column) {
+          sortDirection = sortDirection === "asc" ? "desc" : "asc";
+        } else {
+          sortColumn = column;
+          sortDirection = "asc";
+        }
+        applyFiltersAndSort();
+      });
+    });
 
-  applyFiltersBtn?.addEventListener("click", applyFilterUI);
+    // Filter popover wiring
+    filterBtn?.addEventListener("click", () => {
+      if (filterPopover?.hidden) openFilters();
+      else closeFilters();
+    });
 
-  clearFiltersBtn?.addEventListener("click", () => {
-    clearFilterUI();
-  });
+    filterBackdrop?.addEventListener("click", () => closeFilters());
+    filterCloseBtn?.addEventListener("click", () => closeFilters());
 
-  document.addEventListener("keydown", onKeydown);
+    applyFiltersBtn?.addEventListener("click", applyFilterUI);
+
+    clearFiltersBtn?.addEventListener("click", () => {
+      clearFilterUI();
+    });
+
+    document.addEventListener("keydown", onKeydown);
+  })();
 })();

@@ -1,4 +1,9 @@
-// dashboard.js - Updated to use shared client-side record store
+// src/pages/dashboard/dashboard.js
+// Dashboard page
+//
+// Updated: render avatar/name via shared auth-aware avatar model
+// - Uses window.DatasetPortal.getAvatarModel() initially
+// - Updates again on dp:session-ready (from includes.js)
 
 import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
 
@@ -21,7 +26,6 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     reserveBtn: $("reserveDoiBtn"),
     err: $("doiError"),
 
-    // NEW: OLCF radios (optional, frontend-only)
     olcfYes: $("doiOlcfYes"),
     olcfNo: $("doiOlcfNo"),
 
@@ -45,36 +49,65 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     dashUserName: $("dashUserName"),
   };
 
-  function applyUserProfile() {
-    try {
-      const profile = window.DatasetPortal?.getUserProfile?.();
-      if (!profile) return;
-      const first = String(profile.firstName || "").trim();
-      const last = String(profile.lastName || "").trim();
-      const initials = `${first ? first[0].toUpperCase() : ""}${last ? last[0].toUpperCase() : ""}` || "??";
+  function getInitialsFromName(name) {
+    const n = String(name || "").trim();
+    if (!n) return "??";
+    const parts = n.split(/\s+/).filter(Boolean);
+    const a = parts[0]?.[0]?.toUpperCase() || "";
+    const b = parts.length > 1 ? parts[parts.length - 1][0]?.toUpperCase() || "" : "";
+    return (a + b) || "??";
+  }
 
-      // Avatar photo fallback to initials
-      const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
-      if (hasAvatar && els.dashAvatarImg) {
-        els.dashAvatarImg.src = profile.avatarDataUrl;
-        els.dashAvatarImg.alt = `${first} ${last}`.trim() || "User avatar";
-        els.dashAvatarImg.hidden = false;
-        if (els.dashAvatarInitials) els.dashAvatarInitials.hidden = true;
-      } else {
-        if (els.dashAvatarImg) {
-          els.dashAvatarImg.removeAttribute("src");
-          els.dashAvatarImg.alt = "";
-          els.dashAvatarImg.hidden = true;
-        }
-        if (els.dashAvatarInitials) {
-          els.dashAvatarInitials.textContent = initials;
-          els.dashAvatarInitials.hidden = false;
-        }
+  function applyAvatarModel(avatarModel) {
+    if (!avatarModel) return;
+
+    const initials = avatarModel.initials || getInitialsFromName(avatarModel.displayName) || "??";
+    const displayName = avatarModel.displayName || "there";
+    const avatarDataUrl = String(avatarModel.avatarDataUrl || "").trim();
+
+    const hasAvatar = !!avatarDataUrl;
+
+    // Avatar photo fallback to initials
+    if (hasAvatar && els.dashAvatarImg) {
+      els.dashAvatarImg.src = avatarDataUrl;
+      els.dashAvatarImg.alt = displayName || "User avatar";
+      els.dashAvatarImg.hidden = false;
+      if (els.dashAvatarInitials) els.dashAvatarInitials.hidden = true;
+    } else {
+      if (els.dashAvatarImg) {
+        els.dashAvatarImg.removeAttribute("src");
+        els.dashAvatarImg.alt = "";
+        els.dashAvatarImg.hidden = true;
       }
+      if (els.dashAvatarInitials) {
+        els.dashAvatarInitials.textContent = initials;
+        els.dashAvatarInitials.hidden = false;
+      }
+    }
 
-      if (els.dashUserName) els.dashUserName.textContent = first || "there";
-    } catch (e) {
-      // no-op for demo
+    // Greeting name: prefer first word
+    const firstWord = String(displayName).trim().split(/\s+/)[0] || "there";
+    if (els.dashUserName) els.dashUserName.textContent = firstWord;
+  }
+
+  function applyUserProfile() {
+    // Initial best-effort render (demo profile). Session-ready will refine.
+    try {
+      const model = window.DatasetPortal?.getAvatarModel?.();
+      if (model) applyAvatarModel(model);
+      else {
+        // fallback to old behavior
+        const profile = window.DatasetPortal?.getUserProfile?.();
+        const first = String(profile?.firstName || "").trim();
+        const last = String(profile?.lastName || "").trim();
+        applyAvatarModel({
+          displayName: `${first} ${last}`.trim() || "there",
+          initials: `${first ? first[0].toUpperCase() : ""}${last ? last[0].toUpperCase() : ""}` || "??",
+          avatarDataUrl: profile?.avatarDataUrl || "",
+        });
+      }
+    } catch {
+      // no-op
     }
   }
 
@@ -117,7 +150,7 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   }
 
   function trapFocus(e) {
-    if (e.key !== 'Tab') return;
+    if (e.key !== "Tab") return;
 
     const focusable = getFocusableElements(els.modal);
     if (focusable.length === 0) return;
@@ -139,18 +172,18 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   }
 
   function startModalTrap() {
-    els.modal.addEventListener('keydown', trapFocus);
+    els.modal.addEventListener("keydown", trapFocus);
 
     const sectionsToInert = [
-      document.querySelector('header'),
-      document.querySelector('main'),
+      document.querySelector("header"),
+      document.querySelector("main"),
       document.querySelector('[data-include="portal-footer"]')
     ].filter(Boolean);
 
-    sectionsToInert.forEach(el => {
+    sectionsToInert.forEach((el) => {
       if (el && !el.contains(els.modal)) {
-        el.setAttribute('aria-hidden', 'true');
-        el.setAttribute('inert', '');
+        el.setAttribute("aria-hidden", "true");
+        el.setAttribute("inert", "");
       }
     });
 
@@ -159,11 +192,11 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   }
 
   function stopModalTrap() {
-    els.modal.removeEventListener('keydown', trapFocus);
+    els.modal.removeEventListener("keydown", trapFocus);
 
-    document.querySelectorAll('[aria-hidden="true"][inert]').forEach(el => {
-      el.removeAttribute('aria-hidden');
-      el.removeAttribute('inert');
+    document.querySelectorAll('[aria-hidden="true"][inert]').forEach((el) => {
+      el.removeAttribute("aria-hidden");
+      el.removeAttribute("inert");
     });
   }
 
@@ -175,7 +208,6 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     if (els.err) { els.err.hidden = true; els.err.textContent = ""; }
     if (els.titleInput) els.titleInput.value = "";
 
-    // NEW: reset OLCF radios each time modal opens
     if (els.olcfYes) els.olcfYes.checked = false;
     if (els.olcfNo) els.olcfNo.checked = false;
 
@@ -208,19 +240,13 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
       return;
     }
 
-    // NOTE: OLCF yes/no is frontend-only for this build (not persisted).
-    // const olcfValue = els.olcfYes?.checked ? "yes" : els.olcfNo?.checked ? "no" : "";
-
-    // Use shared store to create real draft
     const newRecord = createNewDraft(title);
 
-    // Show success
     if (els.reservedValue) els.reservedValue.textContent = newRecord.doi;
     if (els.editLink) els.editLink.href = `/src/pages/editor/index.html?doi=${encodeURIComponent(newRecord.doi)}`;
     if (els.stepForm) els.stepForm.hidden = true;
     if (els.stepSuccess) els.stepSuccess.hidden = false;
 
-    // Refresh UI
     renderActivity();
     syncStats();
   }
@@ -228,7 +254,7 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   function syncStats() {
     const records = getAllRecords();
     if (els.statDatasets) els.statDatasets.textContent = String(records.length || 0);
-    // Other stats remain demo values for now
+
     if (els.statViews) els.statViews.textContent = "774";
     if (els.statDownloads) els.statDownloads.textContent = "56";
     if (els.statSaved) els.statSaved.textContent = "14";
@@ -299,10 +325,16 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
 
   // Init
   applyUserProfile();
+
+  // Refine avatar once includes/session are resolved
+  window.addEventListener("dp:session-ready", (e) => {
+    const model = e?.detail?.avatarModel;
+    if (model) applyAvatarModel(model);
+  });
+
   syncStats();
   renderActivity();
 
-  // Ensure modal/backdrop start hidden
   if (els.backdrop) els.backdrop.hidden = true;
   if (els.modal) els.modal.hidden = true;
 })();

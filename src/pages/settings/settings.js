@@ -1,5 +1,8 @@
-// /src/pages/settings/settings.js
+// src/pages/settings/settings.js
 // Profile settings (demo) — stores user info + avatar in localStorage
+//
+// Updated: avatar initials preview can use Drupal username when in API mode
+// (without persisting anything to Drupal yet).
 
 const $ = (id) => document.getElementById(id);
 
@@ -23,6 +26,8 @@ const els = {
   toast: $("saveToast"),
 };
 
+let sessionAvatarModel = null;
+
 function getProfile() {
   return window.DatasetPortal?.getUserProfile?.() || {
     firstName: "",
@@ -45,18 +50,44 @@ function setToast(text) {
   }, 1500);
 }
 
+function initialsFromName(name) {
+  const n = String(name || "").trim();
+  if (!n) return "??";
+  const parts = n.split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0]?.toUpperCase() || "";
+  const b = parts.length > 1 ? parts[parts.length - 1][0]?.toUpperCase() || "" : "";
+  return (a + b) || "??";
+}
+
 function initials(firstName, lastName) {
   const f = String(firstName || "").trim();
   const l = String(lastName || "").trim();
   return `${f ? f[0].toUpperCase() : ""}${l ? l[0].toUpperCase() : ""}` || "??";
 }
 
+function getPreviewInitials(profile) {
+  const f = String(profile.firstName || "").trim();
+  const l = String(profile.lastName || "").trim();
+
+  // If user hasn't filled first/last yet, and we have a Drupal session user,
+  // show initials from that username so it feels auth-aware.
+  if (!f && !l && sessionAvatarModel?.isAuthed && sessionAvatarModel?.displayName) {
+    return initialsFromName(sessionAvatarModel.displayName);
+  }
+
+  return initials(profile.firstName, profile.lastName);
+}
+
 function renderAvatarPreview(profile) {
   const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
+
   if (els.avatarPreviewImg) {
     if (hasAvatar) {
       els.avatarPreviewImg.src = profile.avatarDataUrl;
-      els.avatarPreviewImg.alt = `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() || "User avatar";
+      els.avatarPreviewImg.alt =
+        `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() ||
+        sessionAvatarModel?.displayName ||
+        "User avatar";
       els.avatarPreviewImg.hidden = false;
     } else {
       els.avatarPreviewImg.removeAttribute("src");
@@ -66,7 +97,7 @@ function renderAvatarPreview(profile) {
   }
 
   if (els.avatarPreviewInitials) {
-    els.avatarPreviewInitials.textContent = initials(profile.firstName, profile.lastName);
+    els.avatarPreviewInitials.textContent = getPreviewInitials(profile);
     els.avatarPreviewInitials.hidden = hasAvatar;
   }
 }
@@ -86,11 +117,10 @@ function sanitizeOrcid(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
 
-  // allow either just digits/hyphens or a full URL
   const stripped = raw
     .replace(/^https?:\/\/(www\.)?orcid\.org\//i, "")
     .replace(/[^0-9X-]/gi, "")
-    .slice(0, 19); // 0000-0000-0000-0000
+    .slice(0, 19);
 
   return stripped;
 }
@@ -99,7 +129,6 @@ function validateAvatarFile(file) {
   if (!file) return "";
   if (!file.type || !file.type.startsWith("image/")) return "Please choose an image file.";
 
-  // keep it light for localStorage demo (roughly)
   const maxBytes = 600 * 1024; // 600 KB
   if (file.size > maxBytes) return "That image is a bit large for this demo (max ~600KB).";
 
@@ -172,11 +201,8 @@ function saveProfile() {
   profile.affiliation = String(els.affiliation?.value || "").trim();
   profile.orcid = sanitizeOrcid(els.orcid?.value || "");
 
-  // keep avatar as-is (set via upload)
-
   const ok = window.DatasetPortal?.saveUserProfile?.(profile);
   if (ok) {
-    // reflect sanitized ORCID formatting
     if (els.orcid) els.orcid.value = profile.orcid;
     renderAvatarPreview(profile);
     setToast("Saved");
@@ -189,19 +215,23 @@ function init() {
   const profile = getProfile();
   fillForm(profile);
 
+  // If includes/session resolves later, update preview initials if needed
+  window.addEventListener("dp:session-ready", (e) => {
+    sessionAvatarModel = e?.detail?.avatarModel || null;
+    renderAvatarPreview(getProfile());
+  });
+
   els.avatarFile?.addEventListener("change", handleAvatarUpload);
   els.removeAvatar?.addEventListener("click", handleRemoveAvatar);
 
   els.saveTop?.addEventListener("click", saveProfile);
   els.saveBottom?.addEventListener("click", saveProfile);
 
-  // Update initials preview live as user types name
   const onNameInput = () => {
     const p = getProfile();
-    p.firstName = String(els.first?.value || "").trim();
-    p.lastName = String(els.last?.value || "").trim();
-    // don't persist until save; only preview initials
-    renderAvatarPreview({ ...getProfile(), firstName: p.firstName, lastName: p.lastName });
+    const firstName = String(els.first?.value || "").trim();
+    const lastName = String(els.last?.value || "").trim();
+    renderAvatarPreview({ ...p, firstName, lastName });
   };
 
   els.first?.addEventListener("input", onNameInput);

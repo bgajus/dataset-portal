@@ -1,24 +1,20 @@
 /**
- * Simple HTML includes for static multi-page prototypes.
+ * src/assets/js/includes.js
  *
- * Usage:
- *   <div data-include="portal-header"></div>
- *   <main id="main-content">...</main>
- *   <div data-include="portal-footer"></div>
- *
- * Auth state:
- *   - Set <body data-auth="true|false"> per page (recommended)
- *   - Or set localStorage 'dp-auth' to 'true'/'false'
+ * Loads header/footer includes and applies auth-aware UI toggles.
+ * Also provides a shared "avatar model" so pages (dashboard/settings/etc.)
+ * render user identity consistently across demo + API modes.
  */
 
+import { getSession } from "../../shared/data/authClient.js";
+
 const INCLUDE_MAP = {
-  'portal-header': '/components/header.html',
-  'portal-footer': '/components/footer.html',
+  "portal-header": "/components/header.html",
+  "portal-footer": "/components/footer.html",
 };
 
 // ──────────────────────────────────────────────────────────────
-// User profile (demo) — used for avatar + Settings page
-// Stored in localStorage so it persists across pages
+// Demo user profile (localStorage)
 // ──────────────────────────────────────────────────────────────
 
 const USER_STORAGE_KEY = "constellation:user:v1";
@@ -42,12 +38,32 @@ function getUserProfile() {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return getDefaultUserProfile();
     return { ...getDefaultUserProfile(), ...parsed };
-  } catch (e) {
+  } catch {
     return getDefaultUserProfile();
   }
 }
 
-function getUserInitials(profile) {
+function saveUserProfile(profile) {
+  try {
+    const merged = { ...getDefaultUserProfile(), ...(profile || {}) };
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(merged));
+    return true;
+  } catch (e) {
+    console.warn("Failed to save user profile:", e);
+    return false;
+  }
+}
+
+function initialsFromName(name) {
+  const n = String(name || "").trim();
+  if (!n) return "??";
+  const parts = n.split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0]?.toUpperCase() || "";
+  const b = parts.length > 1 ? parts[parts.length - 1][0]?.toUpperCase() || "" : "";
+  return (a + b) || "??";
+}
+
+function initialsFromProfile(profile) {
   const first = String(profile?.firstName || "").trim();
   const last = String(profile?.lastName || "").trim();
   const a = first ? first[0].toUpperCase() : "";
@@ -55,41 +71,17 @@ function getUserInitials(profile) {
   return (a + b) || "??";
 }
 
-function applyUserProfileToHeader() {
-  const profile = getUserProfile();
-
-  const initialsEl = document.getElementById("avatarInitials");
-  const imgEl = document.getElementById("avatarImg");
-
-  if (initialsEl) initialsEl.textContent = getUserInitials(profile);
-
-  const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
-  if (imgEl) {
-    if (hasAvatar) {
-      imgEl.src = profile.avatarDataUrl;
-      imgEl.alt = `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() || "User avatar";
-      imgEl.hidden = false;
-      if (initialsEl) initialsEl.hidden = true;
-    } else {
-      imgEl.removeAttribute("src");
-      imgEl.alt = "";
-      imgEl.hidden = true;
-      if (initialsEl) initialsEl.hidden = false;
-    }
-  }
-}
-
-function getAuthState() {
+function getDemoAuthState() {
   const bodyAttr = document.body?.dataset?.auth;
-  const stored = localStorage.getItem('dp-auth');
-  const raw = (bodyAttr ?? stored ?? 'false').toString().toLowerCase();
-  return raw === 'true' || raw === '1' || raw === 'yes';
+  const stored = localStorage.getItem("dp-auth");
+  const raw = (bodyAttr ?? stored ?? "false").toString().toLowerCase();
+  return raw === "true" || raw === "1" || raw === "yes";
 }
 
 function applyAuthState(rootEl, isAuthed) {
   if (!rootEl) return;
 
-  rootEl.dataset.auth = isAuthed ? 'true' : 'false';
+  rootEl.dataset.auth = isAuthed ? "true" : "false";
 
   rootEl.querySelectorAll('[data-requires-auth="true"]').forEach((el) => {
     el.hidden = !isAuthed;
@@ -101,59 +93,50 @@ function applyAuthState(rootEl, isAuthed) {
 }
 
 function htmlToNodes(html) {
-  const tpl = document.createElement('template');
+  const tpl = document.createElement("template");
   tpl.innerHTML = html;
-  return Array.from(tpl.content.childNodes); // includes text nodes; that's OK
+  return Array.from(tpl.content.childNodes);
 }
 
-async function loadInclude(target, includeKey) {
-  const key = (includeKey || '').trim();
-  const url = INCLUDE_MAP[key];
+async function loadInclude(target, includeKey, isAuthed) {
+  const key = (includeKey || "").trim();
+  const includeUrl = INCLUDE_MAP[key];
 
-  if (!url) {
+  if (!includeUrl) {
     console.warn(`[includes] Unknown include key: "${key}"`);
     return;
   }
 
-  const res = await fetch(url, { cache: 'no-cache' });
+  const res = await fetch(includeUrl, { cache: "no-cache" });
   if (!res.ok) {
-    console.warn(`[includes] Failed to load ${url} (${res.status})`);
+    console.warn(`[includes] Failed to load ${includeUrl} (${res.status})`);
     return;
   }
 
   const html = await res.text();
-  if (!html || !html.trim()) {
-    console.warn(`[includes] Loaded ${url} but it was empty.`);
-    return;
-  }
-
-  // Build nodes from the fetched HTML (supports multiple top-level elements).
   const nodes = htmlToNodes(html);
 
-  // Apply auth toggles to any included elements (wrap to query safely).
-  const wrap = document.createElement('div');
+  const wrap = document.createElement("div");
   nodes.forEach((n) => wrap.appendChild(n.cloneNode(true)));
-  applyAuthState(wrap, getAuthState());
+  applyAuthState(wrap, isAuthed);
 
-  // Replace placeholder with the wrapped children.
-  const outNodes = Array.from(wrap.childNodes);
-  target.replaceWith(...outNodes);
+  target.replaceWith(...Array.from(wrap.childNodes));
 }
 
 function setActiveNav() {
   const currentPath = window.location.pathname;
-  const navLinks = document.querySelectorAll(".portal-authnav__item[data-path], .usa-menu__link[data-path]");
+  const navLinks = document.querySelectorAll(
+    ".portal-authnav__item[data-path], .usa-menu__link[data-path]"
+  );
 
-  navLinks.forEach(link => {
+  navLinks.forEach((link) => {
     const linkPath = link.getAttribute("data-path");
-    // Remove active from all
     link.classList.remove("is-active");
     link.removeAttribute("aria-current");
 
-    // Add to matching one (partial match for flexibility)
-    if (currentPath.includes(linkPath)) {
+    if (linkPath && currentPath.includes(linkPath)) {
       link.classList.add("is-active");
-      link.setAttribute("aria-current", "page"); // Accessibility win
+      link.setAttribute("aria-current", "page");
     }
   });
 }
@@ -161,18 +144,15 @@ function setActiveNav() {
 function initAvatarDropdown() {
   const avatarBtn = document.getElementById("avatarBtn");
   const userMenu = document.getElementById("userMenu");
-
   if (!avatarBtn || !userMenu) return;
 
   function toggleMenu() {
     const isExpanded = avatarBtn.getAttribute("aria-expanded") === "true";
-    avatarBtn.setAttribute("aria-expanded", !isExpanded);
+    avatarBtn.setAttribute("aria-expanded", String(!isExpanded));
     userMenu.hidden = isExpanded;
-
-    // Focus first menu item when opening
     if (!isExpanded) {
       setTimeout(() => {
-        const firstLink = userMenu.querySelector('a');
+        const firstLink = userMenu.querySelector("a,button");
         if (firstLink) firstLink.focus();
       }, 0);
     }
@@ -180,7 +160,6 @@ function initAvatarDropdown() {
 
   avatarBtn.addEventListener("click", toggleMenu);
 
-  // Close on outside click
   document.addEventListener("click", (e) => {
     if (!avatarBtn.contains(e.target) && !userMenu.contains(e.target)) {
       avatarBtn.setAttribute("aria-expanded", "false");
@@ -188,7 +167,6 @@ function initAvatarDropdown() {
     }
   });
 
-  // Close on ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !userMenu.hidden) {
       avatarBtn.setAttribute("aria-expanded", "false");
@@ -196,30 +174,150 @@ function initAvatarDropdown() {
       avatarBtn.focus();
     }
   });
+}
 
-  // Sign Out (demo)
-  document.getElementById("signOutBtn")?.addEventListener("click", () => {
-    alert("Signed out (demo) — redirecting to login...");
-    // Real implementation: clear auth and reload
-    // window.DatasetPortal.setAuth(false);
+function wireHeaderAuthLinks({ mode, dkanOrigin }) {
+  const loggedOut = document.querySelector(".portal-auth__loggedout");
+  if (!loggedOut) return;
+
+  // Log In button is wrapped in an <a> in your header
+  const loginAnchor = loggedOut.querySelector('a[href][class*="usa-link--unstyled"]');
+  const signupLink = loggedOut.querySelector(".portal-auth__signup");
+
+  if (mode === "api") {
+    if (loginAnchor) {
+      loginAnchor.href = `${dkanOrigin.replace(/\/$/, "")}/user/login`;
+      loginAnchor.target = "_blank";
+      loginAnchor.rel = "noopener noreferrer";
+    }
+    if (signupLink) {
+      signupLink.href = `${dkanOrigin.replace(/\/$/, "")}/user/register`;
+      signupLink.target = "_blank";
+      signupLink.rel = "noopener noreferrer";
+    }
+  } else {
+    if (loginAnchor) {
+      loginAnchor.href = "/src/pages/dashboard/index.html";
+      loginAnchor.removeAttribute("target");
+      loginAnchor.removeAttribute("rel");
+    }
+    if (signupLink) {
+      signupLink.href = "javascript:void(0)";
+      signupLink.removeAttribute("target");
+      signupLink.removeAttribute("rel");
+    }
+  }
+}
+
+function wireSignOut({ mode, dkanOrigin }) {
+  const btn = document.getElementById("signOutBtn");
+  if (!btn) return;
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+
+    if (mode === "api") {
+      const logoutUrl = `${dkanOrigin.replace(/\/$/, "")}/user/logout`;
+      window.open(logoutUrl, "_blank", "noopener,noreferrer");
+      localStorage.removeItem("dp-auth");
+      setTimeout(() => window.location.reload(), 250);
+      return;
+    }
+
+    localStorage.setItem("dp-auth", "false");
+    window.location.reload();
   });
 }
 
-async function initIncludes() {
-  const isAuthed = getAuthState();
+function applyHeaderAvatar({ avatarModel }) {
+  const initialsEl = document.getElementById("avatarInitials");
+  const imgEl = document.getElementById("avatarImg");
 
-  const placeholders = Array.from(document.querySelectorAll('[data-include]'));
+  if (initialsEl) initialsEl.textContent = avatarModel.initials || "??";
+
+  if (imgEl) {
+    const hasAvatar = !!String(avatarModel.avatarDataUrl || "").trim();
+    if (hasAvatar) {
+      imgEl.src = avatarModel.avatarDataUrl;
+      imgEl.alt = avatarModel.displayName || "User avatar";
+      imgEl.hidden = false;
+      if (initialsEl) initialsEl.hidden = true;
+    } else {
+      imgEl.removeAttribute("src");
+      imgEl.alt = "";
+      imgEl.hidden = true;
+      if (initialsEl) initialsEl.hidden = false;
+    }
+  }
+}
+
+async function detectAuth() {
+  const mode = String(import.meta.env.VITE_DATA_MODE || "demo").toLowerCase();
+
+  if (mode !== "api") {
+    return { isAuthed: getDemoAuthState(), sessionUser: null, mode };
+  }
+
+  try {
+    const session = await getSession();
+    return {
+      isAuthed: !!session?.isAuthenticated,
+      sessionUser: session?.user || null,
+      mode,
+    };
+  } catch (e) {
+    console.warn("Auth detection failed; falling back to logged-out:", e);
+    return { isAuthed: false, sessionUser: null, mode };
+  }
+}
+
+function buildAvatarModel({ isAuthed, sessionUser }) {
+  const profile = getUserProfile();
+  const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
+
+  // Display name:
+  // - If API authed, prefer Drupal username (or display_name)
+  // - Otherwise, use demo first/last
+  const displayName =
+    (isAuthed && (sessionUser?.name || "")) ||
+    `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() ||
+    "User";
+
+  // Initials:
+  // - If API authed, prefer initials from Drupal username
+  // - Else demo initials from profile
+  const initials = isAuthed
+    ? initialsFromName(sessionUser?.name || "")
+    : initialsFromProfile(profile);
+
+  return {
+    isAuthed,
+    displayName,
+    initials,
+    avatarDataUrl: hasAvatar ? profile.avatarDataUrl : "",
+    demoProfile: profile,
+    sessionUser: sessionUser || null,
+  };
+}
+
+async function initIncludes() {
+  const dkanOrigin = import.meta.env.VITE_DKAN_ORIGIN || "http://dkan-local.ddev.site";
+
+  // Cache session result so other pages can read it too
+  const { isAuthed, sessionUser, mode } = await detectAuth();
+  const avatarModel = buildAvatarModel({ isAuthed, sessionUser });
+
+  // Load includes
+  const placeholders = Array.from(document.querySelectorAll("[data-include]"));
   await Promise.all(
-    placeholders.map((ph) =>
-      loadInclude(ph, ph.getAttribute('data-include'))
-    )
+    placeholders.map((ph) => loadInclude(ph, ph.getAttribute("data-include"), isAuthed))
   );
 
   // Apply auth toggles across the whole page (fallback safety)
   applyAuthState(document.body, isAuthed);
 
-  // Post-processing helpers
-  document.querySelectorAll('[data-footer-year]').forEach((el) => {
+  // Footer year
+  document.querySelectorAll("[data-footer-year]").forEach((el) => {
     el.textContent = String(new Date().getFullYear());
   });
 
@@ -229,38 +327,63 @@ async function initIncludes() {
   // Initialize avatar dropdown
   initAvatarDropdown();
 
-  // Apply user profile (avatar initials / photo)
-  applyUserProfileToHeader();
+  // Update header login/signup targets based on mode
+  wireHeaderAuthLinks({ mode, dkanOrigin });
+
+  // Wire sign out
+  wireSignOut({ mode, dkanOrigin });
+
+  // Apply header avatar (initials/photo)
+  applyHeaderAvatar({ avatarModel });
+
+  // Notify pages that session + includes are ready
+  window.dispatchEvent(
+    new CustomEvent("dp:session-ready", {
+      detail: { isAuthed, sessionUser, mode, avatarModel },
+    })
+  );
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initIncludes);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initIncludes);
 } else {
   initIncludes();
 }
 
-// Also re-run on popstate (back/forward navigation) for single-page feel
-window.addEventListener('popstate', setActiveNav);
+window.addEventListener("popstate", setActiveNav);
+
+// ──────────────────────────────────────────────────────────────
+// Public helpers for pages
+// ──────────────────────────────────────────────────────────────
 
 window.DatasetPortal = window.DatasetPortal || {};
+
 window.DatasetPortal.setAuth = function setAuth(isAuthed) {
-  localStorage.setItem('dp-auth', isAuthed ? 'true' : 'false');
+  localStorage.setItem("dp-auth", isAuthed ? "true" : "false");
   window.location.reload();
 };
 
-// Expose user profile helpers for pages that want them (e.g., Settings)
 window.DatasetPortal.getUserProfile = function () {
   return getUserProfile();
 };
 
 window.DatasetPortal.saveUserProfile = function (profile) {
+  const ok = saveUserProfile(profile);
+  // If header exists, refresh avatar immediately in demo mode
   try {
-    const merged = { ...getDefaultUserProfile(), ...(profile || {}) };
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(merged));
-    applyUserProfileToHeader();
-    return true;
-  } catch (e) {
-    console.warn('Failed to save user profile:', e);
-    return false;
+    const isAuthed = getDemoAuthState();
+    const avatarModel = buildAvatarModel({ isAuthed, sessionUser: null });
+    applyHeaderAvatar({ avatarModel });
+  } catch {
+    // ignore
   }
+  return ok;
+};
+
+window.DatasetPortal.getAvatarModel = function getAvatarModel() {
+  // Best-effort: if dp:session-ready already fired, consumers should use the event.
+  // This function returns a model based on current best-known state.
+  const mode = String(import.meta.env.VITE_DATA_MODE || "demo").toLowerCase();
+  const isAuthed = mode === "api" ? false : getDemoAuthState();
+  return buildAvatarModel({ isAuthed, sessionUser: null });
 };

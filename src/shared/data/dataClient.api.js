@@ -1,321 +1,301 @@
 // src/shared/data/dataClient.api.js
 //
-// DKAN-backed API client (for local DKAN via Vite proxy).
-// Expected DKAN endpoints (public):
-//   - GET /api/1/search
-//   - GET /api/1/dataset/{uuid}  (may or may not exist depending on DKAN config)
-//   - GET /api/1/metastore/schemas/dataset/items/{uuid}  (common metastore detail)
+// API client implementation.
+// Supports:
+// - DKAN catalog search (public): /api/1/search
+// - DKAN dataset detail: /api/1/metastore/schemas/dataset/items/:id (fallbacks included)
+// - Drupal JSON:API auth + "My Datasets" workflow read: /dkan-api/jsonapi/node/data
 //
-// This file adapts DKAN responses into the portal's canonical dataset shape.
+// Notes:
+// - Uses credentials: "include" for future cookie-based auth.
+// - For localhost dev, Basic Auth can be enabled via env vars and will be sent automatically.
+// - Expects Vite proxy to forward /dkan-api/* to DKAN origin in dev.
 
-function toYearFromIso(iso) {
-  if (!iso) return null;
-  const m = String(iso).match(/^(\d{4})/);
-  return m ? Number(m[1]) : null;
+import { getSession as getDrupalSession } from "./authClient.js";
+
+function getBasicAuthHeader() {
+  const user = (import.meta.env.VITE_DKAN_BASIC_AUTH_USER || "").trim();
+  const pass = (import.meta.env.VITE_DKAN_BASIC_AUTH_PASS || "").trim();
+  if (!user || !pass) return "";
+  return `Basic ${btoa(`${user}:${pass}`)}`;
 }
 
-function uniqSorted(arr) {
-  return Array.from(new Set((arr || []).filter(Boolean))).sort((a, b) =>
-    String(a).localeCompare(String(b))
-  );
-}
+async function requestJson(url, options = {}) {
+  const auth = getBasicAuthHeader();
 
-async function requestJson(url, init = {}) {
   const res = await fetch(url, {
-    ...init,
+    credentials: "include",
     headers: {
-      Accept: "application/json",
-      ...(init.headers || {}),
+      Accept: options.accept || "application/json",
+      ...(auth ? { Authorization: auth } : {}),
+      ...(options.headers || {}),
     },
+    ...options,
   });
+
+  const ct = res.headers.get("content-type") || "";
+  const isJson = ct.includes("json");
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${url}${text ? `\n${text}` : ""}`);
+    const body = isJson ? await res.json().catch(() => null) : await res.text().catch(() => "");
+    const msg =
+      typeof body === "string"
+        ? body
+        : body?.errors?.[0]?.detail || body?.message || `HTTP ${res.status}`;
+    throw new Error(`API ${res.status}: ${msg}`);
   }
 
-  return res.json();
+  return isJson ? res.json() : null;
 }
 
-/**
- * Normalize DKAN /api/1/search payload:
- * {
- *   total: "1",
- *   results: { "dkan_dataset/<uuid>": { ... }, ... },
- *   facets: [{type,name,total}, ...]
- * }
- */
-function normalizeDkanSearch(payload) {
-  const resultsObj =
-    payload?.results && typeof payload.results === "object" ? payload.results : {};
+function toCanonicalFromDkanSearchResult(r) {
+  const doi = r?.identifier || "";
+  const title = r?.title || "Untitled Dataset";
+  const description = r?.description || "";
 
-  const items = Object.entries(resultsObj).map(([key, d]) => {
-    const id = d?.identifier || key.split("/").pop();
-    const modified = d?.modified || d?.["%modified"] || null;
+  const subjects = Array.isArray(r?.theme) ? r.theme : [];
+  const keywords = Array.isArray(r?.keyword) ? r.keyword : [];
 
-    const subjects = Array.isArray(d?.theme) ? d.theme : [];
-    const keywords = Array.isArray(d?.keyword) ? d.keyword : [];
-
-    return {
-      // Canonical fields your UI already uses
-      doi: id, // PoC: use DKAN identifier as stable id
-      title: d?.title || "",
-      description: d?.description || "",
-      subjects,
-      keywords,
-      publishedYear: toYearFromIso(modified),
-      status: "Published",
-
-      // Helpful extras (optional in UI)
-      publisher: d?.publisher?.name || "",
-      contactName: d?.contactPoint?.fn || "",
-      contactEmail: d?.contactPoint?.hasEmail || "",
-      accessLevel: d?.accessLevel || "public",
-
-      _raw: d,
-    };
-  });
-
-  const facetsRaw = Array.isArray(payload?.facets) ? payload.facets : [];
-
-  // DKAN facets are flat: [{type,name,total}]
-  const subjectCounts = new Map();
-  const keywordCounts = new Map();
-
-  for (const f of facetsRaw) {
-    const type = f?.type;
-    const name = f?.name;
-    const total = Number(f?.total || 0);
-
-    if (!name) continue;
-
-    if (type === "theme") subjectCounts.set(name, total);
-    if (type === "keyword") keywordCounts.set(name, total);
-  }
-
-  // Published year doesn't come as a DKAN facet by default; derive from items
-  const yearCounts = new Map();
-  for (const it of items) {
-    if (Number.isFinite(it.publishedYear)) {
-      yearCounts.set(it.publishedYear, (yearCounts.get(it.publishedYear) || 0) + 1);
-    }
-  }
-
-  const facets = {
-    subjects: Array.from(subjectCounts.entries())
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => b.count - a.count || String(a.value).localeCompare(String(b.value))),
-    keywords: Array.from(keywordCounts.entries())
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => b.count - a.count || String(a.value).localeCompare(String(b.value))),
-    years: Array.from(yearCounts.entries())
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => b.value - a.value),
-    // DKAN search doesn’t provide these for our PoC:
-    fileTypes: [],
-    status: [{ value: "Published", count: Number(payload?.total || items.length) || items.length }],
-  };
+  const publishedAt = r?.modified || r?.["%modified"] || "";
+  const publisherName = r?.publisher?.name || "";
 
   return {
-    items,
-    facets,
-    total: Number(payload?.total || items.length) || items.length,
+    doi,
+    title,
+    description,
+    subjects,
+    keywords,
+    publisherName,
+    publishedAt,
+    status: "Published",
+    _raw: r,
   };
 }
 
-function applyClientFilters(items, params) {
-  const q = (params.q || "").trim().toLowerCase();
-  const subjects = Array.isArray(params.subjects) ? params.subjects : [];
-  const keywords = Array.isArray(params.keywords) ? params.keywords : [];
-  const years = Array.isArray(params.years) ? params.years : [];
-  const statuses = Array.isArray(params.status) ? params.status : [];
+function parseMetastoreJsonField(fieldJsonMetadata) {
+  try {
+    const obj =
+      typeof fieldJsonMetadata === "string"
+        ? JSON.parse(fieldJsonMetadata)
+        : fieldJsonMetadata;
 
-  return (items || []).filter((r) => {
-    if (statuses.length && !statuses.includes(r.status)) return false;
+    if (!obj) return null;
 
-    if (subjects.length) {
-      const set = new Set(r.subjects || []);
-      if (!subjects.some((s) => set.has(s))) return false;
+    let data = obj.data;
+
+    if (typeof data === "string") {
+      const trimmed = data.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        try {
+          data = JSON.parse(trimmed);
+        } catch {
+          // keep as string
+        }
+      }
     }
 
-    if (keywords.length) {
-      const set = new Set(r.keywords || []);
-      if (!keywords.some((k) => set.has(k))) return false;
-    }
-
-    if (years.length) {
-      if (!Number.isFinite(r.publishedYear) || !years.includes(r.publishedYear)) return false;
-    }
-
-    if (q) {
-      const hay = `${r.title} ${r.description} ${(r.subjects || []).join(" ")} ${(r.keywords || []).join(" ")}`
-        .toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-
-    return true;
-  });
+    return { identifier: obj.identifier, data };
+  } catch {
+    return null;
+  }
 }
 
-function applySort(items, sort) {
-  const s = sort || "relevance";
+function toCanonicalFromJsonapiNode(node) {
+  const attrs = node?.attributes || {};
+  const rels = node?.relationships || {};
 
-  // DKAN doesn't give a relevance score in this payload; fallback to title/year patterns.
-  if (s === "yearDesc") {
-    return [...items].sort(
-      (a, b) => (b.publishedYear || 0) - (a.publishedYear || 0) || String(a.title).localeCompare(String(b.title))
-    );
-  }
+  const parsed = parseMetastoreJsonField(attrs.field_json_metadata);
+  const identifier = parsed?.identifier || node?.id || "";
+  const data = parsed?.data || {};
 
-  if (s === "yearAsc") {
-    return [...items].sort(
-      (a, b) => (a.publishedYear || 0) - (b.publishedYear || 0) || String(a.title).localeCompare(String(b.title))
-    );
-  }
+  const title = data?.title || attrs.title || "Untitled Dataset";
+  const description = data?.description || "";
 
-  if (s === "titleAsc") return [...items].sort((a, b) => String(a.title).localeCompare(String(b.title)));
-  if (s === "titleDesc") return [...items].sort((a, b) => String(b.title).localeCompare(String(a.title)));
+  const subjects = Array.isArray(data?.theme)
+    ? data.theme
+    : Array.isArray(data?.subjects)
+      ? data.subjects
+      : [];
 
-  // "relevance" default (for now): year desc, then title
-  return [...items].sort(
-    (a, b) => (b.publishedYear || 0) - (a.publishedYear || 0) || String(a.title).localeCompare(String(b.title))
-  );
+  const keywords = Array.isArray(data?.keyword)
+    ? data.keyword
+    : Array.isArray(data?.keywords)
+      ? data.keywords
+      : [];
+
+  const moderationState = attrs.moderation_state || "";
+  const published = attrs.status === true;
+
+  const status = moderationState || (published ? "published" : "draft");
+
+  const owner = rels?.uid?.data?.id || "";
+  const createdAt = attrs.created || "";
+  const updatedAt = attrs.changed || "";
+
+  return {
+    doi: identifier,
+    title,
+    description,
+    subjects,
+    keywords,
+    status: status ? status[0].toUpperCase() + status.slice(1) : "Draft",
+    createdAt,
+    updatedAt,
+    ownerId: owner,
+    _raw: { node, parsed },
+  };
 }
 
-function paginate(items, page = 1, perPage = 10) {
-  const p = Math.max(1, Number(page) || 1);
-  const pp = perPage === "All" ? Infinity : perPage === Infinity ? Infinity : Math.max(1, Number(perPage) || 10);
+function buildJsonapiFilter({ userId, dataType, moderationState }) {
+  const params = new URLSearchParams();
 
-  const total = items.length;
-  const pageCount = pp === Infinity ? 1 : Math.max(1, Math.ceil(total / pp));
-  const clampedPage = Math.min(p, pageCount);
+  if (dataType) {
+    params.set("filter[dt][condition][path]", "field_data_type");
+    params.set("filter[dt][condition][operator]", "=");
+    params.set("filter[dt][condition][value]", dataType);
+  }
 
-  const start = (clampedPage - 1) * (pp === Infinity ? total : pp);
-  const end = pp === Infinity ? total : start + pp;
+  if (userId) {
+    params.set("filter[uid][condition][path]", "uid.id");
+    params.set("filter[uid][condition][operator]", "=");
+    params.set("filter[uid][condition][value]", userId);
+  }
 
-  return { slice: items.slice(start, end), total, page: clampedPage, perPage: pp, pageCount };
+  if (moderationState) {
+    params.set("filter[ms][condition][path]", "moderation_state");
+    params.set("filter[ms][condition][operator]", "=");
+    params.set("filter[ms][condition][value]", moderationState);
+  }
+
+  return params;
 }
 
 export function createApiClient({ baseUrl = "" } = {}) {
-  // IMPORTANT:
-  // - In dev, baseUrl should usually be "" so requests go to /api/... and Vite proxies to DKAN.
-  // - If you set baseUrl to "http://dkan-local.ddev.site", you may hit CORS unless server allows it.
-
-  const apiBase = (baseUrl || "").replace(/\/+$/, "");
-
   function url(path) {
-    // Prefer calling /api/... so it works with either proxy you added.
-    // If caller passes "/api/1/search" it will become "/api/1/search".
-    const p = path.startsWith("/") ? path : `/${path}`;
-    return apiBase ? `${apiBase}${p}` : p;
+    if (!baseUrl) return path;
+    return `${baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
   }
 
   return {
-    async searchDatasets(params = {}, options = {}) {
-      void options;
+    async getSession() {
+      return getDrupalSession();
+    },
 
-      // Fetch once from DKAN, then filter/sort/page client-side for PoC.
-      const payload = await requestJson(url("/api/1/search"));
-      const { items, facets, total } = normalizeDkanSearch(payload);
+    async searchDatasets(params = {}) {
+      const p = new URLSearchParams();
 
-      const filtered = applyClientFilters(items, params);
-      const sorted = applySort(filtered, params.sort);
+      if (params.q) p.set("q", String(params.q));
+      if (params.subject) p.set("theme", String(params.subject));
+      if (params.keyword) p.set("keyword", String(params.keyword));
 
-      const { slice, page, perPage, pageCount } = paginate(sorted, params.page, params.perPage);
+      if (params.sort) p.set("sort", String(params.sort));
+      if (params.page) p.set("page", String(params.page));
+      if (params.perPage) p.set("perPage", String(params.perPage));
+      if (params.year) p.set("year", String(params.year));
+      if (params.status) p.set("status", String(params.status));
 
-      // Rebuild facets off filtered set so counts reflect active filtering (matches your UI expectations)
-      const subjects = uniqSorted(filtered.flatMap((r) => r.subjects || []));
-      const keywords = uniqSorted(filtered.flatMap((r) => r.keywords || []));
-      const years = uniqSorted(filtered.map((r) => r.publishedYear).filter((y) => Number.isFinite(y))).sort((a, b) => b - a);
+      const raw = await requestJson(url(`/api/1/search?${p.toString()}`));
 
-      const facetsFiltered = {
-        subjects: subjects.map((v) => ({
-          value: v,
-          count: filtered.filter((r) => (r.subjects || []).includes(v)).length,
-        })),
-        keywords: keywords.map((v) => ({
-          value: v,
-          count: filtered.filter((r) => (r.keywords || []).includes(v)).length,
-        })),
-        years: years.map((v) => ({
-          value: v,
-          count: filtered.filter((r) => r.publishedYear === v).length,
-        })),
-        fileTypes: facets.fileTypes || [],
-        status: [{ value: "Published", count: total }],
-      };
+      const resultsObj = raw?.results || {};
+      const results = Object.values(resultsObj).map(toCanonicalFromDkanSearchResult);
+      const facets = Array.isArray(raw?.facets) ? raw.facets : [];
 
       return {
-        results: slice,
-        total: filtered.length,
-        page,
-        perPage,
-        pageCount,
-        facets: facetsFiltered,
+        total: Number(raw?.total || results.length || 0),
+        results,
+        facets,
+        _raw: raw,
       };
     },
 
-    async getDatasetByDoi(doi, options = {}) {
-      void options;
-
+    async getDatasetByDoi(doi) {
       const id = String(doi || "").trim();
       if (!id) return null;
 
-      const candidates = [
-        url(`/api/1/dataset/${encodeURIComponent(id)}`),
-        url(`/api/1/metastore/schemas/dataset/items/${encodeURIComponent(id)}`),
-      ];
+      try {
+        const raw = await requestJson(
+          url(`/api/1/metastore/schemas/dataset/items/${encodeURIComponent(id)}`)
+        );
 
-      for (const u of candidates) {
-        try {
-          const data = await requestJson(u);
-          const d = data?.data || data;
-
-          const modified = d?.modified || d?.["%modified"] || null;
-
-          return {
-            doi: id,
-            title: d?.title || "",
-            description: d?.description || "",
-            subjects: Array.isArray(d?.theme) ? d.theme : [],
-            keywords: Array.isArray(d?.keyword) ? d.keyword : [],
-            publishedYear: toYearFromIso(modified),
-            status: "Published",
-            publisher: d?.publisher?.name || "",
-            contactName: d?.contactPoint?.fn || "",
-            contactEmail: d?.contactPoint?.hasEmail || "",
-            accessLevel: d?.accessLevel || "public",
-            _raw: d,
-          };
-        } catch (e) {
-          // try next candidate
-        }
+        return {
+          doi: raw?.identifier || id,
+          title: raw?.title || "Untitled Dataset",
+          description: raw?.description || "",
+          subjects: Array.isArray(raw?.theme) ? raw.theme : [],
+          keywords: Array.isArray(raw?.keyword) ? raw.keyword : [],
+          publisherName: raw?.publisher?.name || "",
+          publishedAt: raw?.modified || raw?.["%modified"] || "",
+          status: "Published",
+          _raw: raw,
+        };
+      } catch {
+        // fall through
       }
 
-      return null;
+      try {
+        const raw = await requestJson(url(`/api/1/dataset/${encodeURIComponent(id)}`));
+
+        return {
+          doi: raw?.identifier || id,
+          title: raw?.title || "Untitled Dataset",
+          description: raw?.description || "",
+          subjects: Array.isArray(raw?.theme) ? raw.theme : [],
+          keywords: Array.isArray(raw?.keyword) ? raw.keyword : [],
+          publisherName: raw?.publisher?.name || "",
+          publishedAt: raw?.modified || raw?.["%modified"] || "",
+          status: "Published",
+          _raw: raw,
+        };
+      } catch {
+        return null;
+      }
     },
 
-    async getLatestPublished(limit = 4, options = {}) {
-      void options;
-      const r = await this.searchDatasets({ status: ["Published"], sort: "yearDesc", page: 1, perPage: Infinity });
-      return (r.results || []).slice(0, Math.max(1, Number(limit) || 4));
+    async getLatestPublished(limit = 4) {
+      const raw = await requestJson(url(`/api/1/search`));
+      const results = Object.values(raw?.results || {}).map(toCanonicalFromDkanSearchResult);
+
+      results.sort((a, b) => {
+        const da = new Date(a.publishedAt || 0).getTime();
+        const db = new Date(b.publishedAt || 0).getTime();
+        return db - da;
+      });
+
+      return results.slice(0, Number(limit) || 4);
     },
 
-    async getVocabularies(options = {}) {
-      void options;
+    async getVocabularies() {
+      return { subjects: [], keywords: [] };
+    },
 
-      // Derived from search for PoC; later can call dedicated endpoints if DKAN exposes them.
-      const r = await this.searchDatasets({ status: ["Published"], page: 1, perPage: Infinity });
+    async getMyDatasets({ limit = 50, offset = 0, moderationState = "" } = {}) {
+      const session = await getDrupalSession();
+      if (!session.isAuthenticated || !session.user?.id) {
+        return { total: 0, results: [], _raw: null };
+      }
 
-      const subjects = uniqSorted((r.results || []).flatMap((x) => x.subjects || []));
-      const keywords = uniqSorted((r.results || []).flatMap((x) => x.keywords || []));
-      const years = uniqSorted((r.results || []).map((x) => x.publishedYear).filter((y) => Number.isFinite(y))).sort((a, b) => b - a);
+      const filters = buildJsonapiFilter({
+        userId: session.user.id,
+        dataType: "dataset",
+        moderationState: moderationState || "",
+      });
+
+      const params = new URLSearchParams(filters);
+      params.set("page[limit]", String(limit));
+      params.set("page[offset]", String(offset));
+      params.set("include", "uid");
+
+      const raw = await requestJson(url(`/dkan-api/jsonapi/node/data?${params.toString()}`), {
+        accept: "application/vnd.api+json",
+      });
+
+      const nodes = Array.isArray(raw?.data) ? raw.data : [];
+      const results = nodes.map(toCanonicalFromJsonapiNode);
 
       return {
-        subjects,
-        keywords,
-        years,
-        statuses: ["Published"],
+        total: results.length,
+        results,
+        _raw: raw,
       };
     },
   };
