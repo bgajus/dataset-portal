@@ -1,0 +1,449 @@
+/* Dashboard (matches Figma screenshot)
+   Uses portal-tokens.css variables:
+   --brand, --brandFocus, --borderSoft, --textMuted
+*/
+
+.dash-top{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.dash-user{
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.dash-avatar{
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .02em;
+  flex: 0 0 auto;
+}
+
+.dash-avatar__img,
+.dash-avatar__initials{
+  position: absolute;
+  inset: 0;
+}
+
+.dash-avatar__img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dash-avatar__initials{
+  display: grid;
+  place-items: center;
+}
+
+.dash-avatar__img[hidden],
+.dash-avatar__initials[hidden]{
+  display: none !important;
+}
+
+.dash-title{
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.dash-sub{
+  margin: .35rem 0 0 0;
+  color: var(--textMuted);
+  max-width: 54rem;
+}
+
+.dash-cta{
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  white-space: nowrap;
+}
+
+/* Notification banner */
+.dash-note{
+  border: 1px solid var(--brand);
+  background: var(--brandFocus);
+  border-radius: .5rem;
+  padding: .9rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dash-note__left{
+  display: inline-flex;
+  align-items: center;
+  gap: .75rem;
+  color: #1b1b1b;
+}
+
+.dash-note__left i{
+  color: var(--brand);
+  font-size: 1.1rem;
+}
+
+.dash-note__text{
+  display: inline-flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.dash-note__close{
+  border: 1px solid var(--borderSoft);
+  background: #fff;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #1b1b1b;
+  flex: 0 0 auto;
+}
+
+.dash-note__close:hover{ border-color: #c9c9c9; }
+.dash-note__close:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+  border-color: var(--brand);
+}
+
+.dash-block{ margin-bottom: 1.25rem; }
+
+/* Main grid */
+.dash-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px){
+  .dash-grid{ grid-template-columns: 1fr; }
+}
+
+/* Stats row */
+.dash-stats{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 900px){
+  .dash-stats{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.dash-stat{
+  background: #fff;
+  border: 1px solid var(--borderSoft);
+  border-radius: .5rem;
+  padding: 1rem 1rem .9rem;
+  box-shadow: 0 1px 0 rgba(0,0,0,.03);
+  min-height: 10.25rem;
+}
+
+.dash-stat__label{
+  color: #1b1b1b;
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+/* NEW: metric row = value + icon aligned */
+.dash-stat__metric{
+  display: inline-flex;
+  align-items: center;           /* vertical center */
+  gap: .75rem;                   /* space between number and icon */
+  margin-top: .25rem;
+}
+
+.dash-stat__value{
+  font-weight: 900;
+  font-size: 2.4rem;
+  line-height: 1.05;
+  color: #1b1b1b;
+}
+
+.dash-stat__icon{
+  color: #1b1b1b;
+  font-size: 1.35rem;
+  opacity: .9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-stat__desc{
+  margin-top: .65rem;
+  color: var(--textMuted);
+  font-weight: 700;
+  font-size: .92rem;
+  line-height: 1.35;
+}
+
+/* Cards */
+.dash-card{
+  background: #fff;
+  border: 1px solid var(--borderSoft);
+  border-radius: .5rem;
+  box-shadow: 0 1px 0 rgba(0,0,0,.03);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.dash-card__head{
+  padding: 1.05rem 1.1rem;
+  border-bottom: 1px solid var(--borderSoft);
+}
+
+.dash-card__title{
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.6rem;
+}
+
+.dash-card__body{
+  padding: 1.1rem;
+}
+
+.dash-card--tall .dash-card__body{
+  min-height: 28rem; /* matches Figma empty area while still pushing footer down */
+}
+
+.dash-empty{
+  color: var(--textMuted);
+  font-weight: 700;
+}
+
+/* Right big stat */
+.dash-bigstat{
+  display: inline-flex;
+  align-items: baseline;
+  gap: .55rem;
+}
+
+.dash-bigstat__value{
+  font-weight: 900;
+  font-size: 3rem;
+  line-height: 1.05;
+  color: #1b1b1b;
+}
+
+.dash-bigstat__suffix{
+  font-weight: 800;
+  color: #1b1b1b;
+}
+
+.dash-bigstat__desc{
+  margin-top: .5rem;
+  color: var(--textMuted);
+  font-weight: 700;
+}
+
+.dash-helptext{
+  margin: 0 0 1rem 0;
+  color: #1b1b1b;
+}
+
+.dash-helpbtn{
+  width: fit-content;
+}
+
+/* Activity list (with chip + edit) */
+.dash-activity{
+  display: grid;
+  gap: .75rem;
+}
+
+.dash-activity__row{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .75rem;
+  align-items: start;
+  border: 1px solid var(--borderSoft);
+  border-radius: .5rem;
+  padding: .85rem;
+}
+
+.dash-activity__title{
+  font-weight: 900;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.dash-activity__meta{
+  margin-top: .25rem;
+  color: var(--textMuted);
+  font-weight: 700;
+  font-size: .9rem;
+}
+
+.dash-activity__right{
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+/* Status badge base */
+.dash-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .25rem .6rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: #fff;
+  font-weight: 900;
+  font-size: .85rem;
+  white-space: nowrap;
+}
+
+/* NEW: status colors */
+.dash-badge--draft{ background: #119BF1; }
+.dash-badge--review{ background: #F59E0B; }
+.dash-badge--needs{ background: #F43F5E; }
+.dash-badge--published{ background: #22C55E; }
+
+/* NEW: Edit link next to badge */
+.dash-editlink{
+  font-weight: 900;
+  font-size: .9rem;
+  color: var(--brand);
+  text-decoration: none;
+}
+.dash-editlink:hover{ text-decoration: underline; }
+.dash-editlink:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+  border-radius: .25rem;
+}
+
+/* Modal */
+.dash-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.38);
+  z-index: 1000;
+}
+
+.dash-modal{
+  position: fixed;
+  inset: 0;
+  z-index: 1010;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.dash-modal__panel{
+  width: min(720px, 96vw);
+  background: #fff;
+  border: 1px solid var(--borderSoft);
+  border-radius: .75rem;
+  box-shadow: 0 22px 70px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+
+.dash-modal__head{
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--borderSoft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dash-modal__title{
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.25rem;
+}
+
+.dash-modal__close{
+  border: 1px solid var(--borderSoft);
+  background: #fff;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.dash-modal__close:hover{ border-color: #c9c9c9; }
+.dash-modal__close:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+  border-color: var(--brand);
+}
+
+.dash-modal__body{
+  padding: 1.1rem;
+}
+
+.dash-modal__hint{
+  margin: 0 0 .85rem 0;
+  color: var(--textMuted);
+  font-weight: 700;
+}
+
+.dash-modal__actions{
+  margin-top: 1rem;
+  display: inline-flex;
+  gap: .75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dash-success__title{
+  font-weight: 900;
+  font-size: 1.25rem;
+}
+
+.dash-success__sub{
+  margin-top: .15rem;
+  color: var(--textMuted);
+  font-weight: 700;
+}
+
+.dash-kv{
+  margin-top: .9rem;
+  border: 1px solid var(--borderSoft);
+  border-radius: .6rem;
+  padding: .75rem .85rem;
+  background: #f8f8f8;
+}
+
+.dash-kv__label{
+  color: var(--textMuted);
+  font-weight: 800;
+  font-size: .9rem;
+}
+
+.dash-kv__value{
+  margin-top: .15rem;
+  font-weight: 900;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+/* Ensure hidden always hides even if a UA stylesheet interferes */
+[hidden]{ display: none !important; }

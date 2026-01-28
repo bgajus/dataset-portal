@@ -1,0 +1,13 @@
+/* Brand link color overrides (USWDS can override default link styles) */
+.usa-link,
+a,
+.usa-breadcrumb__link{
+  color:var(--brand) !important;
+}
+
+/* Useful focus helper */
+.brand-focus:focus,
+.brand-focus:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 .25rem var(--brandFocus);
+}

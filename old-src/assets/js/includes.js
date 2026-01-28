@@ -23,163 +23,6 @@ const INCLUDE_MAP = {
 
 const USER_STORAGE_KEY = "constellation:user:v1";
 
-// Demo role (Submitter / Curator / Admin)
-const ROLE_STORAGE_KEY = "constellation:role:v1";
-
-// Notifications store (demo)
-const NOTIF_STORAGE_KEY = "constellation:notifications:v1";
-
-function normalizeRole(role) {
-  const r = String(role || "").trim().toLowerCase();
-  if (r === "curator") return "Curator";
-  if (r === "admin") return "Admin";
-  return "Submitter";
-}
-
-function getRole() {
-  try {
-    const raw = localStorage.getItem(ROLE_STORAGE_KEY);
-    return normalizeRole(raw || "Submitter");
-  } catch (_) {
-    return "Submitter";
-  }
-}
-
-function setRole(role) {
-  try {
-    localStorage.setItem(ROLE_STORAGE_KEY, normalizeRole(role));
-    return true;
-  } catch (e) {
-    console.warn("Failed to save role:", e);
-    return false;
-  }
-}
-
-function roleAllows(requiredRole) {
-  const role = getRole();
-  const req = normalizeRole(requiredRole);
-  if (!req) return true;
-  if (req === "Submitter") return true;
-  if (req === "Curator") return role === "Curator" || role === "Admin";
-  if (req === "Admin") return role === "Admin";
-  return true;
-}
-
-function applyRoleState(rootEl) {
-  if (!rootEl) return;
-
-  rootEl.dataset.role = getRole();
-
-  // Elements can declare data-requires-role="Curator" or "Admin"
-  rootEl.querySelectorAll("[data-requires-role]").forEach((el) => {
-    const req = el.getAttribute("data-requires-role");
-    el.hidden = !roleAllows(req);
-  });
-
-  // Optional: show current role label if element exists
-  const roleLabel = rootEl.querySelector("[data-role-label]");
-  if (roleLabel) roleLabel.textContent = getRole();
-}
-
-// ──────────────────────────────────────────────────────────────
-// Notifications (demo) — stored in localStorage
-// ──────────────────────────────────────────────────────────────
-
-function readNotifications() {
-  try {
-    const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (_) {
-    return [];
-  }
-}
-
-function writeNotifications(list) {
-  try {
-    localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
-  } catch (e) {
-    console.warn("Failed to write notifications:", e);
-  }
-}
-
-function addNotification({
-  toRole,
-  toEmail,
-  title,
-  message,
-  href,
-  recordDoi,
-  kind,
-} = {}) {
-  const now = new Date().toISOString();
-  const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const item = {
-    id,
-    createdAt: now,
-    read: false,
-    toRole: normalizeRole(toRole || "Submitter"),
-    toEmail: String(toEmail || "").trim(),
-    title: String(title || "Notification"),
-    message: String(message || ""),
-    href: String(href || ""),
-    recordDoi: String(recordDoi || ""),
-    kind: String(kind || "info"),
-  };
-
-  const list = readNotifications();
-  list.unshift(item);
-  writeNotifications(list);
-  updateNotifBadge();
-  return item;
-}
-
-function getCurrentUserEmail() {
-  const p = getUserProfile();
-  return String(p?.email || "").trim();
-}
-
-function getNotificationsForCurrentUser() {
-  const role = getRole();
-  const email = getCurrentUserEmail();
-  return readNotifications().filter((n) => {
-    if (!n) return false;
-    const byRole = normalizeRole(n.toRole) === role;
-    if (!byRole) return false;
-    // If a notification is addressed to a specific email, enforce it
-    if (String(n.toEmail || "").trim()) {
-      return String(n.toEmail || "").trim().toLowerCase() === email.toLowerCase();
-    }
-    return true;
-  });
-}
-
-function markNotificationRead(id) {
-  const list = readNotifications();
-  const next = list.map((n) => (n?.id === id ? { ...n, read: true } : n));
-  writeNotifications(next);
-  updateNotifBadge();
-}
-
-function markAllNotificationsRead() {
-  const list = readNotifications();
-  const next = list.map((n) => ({ ...n, read: true }));
-  writeNotifications(next);
-  updateNotifBadge();
-}
-
-function getUnreadCountForCurrentUser() {
-  return getNotificationsForCurrentUser().filter((n) => !n.read).length;
-}
-
-function updateNotifBadge() {
-  const badge = document.getElementById("notifBadge");
-  if (!badge) return;
-  const count = getUnreadCountForCurrentUser();
-  badge.hidden = count <= 0;
-  badge.textContent = String(count);
-}
-
 function getDefaultUserProfile() {
   return {
     firstName: "Brian",
@@ -291,7 +134,6 @@ async function loadInclude(target, includeKey) {
   const wrap = document.createElement('div');
   nodes.forEach((n) => wrap.appendChild(n.cloneNode(true)));
   applyAuthState(wrap, getAuthState());
-  applyRoleState(wrap);
 
   // Replace placeholder with the wrapped children.
   const outNodes = Array.from(wrap.childNodes);
@@ -375,7 +217,6 @@ async function initIncludes() {
 
   // Apply auth toggles across the whole page (fallback safety)
   applyAuthState(document.body, isAuthed);
-  applyRoleState(document.body);
 
   // Post-processing helpers
   document.querySelectorAll('[data-footer-year]').forEach((el) => {
@@ -390,9 +231,6 @@ async function initIncludes() {
 
   // Apply user profile (avatar initials / photo)
   applyUserProfileToHeader();
-
-  // Notification badge in header
-  updateNotifBadge();
 }
 
 if (document.readyState === 'loading') {
@@ -425,24 +263,4 @@ window.DatasetPortal.saveUserProfile = function (profile) {
     console.warn('Failed to save user profile:', e);
     return false;
   }
-};
-
-// Role helpers
-window.DatasetPortal.getRole = function () {
-  return getRole();
-};
-
-window.DatasetPortal.setRole = function (role) {
-  const ok = setRole(role);
-  if (ok) window.location.reload();
-  return ok;
-};
-
-// Notifications helpers
-window.DatasetPortal.notifications = {
-  add: addNotification,
-  listForMe: getNotificationsForCurrentUser,
-  markRead: markNotificationRead,
-  markAllRead: markAllNotificationsRead,
-  unreadCount: getUnreadCountForCurrentUser,
 };

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notifications</title>
+
+    <!-- USWDS init -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- Portal shared layer -->
+    <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
+    <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
+
+    <!-- Page styles -->
+    <link rel="stylesheet" href="./notifications.css" />
+  </head>
+
+  <body data-auth="true">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content" class="padding-y-4">
+      <div class="grid-container-widescreen">
+        <!-- Breadcrumbs -->
+        <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
+          <ol class="usa-breadcrumb__list">
+            <li class="usa-breadcrumb__list-item">
+              <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
+            </li>
+            <li class="usa-breadcrumb__list-item">
+              <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
+            </li>
+            <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+              <span>Notifications</span>
+            </li>
+          </ol>
+        </nav>
+
+        <header class="notif-head margin-top-2">
+          <div>
+            <h1 class="margin-0">Notifications</h1>
+            <p class="text-base margin-top-1 notif-sub">
+              Updates related to your datasets and review workflow.
+            </p>
+          </div>
+
+          <div class="notif-actions">
+            <button id="markAllRead" class="usa-button usa-button--outline btnBrandOutline" type="button">
+              Mark all read
+            </button>
+          </div>
+        </header>
+
+        <section class="margin-top-3" aria-label="Notifications list">
+          <div id="notifEmpty" class="usa-alert usa-alert--info" hidden>
+            <div class="usa-alert__body">
+              <h4 class="usa-alert__heading">No notifications</h4>
+              <p class="usa-alert__text">You’re all caught up.</p>
+            </div>
+          </div>
+
+          <div id="notifList" class="notif-list" aria-live="polite"></div>
+        </section>
+      </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader -->
+    <script type="module" src="../../assets/js/includes.js"></script>
+
+    <!-- Page JS -->
+    <script type="module" src="./notifications.js"></script>
+  </body>
+</html>

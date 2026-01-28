@@ -32,11 +32,6 @@
 
         <!-- Logged in -->
         <div class="portal-auth__loggedin" data-requires-auth="true" hidden>
-          <a class="portal-bell" href="/src/pages/notifications/index.html" aria-label="Notifications">
-            <i class="fa-solid fa-bell" aria-hidden="true"></i>
-            <span id="notifBadge" class="portal-bell__badge" hidden>0</span>
-          </a>
-
           <button type="button" class="portal-avatar" id="avatarBtn" aria-expanded="false" aria-haspopup="true" aria-controls="userMenu">
             <img class="portal-avatar__img" id="avatarImg" alt="" hidden />
             <span class="portal-avatar__initials" id="avatarInitials" aria-hidden="true">BG</span>
@@ -62,13 +57,8 @@
                 </a>
               </li>
               <li class="usa-menu__item">
-                <a class="usa-menu__link" href="/src/pages/notifications/index.html" data-path="/notifications">
+                <a class="usa-menu__link" href="javascript:void(0)" data-path="/notifications">
                   <i class="fa-solid fa-bell" aria-hidden="true"></i> Notifications
-                </a>
-              </li>
-              <li class="usa-menu__item" data-requires-role="Curator" hidden>
-                <a class="usa-menu__link" href="/src/pages/curation/index.html" data-path="/curation">
-                  <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Curator Review
                 </a>
               </li>
               <li class="usa-menu__item">
@@ -96,8 +86,7 @@
         <a class="portal-authnav__item" href="/src/pages/dashboard/index.html" data-path="/dashboard"><i class="fa-solid fa-square-poll-vertical" aria-hidden="true"></i><span>Dashboard</span></a>
         <a class="portal-authnav__item" href="/src/pages/my-datasets/index.html" data-path="/my-datasets"><i class="fa-solid fa-table-list" aria-hidden="true"></i><span>My Datasets</span></a>
         <a class="portal-authnav__item" href="javascript:void(0)" data-path="/analytics"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Analytics &amp; Reports</span></a>
-        <a class="portal-authnav__item" href="/src/pages/notifications/index.html" data-path="/notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notifications</span></a>
-        <a class="portal-authnav__item" href="/src/pages/curation/index.html" data-path="/curation" data-requires-role="Curator" hidden><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>Curator Review</span></a>
+        <a class="portal-authnav__item" href="javascript:void(0)" data-path="/notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notifications</span></a>
         <a class="portal-authnav__item" href="/src/pages/settings/index.html" data-path="/settings"><i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span></a>
       </nav>
     </div>

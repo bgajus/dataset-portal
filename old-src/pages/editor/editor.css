@@ -131,12 +131,6 @@
 .status-chip[data-status="in-review"] { background: #f59a00; }
 .status-chip[data-status="needs-updates"] { background: #b50909; }
 .status-chip[data-status="published"] { background: #2e8540; }
-
-/* Curator panel (demo) */
-.editor-curator{border:1px solid rgba(0,0,0,.12);border-radius:.75rem;background:#fff;padding:1rem}
-.editor-curator__head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
-.editor-curator__role{color:#5b616b;font-size:.875rem}
-.editor-curator__actions{display:flex;gap:.5rem;flex-wrap:wrap}
 .started-on { color: #565c65; white-space: nowrap; }
 
 /* Divider */

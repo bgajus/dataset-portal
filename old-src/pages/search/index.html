@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dataset Search</title>
+
+    <!-- USWDS init (recommended before CSS) -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Portal shared layer -->
+    <link rel="stylesheet" href="../../assets/css/portal-tokens.css">
+    <link rel="stylesheet" href="../../assets/css/portal-ui.css">
+
+    <!-- Page styles -->
+    <link rel="stylesheet" href="./search.css">
+  </head>
+
+  <body data-auth="false">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content">
+      <div class="padding-y-4">
+        <div class="grid-container-widescreen">
+
+          <!-- TOP: Search spans full width -->
+          <section class="usa-card__container usa-card__container--shadow bg-white radius-lg border border-base-lighter overflow-hidden">
+            <div class="padding-2">
+
+              <div class="display-flex flex-align-center gap-1 topSearch">
+                <div class="flex-fill">
+                  <label class="usa-sr-only" for="q">Search</label>
+
+                  <div class="searchPill" role="search">
+                    <input
+                      id="q"
+                      class="usa-input searchInput"
+                      type="search"
+                      placeholder="Search"
+                      autocomplete="off"
+                    />
+
+                    <button id="clearSearch" class="searchClear" type="button" aria-label="Clear search" hidden>
+                      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+
+                    <button id="searchGo" class="searchGo" type="button" aria-label="Search">
+                      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- chips under search (FILTERS ONLY) -->
+              <div id="chips" class="chipRow margin-top-2" aria-label="Active filters"></div>
+
+              <!-- meta + controls -->
+              <div class="display-flex flex-justify flex-align-center flex-wrap gap-2 margin-top-2">
+                <div id="meta" class="text-base"></div>
+
+                <div class="margin-left-auto display-flex flex-align-center gap-1">
+                  <button
+                    id="openFilters"
+                    class="usa-button usa-button--outline usa-button--small mobileOnly btnBrandOutline"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-controls="filterDrawer"
+                    aria-expanded="false"
+                  >
+                    Filters
+                  </button>
+
+                  <!-- Sort dropdown (icon + select) -->
+                  <div class="sortPill" aria-label="Sort results">
+                    <span class="sortIcon" aria-hidden="true">
+                      <i class="fa-solid fa-arrow-down-wide-short"></i>
+                    </span>
+
+                    <label class="usa-sr-only" for="sort">Sort</label>
+                    <select id="sort" class="usa-select sortSelect">
+                      <option value="relevance" selected>Most relevant</option>
+                      <option value="dateDesc">Newest</option>
+                      <option value="dateAsc">Oldest</option>
+                      <option value="sizeDesc">Dataset size (largest)</option>
+                      <option value="sizeAsc">Dataset size (smallest)</option>
+                      <option value="titleAsc">Title (A–Z)</option>
+                      <option value="titleDesc">Title (Z–A)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <div class="grid-row grid-gap margin-top-2">
+
+            <!-- LEFT FILTERS (desktop) -->
+            <aside class="tablet:grid-col-4 desktop:grid-col-3 desktopOnly">
+              <div class="usa-card__container usa-card__container--shadow bg-white radius-lg border border-base-lighter sidebar-sticky sidebarNaturalHeight">
+                <div class="padding-2 border-bottom border-base-lighter display-flex flex-justify flex-align-center">
+                  <h2 class="usa-card__heading font-sans-md margin-0">Filters</h2>
+                  <button id="clearBtn" class="usa-button usa-button--outline usa-button--small btnBrandOutline" type="button">
+                    Clear
+                  </button>
+                </div>
+
+                <div class="padding-2">
+                  <div class="filterSection" data-section="year">
+                    <button class="filterHeader" type="button" aria-expanded="true" aria-controls="yearPanel">
+                      <span class="filterTitle">Published Year</span>
+                      <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                    </button>
+                    <div id="yearPanel" class="filterBody">
+                      <div id="yearList"></div>
+                    </div>
+                  </div>
+
+                  <div class="filterSection" data-section="cat">
+                    <button class="filterHeader" type="button" aria-expanded="true" aria-controls="catPanel">
+                      <span class="filterTitle">Subject</span>
+                      <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                    </button>
+                    <div id="catPanel" class="filterBody">
+                      <div id="catList"></div>
+                    </div>
+                  </div>
+
+                  <div class="filterSection" data-section="keywords">
+                    <button class="filterHeader" type="button" aria-expanded="true" aria-controls="keywordPanel">
+                      <span class="filterTitle">Keywords</span>
+                      <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                    </button>
+                    <div id="keywordPanel" class="filterBody">
+                      <div id="keywordList"></div>
+                    </div>
+                  </div>
+
+                  <div class="filterSection filterSection--last" data-section="type">
+                    <button class="filterHeader" type="button" aria-expanded="true" aria-controls="typePanel">
+                      <span class="filterTitle">File Type</span>
+                      <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                    </button>
+                    <div id="typePanel" class="filterBody">
+                      <div id="typeList"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+
+            <!-- RIGHT RESULTS -->
+            <main class="tablet:grid-col-12 desktop:grid-col-9">
+              <section id="results" class="resultsStack"></section>
+
+              <!-- Pagination row: centered pager, per-page on right -->
+              <div id="pagingRow" class="pagingRow margin-top-2" hidden>
+                <nav class="usa-pagination pagerInline" aria-label="Pagination" id="pager">
+                  <ul class="usa-pagination__list" id="pagerList"></ul>
+                </nav>
+
+                <div class="perPageGroup" aria-label="Results per page">
+                  <span class="perPageLabel">Show per Page:</span>
+                  <label class="usa-sr-only" for="perPage">Show per page</label>
+                  <select id="perPage" class="usa-select perPageSelectMini">
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+              </div>
+
+              <section id="empty" class="margin-top-2" hidden>
+                <div class="usa-alert usa-alert--info">
+                  <div class="usa-alert__body">
+                    <h3 class="usa-alert__heading">No results match your filters.</h3>
+                    <p class="usa-alert__text">Try removing a filter or broadening your search.</p>
+                    <button class="usa-button usa-button--outline btnBrandOutline" id="emptyClear" type="button">
+                      Clear filters
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </main>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTER DRAWER (mobile) -->
+      <div id="filterBackdrop" class="drawer-backdrop" hidden></div>
+      <div
+        id="filterDrawer"
+        class="filter-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filters"
+        hidden
+      >
+        <div class="drawerHeader border-bottom border-base-lighter padding-2 display-flex flex-justify flex-align-center">
+          <h2 class="usa-card__heading font-sans-md margin-0">Filters</h2>
+          <button id="closeFilters" class="usa-button usa-button--unstyled text-no-underline margin-0" type="button" aria-label="Close filters">
+            ✕
+          </button>
+        </div>
+
+        <div class="padding-2">
+          <div class="display-flex flex-justify margin-bottom-2">
+            <button id="clearBtnMobile" class="usa-button usa-button--outline usa-button--small btnBrandOutline" type="button">Clear</button>
+            <button id="applyFiltersMobile" class="usa-button usa-button--small btnBrandSolid" type="button">Apply</button>
+          </div>
+
+          <div class="filterSection" data-section="year">
+            <button class="filterHeader" type="button" aria-expanded="true" aria-controls="yearPanelM">
+              <span class="filterTitle">Published Year</span>
+              <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="yearPanelM" class="filterBody">
+              <div id="yearListM"></div>
+            </div>
+          </div>
+
+          <div class="filterSection" data-section="cat">
+            <button class="filterHeader" type="button" aria-expanded="true" aria-controls="catPanelM">
+              <span class="filterTitle">Subject</span>
+              <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="catPanelM" class="filterBody">
+              <div id="catListM"></div>
+            </div>
+          </div>
+
+          <div class="filterSection" data-section="keywords">
+            <button class="filterHeader" type="button" aria-expanded="true" aria-controls="keywordPanelM">
+              <span class="filterTitle">Keywords</span>
+              <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="keywordPanelM" class="filterBody">
+              <div id="keywordListM"></div>
+            </div>
+          </div>
+
+
+          <div class="filterSection filterSection--last" data-section="type">
+            <button class="filterHeader" type="button" aria-expanded="true" aria-controls="typePanelM">
+              <span class="filterTitle">File Type</span>
+              <span class="chev" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+            </button>
+            <div id="typePanelM" class="filterBody">
+              <div id="typeListM"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contributors popover -->
+      <div id="popover" class="contrib-popover" role="dialog" aria-modal="false" aria-hidden="true" hidden>
+        <div class="display-flex flex-justify flex-align-start gap-1 margin-bottom-1">
+          <div id="popTitle" class="text-bold">Contributors</div>
+          <button class="usa-button usa-button--unstyled text-no-underline margin-left-auto" id="popClose" type="button" aria-label="Close">
+            ✕
+          </button>
+        </div>
+
+        <label class="usa-label" for="popSearch">Search contributors</label>
+        <input id="popSearch" class="usa-input" type="search" placeholder="Search contributors…" />
+
+        <div id="popMeta" class="usa-hint margin-top-1"></div>
+
+        <div id="popList" class="contrib-list margin-top-1" role="region" aria-label="Contributor list"></div>
+
+        <div class="margin-top-2 display-flex flex-justify-end">
+          <a class="usa-button btnBrandSolid" id="popViewRecord" href="#" target="_self">View full record</a>
+        </div>
+      </div>
+
+      <div id="backdrop" class="contrib-backdrop" hidden></div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS (needed for USWDS components) -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader (header/footer) -->
+    <script type="module" src="../../assets/js/includes.js"></script>
+
+    <!-- Page JS - use module for store import -->
+     <script type="module" src="./search.js"></script>
+
+  </body>
+</html>

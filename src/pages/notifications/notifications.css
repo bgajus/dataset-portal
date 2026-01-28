@@ -1,0 +1,10 @@
+.notif-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
+.notif-sub{color:#5b616b}
+.notif-actions{display:flex;gap:.5rem;align-items:center}
+.notif-list{display:flex;flex-direction:column;gap:.75rem}
+.notif-card{border:1px solid rgba(0,0,0,.12);border-radius:.75rem;background:#fff;padding:1rem}
+.notif-card.is-unread{border-left:4px solid var(--brand)}
+.notif-meta{display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.notif-title{font-weight:700;margin:0}
+.notif-msg{margin:.25rem 0 0 0}
+.notif-time{color:#5b616b;font-size:.875rem}

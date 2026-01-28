@@ -71,12 +71,6 @@ import {
   const requiredRemainingEl = $("requiredRemaining");
   const lockBanner = $("lockBanner");
 
-  // Curator review panel (demo)
-  const curatorPanel = $("curatorPanel");
-  const curatorNoteEl = $("curatorNote");
-  const requestUpdatesBtn = $("requestUpdatesBtn");
-  const publishBtn = $("publishBtn");
-
   // Status chip (top-left)
   const statusChipEl = document.querySelector(".status-chip");
 
@@ -121,31 +115,10 @@ import {
   let editingIndex = null;
   let titleTypingTimer = null;
 
-  function isCuratorRole() {
-    const role = window.DatasetPortal?.getRole?.() || "Submitter";
-    return role === "Curator" || role === "Admin";
-  }
-
-  function isCuratorMode() {
-    const flag = String(getQueryParam("curator") || "").trim();
-    return (flag === "1" || flag.toLowerCase() === "true") && isCuratorRole();
-  }
-
   function isRecordLocked() {
     const s = String(currentRecord?.status || "").toLowerCase();
-    // Once submitted, submitters should not be able to edit.
-    // Curators can edit *while in review* (demo).
-    if (s === "published") return true;
-    if (s === "in review") return !isCuratorMode();
-    return false;
-  }
-
-  function showCuratorPanelIfNeeded() {
-    if (!curatorPanel) return;
-    const s = String(currentRecord?.status || "").toLowerCase();
-    const show = isCuratorMode() && (s === "in review" || s === "needs updates");
-    curatorPanel.hidden = !show;
-    if (show && curatorNoteEl) curatorNoteEl.value = String(currentRecord?.curatorNote || "");
+    // Once submitted, user should not be able to edit.
+    return s === "in review" || s === "published";
   }
 
   function setStatusChip(status) {
@@ -227,8 +200,6 @@ import {
     if (locked) {
       try { modal?.setAttribute("hidden", ""); } catch (_) {}
     }
-
-    showCuratorPanelIfNeeded();
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -1004,77 +975,9 @@ import {
     if (!currentRecord) return;
     if (getMissingRequiredFields().length) return;
     currentRecord.status = "In Review";
-
-    // Ensure submitter attribution exists (used by curator workflow / notifications)
-    if (!currentRecord.submitterEmail || !currentRecord.submitterName) {
-      const p = window.DatasetPortal?.getUserProfile?.() || {};
-      const name = `${String(p.firstName || "").trim()} ${String(p.lastName || "").trim()}`.trim();
-      currentRecord.submitterName = currentRecord.submitterName || name;
-      currentRecord.submitterEmail = currentRecord.submitterEmail || String(p.email || "").trim();
-    }
-
     saveRecord(currentRecord);
     setStatusChip(currentRecord.status);
     applyLockedUI();
-
-    // Notify curators (demo)
-    try {
-      window.DatasetPortal?.notifications?.add?.({
-        toRole: "Curator",
-        title: "Dataset submitted for review",
-        message: `${currentRecord.title || "A dataset"} was submitted and is ready for curator review.`,
-        href: `/src/pages/curation/index.html`,
-        recordDoi: currentRecord.doi,
-        kind: "review",
-      });
-    } catch (_) {}
-  });
-
-  // Curator actions (demo)
-  requestUpdatesBtn?.addEventListener("click", () => {
-    if (!currentRecord) return;
-    if (!isCuratorMode()) return;
-    const note = String(curatorNoteEl?.value || "").trim();
-    if (note) currentRecord.curatorNote = note;
-    currentRecord.status = "Needs Updates";
-    saveRecord(currentRecord);
-    setStatusChip(currentRecord.status);
-    applyLockedUI();
-
-    try {
-      window.DatasetPortal?.notifications?.add?.({
-        toRole: "Submitter",
-        toEmail: String(currentRecord.submitterEmail || "").trim(),
-        title: "Changes requested",
-        message: note ? `Curator note: ${note}` : "A curator requested changes to your submitted dataset.",
-        href: `/src/pages/editor/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
-        recordDoi: currentRecord.doi,
-        kind: "updates",
-      });
-    } catch (_) {}
-  });
-
-  publishBtn?.addEventListener("click", () => {
-    if (!currentRecord) return;
-    if (!isCuratorMode()) return;
-    const note = String(curatorNoteEl?.value || "").trim();
-    if (note) currentRecord.curatorNote = note;
-    currentRecord.status = "Published";
-    saveRecord(currentRecord);
-    setStatusChip(currentRecord.status);
-    applyLockedUI();
-
-    try {
-      window.DatasetPortal?.notifications?.add?.({
-        toRole: "Submitter",
-        toEmail: String(currentRecord.submitterEmail || "").trim(),
-        title: "Dataset published",
-        message: note ? `Curator note: ${note}` : "Your dataset has been published.",
-        href: `/src/pages/dataset/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
-        recordDoi: currentRecord.doi,
-        kind: "publish",
-      });
-    } catch (_) {}
   });
 
   // ──────────────────────────────────────────────────────────────
@@ -1087,14 +990,6 @@ import {
     const doi = getQueryParam("doi");
     currentRecord = doi ? getRecord(doi) : null;
     if (!currentRecord) currentRecord = createNewDraft("Untitled Dataset");
-
-    // Capture submitter attribution early (demo)
-    if (!currentRecord.submitterEmail || !currentRecord.submitterName) {
-      const p = window.DatasetPortal?.getUserProfile?.() || {};
-      const name = `${String(p.firstName || "").trim()} ${String(p.lastName || "").trim()}`.trim();
-      currentRecord.submitterName = currentRecord.submitterName || name;
-      currentRecord.submitterEmail = currentRecord.submitterEmail || String(p.email || "").trim();
-    }
 
     uploadedFiles = Array.isArray(currentRecord.uploadedFiles) ? currentRecord.uploadedFiles : [];
     authors = Array.isArray(currentRecord.authors) ? currentRecord.authors : [];

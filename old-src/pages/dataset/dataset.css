@@ -1,0 +1,326 @@
+/* Dataset Landing Page (DLP)
+   - Uses USWDS grid-container-widescreen + our portal tokens.
+*/
+
+:root{
+  /* fallback if something is missing */
+  --dlp-border: var(--borderSoft, #d9d9d9);
+  --dlp-muted: var(--textMuted, #565c65);
+}
+
+/* Layout */
+.dlp-layout{
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, .85fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1023px){
+  .dlp-layout{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Preview banner */
+.dlp-preview{
+  border-radius: .75rem;
+}
+
+/* Header */
+.dlp-header{
+  padding-bottom: .5rem;
+}
+
+.dlp-titleRow{
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+}
+
+.dlp-title{
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.dlp-star{
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--brand);
+  padding: .25rem .35rem;
+  border-radius: .5rem;
+  line-height: 1;
+  margin-top: .1rem;
+}
+.dlp-star:hover{
+  background: rgba(0,0,0,.03);
+}
+.dlp-star:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+}
+
+/* Authors line */
+.dlp-authors{
+  color: #1b1b1b;
+  line-height: 1.6;
+  font-weight: 650;
+}
+.dlp-authors a{
+  color: var(--brand);
+  text-decoration: underline;
+  font-weight: 750;
+}
+.dlp-authors a:hover{
+  text-decoration-thickness: 2px;
+}
+
+/* ORCID-ish tiny badge (visual only for now) */
+.dlp-orcid{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  margin-left: .25rem;
+  background: #cfe7b3;
+  color: #1b1b1b;
+  font-size: .7rem;
+  font-weight: 900;
+  transform: translateY(-1px);
+}
+
+/* Download button spacing */
+.dlp-download{
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Section headings / prose */
+.dlp-h2{
+  font-size: 1.25rem;
+  font-weight: 900;
+  margin: 0 0 .75rem 0;
+}
+
+.dlp-prose{
+  color: #1b1b1b;
+  line-height: 1.7;
+  max-width: 72ch;
+}
+.dlp-prose p{
+  margin: 0 0 1rem 0;
+}
+
+/* Funding DL (two-column definition list) */
+.dlp-dl{
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: .5rem 1rem;
+  margin: 0;
+}
+.dlp-dl dt{
+  font-weight: 900;
+  color: #1b1b1b;
+}
+.dlp-dl dd{
+  margin: 0;
+  color: #1b1b1b;
+}
+@media (max-width: 640px){
+  .dlp-dl{
+    grid-template-columns: 1fr;
+  }
+  .dlp-dl dt{
+    margin-top: .5rem;
+  }
+}
+
+/* Related resources */
+.dlp-related{
+  margin: 0;
+  padding-left: 1.1rem;
+}
+.dlp-related li{
+  margin: .35rem 0;
+}
+.dlp-related a{
+  color: var(--brand);
+}
+
+/* Cards */
+.dlp-card{
+  background: #fff;
+  border: 1px solid var(--dlp-border);
+  border-radius: .9rem;
+  padding: 1rem 1rem;
+  box-shadow: 0 1px 0 rgba(0,0,0,.03);
+}
+.dlp-card__title{
+  font-size: 1.15rem;
+  font-weight: 900;
+  margin: 0 0 .75rem 0;
+}
+
+/* mini DL inside cards */
+.dlp-miniDL{
+  display: grid;
+  gap: .35rem;
+  margin: 0;
+}
+.dlp-miniDL dt{
+  font-size: .85rem;
+  font-weight: 900;
+  color: #1b1b1b;
+}
+.dlp-miniDL dd{
+  margin: 0 0 .55rem 0;
+  color: #1b1b1b;
+  font-weight: 650;
+}
+.dlp-miniDL dd:last-child{
+  margin-bottom: 0;
+}
+
+/* Link list in card */
+.dlp-links a{
+  color: var(--brand);
+  font-weight: 750;
+  text-decoration: underline;
+}
+.dlp-links a:hover{
+  text-decoration-thickness: 2px;
+}
+
+/* Keywords chips (Details card) */
+.dlp-keywords{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .15rem;
+}
+
+.dlp-keywordChip{
+  display: inline-flex;
+  align-items: center;
+  padding: .28rem .6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(88,65,153,.30);
+  background: rgba(88,65,153,.06);
+  color: var(--brand);
+  font-size: .85rem;
+  font-weight: 750;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.dlp-keywordsEmpty{
+  color: var(--dlp-muted);
+  font-weight: 650;
+}
+
+/* Citation */
+.dlp-citeBox{
+  border: 1px solid var(--dlp-border);
+  border-radius: .75rem;
+  padding: .85rem;
+  background: #fbfbfc;
+  line-height: 1.6;
+  font-size: .95rem;
+  color: #1b1b1b;
+  overflow-wrap: anywhere;
+}
+
+.dlp-citeControls .dlp-label{
+  margin-top: 0;
+}
+
+.dlp-citeRow{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .5rem;
+  align-items: end;
+}
+
+.dlp-select.usa-select{
+  max-width: none;
+}
+
+.dlp-copy{
+  width: 3rem;
+  height: 2.5rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dlp-toast{
+  margin-top: .5rem;
+  color: var(--dlp-muted);
+  font-weight: 750;
+  font-size: .9rem;
+}
+
+/* Acknowledgements */
+.dlp-ack{
+  color: #1b1b1b;
+  line-height: 1.65;
+}
+
+/* Popover + backdrop (contributors) */
+.dlp-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.28);
+  backdrop-filter: blur(1px);
+  z-index: 80;
+}
+
+.dlp-popover{
+  position: fixed;
+  z-index: 90;
+  width: min(520px, 94vw);
+  max-height: min(560px, 86vh);
+  background: #fff;
+  border: 1px solid var(--dlp-border);
+  border-radius: .9rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,.22);
+  padding: 1rem;
+}
+
+.dlp-contribList{
+  border: 1px solid var(--dlp-border);
+  border-radius: .75rem;
+  padding: .5rem;
+  background: #f8f8f8;
+  max-height: 320px;
+  overflow: auto;
+  display: grid;
+  gap: .5rem;
+}
+
+.dlp-contribRow{
+  background: #fff;
+  border: 1px solid var(--dlp-border);
+  border-radius: .75rem;
+  padding: .6rem .75rem;
+  display: grid;
+  gap: .15rem;
+}
+
+.dlp-contribRow .nm{
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dlp-contribRow .aff{
+  color: var(--dlp-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

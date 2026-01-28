@@ -12,6 +12,8 @@ export default defineConfig({
         editor: resolve(__dirname, 'src/pages/editor/index.html'),
         myDatasets: resolve(__dirname, 'src/pages/my-datasets/index.html'),
         settings: resolve(__dirname, 'src/pages/settings/index.html'),
+        notifications: resolve(__dirname, 'src/pages/notifications/index.html'),
+        curation: resolve(__dirname, 'src/pages/curation/index.html'),
       },
     },
   },

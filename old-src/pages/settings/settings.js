@@ -21,21 +21,7 @@ const els = {
   saveTop: $("saveProfile"),
   saveBottom: $("saveProfileBottom"),
   toast: $("saveToast"),
-
-  roleSelect: $("roleSelect"),
-  toggleAuthBtn: $("toggleAuthBtn"),
-  authStateLabel: $("authStateLabel"),
 };
-
-function getAuthState() {
-  const stored = localStorage.getItem('dp-auth');
-  const raw = (stored ?? 'true').toString().toLowerCase();
-  return raw !== 'false' && raw !== '0' && raw !== 'no';
-}
-
-function setAuthState(isAuthed) {
-  window.DatasetPortal?.setAuth?.(!!isAuthed);
-}
 
 function getProfile() {
   return window.DatasetPortal?.getUserProfile?.() || {
@@ -202,25 +188,6 @@ function saveProfile() {
 function init() {
   const profile = getProfile();
   fillForm(profile);
-
-  // Role
-  if (els.roleSelect) {
-    const currentRole = window.DatasetPortal?.getRole?.() || "Submitter";
-    els.roleSelect.value = currentRole;
-    els.roleSelect.addEventListener("change", () => {
-      window.DatasetPortal?.setRole?.(els.roleSelect.value);
-    });
-  }
-
-  // Auth toggle label
-  const renderAuthLabel = () => {
-    if (!els.authStateLabel) return;
-    els.authStateLabel.textContent = getAuthState() ? "Signed in" : "Signed out";
-  };
-  renderAuthLabel();
-  els.toggleAuthBtn?.addEventListener("click", () => {
-    setAuthState(!getAuthState());
-  });
 
   els.avatarFile?.addEventListener("change", handleAvatarUpload);
   els.removeAvatar?.addEventListener("click", handleRemoveAvatar);

@@ -435,18 +435,8 @@ body[data-auth="false"] [data-requires-auth="true"]{
 /* Avatar Dropdown Positioning Fix */
 
 .portal-auth__loggedin {
-  /* Container for bell + avatar + dropdown */
-  position: relative; /* containing block for the dropdown */
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  flex-wrap: nowrap;
+  position: relative; /* Key: makes this the containing block */
 }
-
-/* Ensure the bell always sits to the left of the avatar */
-.portal-auth__loggedin .portal-bell{ order: 0; }
-.portal-auth__loggedin .portal-avatar{ order: 1; }
 
 .portal-avatar {
   width: 2.5rem;
@@ -596,44 +586,3 @@ iframe:focus-visible {
   background: rgba(241, 243, 245, 0.8) !important; /* slightly darker hover */
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Header notifications bell
-   ────────────────────────────────────────────────────────────── */
-
-.portal-bell {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 999px;
-  text-decoration: none;
-  color: var(--brandInk);
-  margin-right: 0.5rem;
-}
-
-.portal-bell:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.portal-bell:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 0.125rem var(--brandFocus);
-}
-
-.portal-bell__badge {
-  position: absolute;
-  top: -0.2rem;
-  right: -0.2rem;
-  min-width: 1.05rem;
-  height: 1.05rem;
-  padding: 0 0.25rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  line-height: 1.05rem;
-  font-weight: 700;
-  background: var(--brand);
-  color: #fff;
-  text-align: center;
-}

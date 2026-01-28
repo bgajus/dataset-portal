@@ -1,0 +1,8 @@
+.cur-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
+.cur-sub{color:#5b616b}
+.cur-list{display:flex;flex-direction:column;gap:.75rem}
+.cur-card{border:1px solid rgba(0,0,0,.12);border-radius:.75rem;background:#fff;padding:1rem}
+.cur-meta{display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.cur-title{margin:0;font-weight:700}
+.cur-doi{color:#5b616b;font-size:.875rem;margin:.25rem 0 0 0}
+.cur-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}

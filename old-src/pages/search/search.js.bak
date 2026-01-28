@@ -1,0 +1,942 @@
+// search.js - Subjects + Always-on demo mocks
+
+import { getAllRecords } from "/src/assets/js/shared-store.js";
+import { makeDemoDataset } from "/src/assets/js/demo-datasets.js";
+
+(() => {
+  // ──────────────────────────────────────────────────────────────
+  // Demo mocks (always included)
+  // ──────────────────────────────────────────────────────────────
+  const SHOW_DEMO_MOCKS = true;
+  const DEMO_MOCK_COUNT = 10;
+  const DEMO_DOI_BASE = 1400000; // 10.13139/ORNLNCCS/1400000 + i
+
+  function mulberry32(seed){
+    let t = seed >>> 0;
+    return function(){
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const rand = mulberry32(584199);
+
+  const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  const subjects = [
+    "Bioinformatics",
+    "Climate",
+    "Computational Fluid Dynamics",
+    "Cybersecurity",
+    "Energy Systems",
+    "Environmental Monitoring",
+    "Fusion",
+    "Geospatial Analytics",
+    "HPC Performance",
+    "Machine Learning",
+    "Materials Science",
+    "Nuclear Energy",
+    "Remote Sensing",
+    "Robotics",
+    "Transportation",
+    "Urban Sensing"
+  ];
+
+  const fileTypes = ["CSV","HDF5","Parquet","NetCDF","JSON","GeoTIFF","Zarr","FASTQ","BAM","SQLite","TXT","TSV"];
+
+  // Demo mocks are always included for the public search demo.
+  // Make their keywords realistic so the Keyword facet reflects dataset-style tags.
+  const keywordPoolsBySubject = {
+    "Bioinformatics": ["genomics", "proteomics", "sequence alignment", "FASTQ", "variant calling"],
+    "Climate": ["climate", "weather", "downscaling", "NetCDF", "reanalysis"],
+    "Computational Fluid Dynamics": ["CFD", "turbulence", "LES", "aerodynamics", "simulation"],
+    "Cybersecurity": ["cybersecurity", "network", "anomaly detection", "malware", "telemetry"],
+    "Energy Systems": ["grid", "load", "optimization", "renewables", "dispatch"],
+    "Environmental Monitoring": ["air quality", "sensors", "time series", "calibration", "monitoring"],
+    "Fusion": ["fusion", "plasma", "tokamak", "MHD", "transport"],
+    "Geospatial Analytics": ["GIS", "GeoTIFF", "tiling", "spatial analysis", "geospatial"],
+    "HPC Performance": ["HPC", "Frontier", "benchmarking", "MPI", "OpenMP"],
+    "Machine Learning": ["machine learning", "training", "inference", "hyperparameters", "model"],
+    "Materials Science": ["materials", "microstructure", "phase field", "DFT", "mechanics"],
+    "Nuclear Energy": ["nuclear", "reactor", "neutronics", "thermal hydraulics", "safety"],
+    "Remote Sensing": ["remote sensing", "satellite", "radiance", "classification", "calibration"],
+    "Robotics": ["robotics", "SLAM", "navigation", "control", "sensor fusion"],
+    "Transportation": ["transportation", "traffic", "mobility", "routing", "demand"],
+    "Urban Sensing": ["urban", "IoT", "mobility", "sensor network", "spatiotemporal"],
+  };
+
+  const keywordGeneralPool = [
+    "simulation",
+    "workflow",
+    "dataset",
+    "analysis",
+    "visualization",
+    "Parquet",
+    "HDF5",
+    "Zarr",
+    "JSON",
+  ];
+
+  function pickN(arr, n) {
+    const copy = (Array.isArray(arr) ? arr : []).slice();
+    // Fisher–Yates shuffle using seeded rand()
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy.slice(0, n);
+  }
+
+  function makeDemoMock(i){
+    // Pull the canonical demo record so Homepage/Search/Dataset all match.
+    const rich = makeDemoDataset(i);
+    const suffix = DEMO_DOI_BASE + i;
+    const doi = rich.doi;
+
+    // Use publishedAt/createdAt for display
+    const dateISO = String(rich.publishedAt || rich.createdAt || "").slice(0, 10) || new Date().toISOString().slice(0, 10);
+    const dateObj = new Date(dateISO + "T00:00:00");
+
+    // Derive an approximate "file type" from the first uploaded file
+    const firstName = rich.uploadedFiles?.[0]?.name || "";
+    const extRaw = (String(firstName).split(".").pop() || "").toLowerCase();
+    const extMap = { h5: "HDF5", hdf5: "HDF5", nc: "NetCDF", netcdf: "NetCDF", csv: "CSV", parquet: "Parquet", json: "JSON", vtk: "VTK", zarr: "Zarr" };
+    const fileType = extMap[extRaw] || (extRaw ? extRaw.toUpperCase() : "Unknown");
+
+    // Derive dataset size from the label (e.g., "12.3 GB")
+    const sizeGB = (() => {
+      const m = String(rich.datasetSizeLabel || "").match(/([0-9]+(?:\.[0-9]+)?)\s*GB/i);
+      return m ? Number(m[1]) : 0;
+    })();
+
+    const subject = Array.isArray(rich.subjects) && rich.subjects.length ? rich.subjects[0] : "Unspecified";
+
+    return {
+      id: `demo-${suffix}`,
+      _isDemo: true,
+
+      // Common fields used by search
+      title: rich.title || `Fallback Mock Dataset ${i + 1}`,
+      doi,
+      landingUrl: `/src/pages/dataset/index.html?doi=${encodeURIComponent(doi)}`,
+      dateISO,
+      dateLabel: dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+      subject,
+      fileType,
+      datasetFiles: {
+        count: Array.isArray(rich.uploadedFiles) ? rich.uploadedFiles.length : 0,
+        sizeGB: Number.isFinite(sizeGB) ? sizeGB : 0,
+      },
+      keywords: Array.isArray(rich.keywords) ? rich.keywords.slice(0, 6) : [],
+      contributors: (rich.authors || []).map((a) => ({
+        first: a.firstName || a.first || "",
+        last: a.lastName || a.last || "",
+        affil: a.affiliation || a.affil || "",
+      })),
+      status: "Published",
+    };
+  }
+
+  function parseSubjectsFromRecord(r){
+    // Subjects and Keywords are separate concepts. Subjects come from r.subjects (array)
+    // or legacy r.subjectsKeywords (CSV). Do not fall back to r.keywords here.
+    if (Array.isArray(r.subjects) && r.subjects.length) {
+      return r.subjects.map(s => String(s || "").trim()).filter(Boolean);
+    }
+    const csv = String(r.subjectsKeywords || "").trim();
+    if (csv) return csv.split(",").map(s => s.trim()).filter(Boolean);
+    return [];
+  }
+
+  function parseKeywordsFromRecord(r){
+    if (Array.isArray(r.keywords) && r.keywords.length) {
+      return r.keywords.map(k => String(k || "").trim()).filter(Boolean);
+    }
+    // Best-effort legacy support: some older records stored keywords as a CSV string.
+    const csv = String(r.keywordsCsv || r.keywordsCSV || r.keywordsText || "").trim();
+    if (csv) return csv.split(",").map(s => s.trim()).filter(Boolean);
+    return [];
+  }
+
+  function getPrimarySubject(r){
+    const list = parseSubjectsFromRecord(r);
+    const known = list.find(s => subjects.includes(s));
+    return known || list[0] || "Unspecified";
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Load records + always append demo mocks
+  // ──────────────────────────────────────────────────────────────
+  // Only Published records should appear in public search results.
+  const realRecordsRaw = getAllRecords().filter(r => String(r.status || "").toLowerCase() === "published");
+  let realRecords = realRecordsRaw.map(r => {
+    const created = r.createdAt || Date.now();
+    return {
+      ...r,
+      id: r.id || r.doi,
+      dateISO: r.dateISO || (r.createdAt ? String(r.createdAt).slice(0,10) : new Date().toISOString().slice(0,10)),
+      dateLabel: r.dateLabel || new Date(created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+      subject: getPrimarySubject(r),
+      fileType: r.fileType || "Unknown",
+      datasetFiles: r.datasetFiles || { count: 0, sizeGB: 0 },
+      keywords: parseKeywordsFromRecord(r),
+      contributors: (r.authors || r.contributors || []).map(a => ({
+        first: a.first || a.firstName || "",
+        last: a.last || a.lastName || "",
+        affil: a.affil || a.affiliation || ""
+      })),
+      landingUrl: r.landingUrl || `/src/pages/dataset/index.html?doi=${encodeURIComponent(r.doi)}`
+    };
+  });
+
+  // De-dupe by DOI in case a real record shares a demo DOI
+  const seenDoi = new Set(realRecords.map(r => r.doi));
+
+  const demoMocks = SHOW_DEMO_MOCKS
+    ? Array.from({ length: DEMO_MOCK_COUNT }, (_, i) => makeDemoMock(i)).filter(m => !seenDoi.has(m.doi))
+    : [];
+
+  const allResults = [...realRecords, ...demoMocks];
+
+  console.log("Search records loaded:", { real: realRecords.length, demo: demoMocks.length, total: allResults.length });
+
+  // ──────────────────────────────────────────────────────────────
+  // DOM selectors
+  // ──────────────────────────────────────────────────────────────
+  const qEl = document.getElementById("q");
+  const clearSearchBtn = document.getElementById("clearSearch");
+  const searchGoBtn = document.getElementById("searchGo");
+
+  const resultsEl = document.getElementById("results");
+  const emptyEl = document.getElementById("empty");
+  const emptyClear = document.getElementById("emptyClear");
+
+  const chipsEl = document.getElementById("chips");
+  const metaEl = document.getElementById("meta");
+  const sortEl = document.getElementById("sort");
+
+  const pagingRow = document.getElementById("pagingRow");
+  const perPageEl = document.getElementById("perPage");
+  const pager = document.getElementById("pager");
+  const pagerList = document.getElementById("pagerList");
+
+  const yearListEl = document.getElementById("yearList");
+  const catListEl = document.getElementById("catList");     // id kept (renders Subjects)
+  const keywordListEl = document.getElementById("keywordList");
+  const typeListEl = document.getElementById("typeList");
+
+  const yearListM = document.getElementById("yearListM");
+  const catListM = document.getElementById("catListM");     // id kept
+  const keywordListM = document.getElementById("keywordListM");
+  const typeListM = document.getElementById("typeListM");
+
+  const openFiltersBtn = document.getElementById("openFilters");
+  const filterDrawer = document.getElementById("filterDrawer");
+  const filterBackdrop = document.getElementById("filterBackdrop");
+  const closeFiltersBtn = document.getElementById("closeFilters");
+  const clearBtnMobile = document.getElementById("clearBtnMobile");
+  const applyFiltersMobile = document.getElementById("applyFiltersMobile");
+  const clearBtn = document.getElementById("clearBtn");
+
+  const pop = document.getElementById("popover");
+  const popTitle = document.getElementById("popTitle");
+  const popClose = document.getElementById("popClose");
+  const popSearch = document.getElementById("popSearch");
+  const popMeta = document.getElementById("popMeta");
+  const popList = document.getElementById("popList");
+  const popViewRecord = document.getElementById("popViewRecord");
+  const backdrop = document.getElementById("backdrop");
+
+  const state = {
+    q: "",
+    years: new Set(),
+    subjects: new Set(),
+    types: new Set(),
+    keywords: new Set(),
+    sort: "relevance",
+    perPage: 10,
+    page: 1
+  };
+
+  let activeContribs = [];
+  let lastFocus = null;
+
+  const fmtName = (p) => `${p.last}, ${p.first}`;
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+    }[s]));
+  }
+
+  function syncSearchClearVisibility(){
+    if(!qEl || !clearSearchBtn) return;
+    const val = (qEl.value || "").trim();
+    clearSearchBtn.hidden = val.length === 0;
+  }
+
+  function readUrlParams(){
+    const params = new URLSearchParams(window.location.search);
+    const q = (params.get("q") || "").trim();
+
+    // subject is new; accept category as a backward-compatible alias
+    const subject = (params.get("subject") || params.get("category") || "").trim();
+
+    // keyword can be repeated (?keyword=HPC&keyword=AI) or comma-separated (?keyword=HPC,AI)
+    const keywordAll = params.getAll("keyword").map(s => (s || "").trim()).filter(Boolean);
+    const keywordSingle = (params.get("keyword") || "").trim();
+    const keywords = keywordAll.length
+      ? keywordAll
+      : (keywordSingle ? keywordSingle.split(",").map(s => s.trim()).filter(Boolean) : []);
+
+    return { q, subject, keywords };
+  }
+
+  function applyUrlParams(){
+    const { q, subject, keywords } = readUrlParams();
+
+    if(q){
+      state.q = q;
+      qEl.value = q;
+    }
+
+    if(subject && subjects.includes(subject)){
+      state.subjects.add(subject);
+    }
+
+    // Keywords are dynamic; accept any value so shared URLs always hydrate.
+    (keywords || []).forEach(k => {
+      if(k) state.keywords.add(k);
+    });
+
+    syncSearchClearVisibility();
+  }
+
+  function matchesSearch(r, q){
+    if(!q) return true;
+    const needle = q.trim().toLowerCase();
+    const blob = [
+      r.title || "", r.doi || "", r.subject || "", r.fileType || "",
+      (r.keywords || []).join(" "),
+      (r.contributors || []).slice(0, 40).map(fmtName).join(" ")
+    ].join(" ").toLowerCase();
+    return blob.includes(needle);
+  }
+
+    function buildFacetValues(items, getVal){
+    const map = new Map();
+    items.forEach(it => {
+      const v = getVal(it) || "Unknown";
+      map.set(v, (map.get(v) || 0) + 1);
+    });
+    return [...map.entries()].map(([value, count]) => ({ value, count }));
+  }
+
+  function buildFacetValuesMulti(items, getVals){
+    const map = new Map();
+    items.forEach(it => {
+      const vals = getVals(it) || [];
+      vals.forEach(vRaw => {
+        const v = String(vRaw || "").trim();
+        if(!v) return;
+        map.set(v, (map.get(v) || 0) + 1);
+      });
+    });
+    return [...map.entries()].map(([value, count]) => ({ value, count }));
+  }
+
+  function renderFacetUSWDS(listEl, values, selectedSet, onChange, sortMode){
+    let sorted = values.slice();
+    if(sortMode === "yearDesc") sorted.sort((a,b) => Number(b.value) - Number(a.value));
+    else sorted.sort((a,b) => a.value.localeCompare(b.value));
+
+    listEl.innerHTML = sorted.map(({value, count}, idx) => {
+      const id = `${listEl.id}-${idx}-${value}`.replace(/\s+/g,"-");
+      const checked = selectedSet.has(value) ? "checked" : "";
+      return `
+        <div class="usa-checkbox margin-bottom-1">
+          <input class="usa-checkbox__input" id="${escapeHtml(id)}" type="checkbox" value="${escapeHtml(value)}" ${checked}>
+          <label class="usa-checkbox__label" for="${escapeHtml(id)}">
+            ${escapeHtml(value)} <span class="text-base">(${count})</span>
+          </label>
+        </div>
+      `;
+    }).join("");
+
+    listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener("change", (e) => onChange(e.target.value, e.target.checked));
+    });
+  }
+
+  function scoreResult(r, q){
+    if(!q) return 0;
+    const needle = q.trim().toLowerCase();
+    let score = 0;
+
+    const t = (r.title || "").toLowerCase();
+    const doi = (r.doi || "").toLowerCase();
+    const subj = (r.subject || "").toLowerCase();
+    const ft = (r.fileType || "").toLowerCase();
+    const keys = (r.keywords || []).join(" ").toLowerCase();
+    const contrib = (r.contributors || []).slice(0, 40).map(fmtName).join(" ").toLowerCase();
+
+    if(t.includes(needle)) score += 20;
+    if(keys.includes(needle)) score += 12;
+    if(subj.includes(needle)) score += 8;
+    if(contrib.includes(needle)) score += 6;
+    if(ft.includes(needle)) score += 3;
+    if(doi.includes(needle)) score += 2;
+
+    const year = Number((r.dateISO || r.createdAt || "").slice(0,4));
+    if (!isNaN(year)) score += (year - 2018) * 0.3;
+
+    return score;
+  }
+
+  function applyFilters(){
+    const q = state.q.trim();
+    return allResults
+      .map(r => ({ ...r, _score: scoreResult(r, q) }))
+      .filter(r => {
+        // Exclude Draft records from public search
+        if ((r.status || "").toLowerCase() === "draft") return false;
+
+        const y = (r.dateISO || r.createdAt || "").slice(0,4);
+        if(state.years.size && !state.years.has(y)) return false;
+
+        if(state.subjects.size && !state.subjects.has(r.subject || "Unspecified")) return false;
+
+        if(state.types.size && !state.types.has(r.fileType || "Unknown")) return false;
+
+        if(state.keywords.size){
+          const sel = new Set(Array.from(state.keywords).map(k => String(k || "").trim().toLowerCase()).filter(Boolean));
+          const rowKeys = (r.keywords || []).map(k => String(k || "").trim().toLowerCase()).filter(Boolean);
+          const hit = rowKeys.some(k => sel.has(k));
+          if(!hit) return false;
+        }
+
+        if(!matchesSearch(r, q)) return false;
+
+        return true;
+      });
+  }
+
+  function sortResults(rows){
+    const s = state.sort;
+    const copy = rows.slice();
+    copy.sort((a,b) => {
+      if(s === "relevance") return (b._score ?? 0) - (a._score ?? 0);
+      if(s === "dateDesc") return (b.dateISO || b.createdAt || "").localeCompare(a.dateISO || a.createdAt || "");
+      if(s === "dateAsc") return (a.dateISO || a.createdAt || "").localeCompare(b.dateISO || b.createdAt || "");
+      if(s === "titleAsc") return (a.title || "").localeCompare(b.title || "");
+      if(s === "titleDesc") return (b.title || "").localeCompare(a.title || "");
+
+      if(s === "sizeDesc") return (b.datasetFiles?.sizeGB ?? 0) - (a.datasetFiles?.sizeGB ?? 0);
+      if(s === "sizeAsc")  return (a.datasetFiles?.sizeGB ?? 0) - (b.datasetFiles?.sizeGB ?? 0);
+
+      return 0;
+    });
+    return copy;
+  }
+
+  function wireSectionToggles(root){
+    root.querySelectorAll(".filterSection").forEach(section => {
+      const btn = section.querySelector(".filterHeader");
+      if(!btn) return;
+      btn.addEventListener("click", () => {
+        const expanded = btn.getAttribute("aria-expanded") === "true";
+        btn.setAttribute("aria-expanded", String(!expanded));
+        section.classList.toggle("is-collapsed", expanded);
+      });
+    });
+  }
+
+  function renderChips(){
+    const chips = [];
+    state.years.forEach(v => chips.push({ key:`year:${v}`, label:`${v}` }));
+    state.subjects.forEach(v => chips.push({ key:`subject:${v}`, label:`${v}` }));
+    state.types.forEach(v => chips.push({ key:`type:${v}`, label:`${v}` }));
+    state.keywords.forEach(v => chips.push({ key:`keyword:${v}`, label:`${v}` }));
+
+    chipsEl.innerHTML = chips.length
+      ? chips.map(c => `
+          <span class="chip">
+            ${escapeHtml(c.label)}
+            <button type="button" aria-label="Remove ${escapeHtml(c.label)}" data-remove="${escapeHtml(c.key)}">×</button>
+          </span>
+        `).join("")
+      : `<span class="usa-hint">No filters applied.</span>`;
+  }
+
+  chipsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-remove]");
+    if(!btn) return;
+    const key = btn.getAttribute("data-remove");
+    const [type, val] = key.split(":");
+
+    if(type === "year") state.years.delete(val);
+    if(type === "subject") state.subjects.delete(val);
+    if(type === "type") state.types.delete(val);
+    if(type === "keyword") state.keywords.delete(val);
+
+    state.page = 1;
+    renderFacets();
+    update();
+  });
+
+  function contributorsSummaryHTML(result){
+    const contributors = result.contributors || [];
+    const topN = 3;
+    const topPeople = contributors.slice(0, topN);
+    const remaining = Math.max(0, contributors.length - topPeople.length);
+
+    const names = topPeople
+      .map(p => `<span class="name" title="${escapeHtml(fmtName(p))}">${escapeHtml(fmtName(p))}</span>`)
+      .join(`<span class="sep">,</span> `);
+
+    const more = remaining
+      ? ` <span class="sep">,</span>
+          <button
+            class="morePill"
+            type="button"
+            data-action="open-pop"
+            data-result-id="${escapeHtml(result.id)}"
+            aria-label="View all contributors for ${escapeHtml(result.title)}"
+          >+${remaining}</button>`
+      : "";
+
+    return `<div class="contribSummary">${names}${more}</div>`;
+  }
+
+  function getPerPage(){
+    return state.perPage === Infinity ? Infinity : Number(state.perPage);
+  }
+
+  function paginate(rows){
+    const per = getPerPage();
+    if(per === Infinity) return { pageRows: rows, totalPages: 1, start: 1, end: rows.length };
+
+    const totalPages = Math.max(1, Math.ceil(rows.length / per));
+    state.page = Math.max(1, Math.min(state.page, totalPages));
+
+    const startIdx = (state.page - 1) * per;
+    const endIdx = Math.min(rows.length, startIdx + per);
+    return {
+      pageRows: rows.slice(startIdx, endIdx),
+      totalPages,
+      start: rows.length ? startIdx + 1 : 0,
+      end: endIdx
+    };
+  }
+
+  function renderPager(totalPages){
+    pagingRow.hidden = (totalPages <= 1 && getPerPage() !== Infinity);
+
+    if(getPerPage() === Infinity){
+      pager.hidden = true;
+      pagerList.innerHTML = "";
+      pagingRow.hidden = false;
+      return;
+    }
+
+    if(totalPages <= 1){
+      pager.hidden = true;
+      pagerList.innerHTML = "";
+      return;
+    }
+
+    pager.hidden = false;
+
+    const current = state.page;
+    const items = [];
+    const addPage = (p) => items.push({ type:"page", p });
+    const addEllipsis = () => items.push({ type:"ellipsis" });
+
+    const windowSize = 1;
+    const pages = new Set([1, totalPages]);
+    for(let p = current - windowSize; p <= current + windowSize; p++){
+      if(p >= 1 && p <= totalPages) pages.add(p);
+    }
+    const sorted = [...pages].sort((a,b) => a-b);
+
+    let prev = null;
+    for(const p of sorted){
+      if(prev !== null && p - prev > 1) addEllipsis();
+      addPage(p);
+      prev = p;
+    }
+
+    pagerList.innerHTML = `
+      <li class="usa-pagination__item usa-pagination__arrow">
+        <a
+          class="usa-pagination__link usa-pagination__previous-page"
+          href="#"
+          aria-label="Previous page"
+          data-page="${current - 1}"
+          ${current === 1 ? 'aria-disabled="true" tabindex="-1"' : ""}
+        >
+          <span class="usa-pagination__link-text">Previous</span>
+        </a>
+      </li>
+
+      ${items.map(it => {
+        if(it.type === "ellipsis"){
+          return `
+            <li class="usa-pagination__item usa-pagination__overflow" role="presentation">
+              <span>…</span>
+            </li>
+          `;
+        }
+        const isCurrent = it.p === current;
+        return `
+          <li class="usa-pagination__item usa-pagination__page-no">
+            <a
+              class="usa-pagination__button ${isCurrent ? "usa-current" : ""}"
+              href="#"
+              aria-label="Page ${it.p}"
+              ${isCurrent ? 'aria-current="page"' : ""}
+              data-page="${it.p}"
+            >${it.p}</a>
+          </li>
+        `;
+      }).join("")}
+
+      <li class="usa-pagination__item usa-pagination__arrow">
+        <a
+          class="usa-pagination__link usa-pagination__next-page"
+          href="#"
+          aria-label="Next page"
+          data-page="${current + 1}"
+          ${current === totalPages ? 'aria-disabled="true" tabindex="-1"' : ""}
+        >
+          <span class="usa-pagination__link-text">Next</span>
+        </a>
+      </li>
+    `;
+  }
+
+  pager.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-page]");
+    if(!a) return;
+    e.preventDefault();
+    if(a.getAttribute("aria-disabled") === "true") return;
+
+    const nextPage = Number(a.getAttribute("data-page"));
+    if(Number.isNaN(nextPage)) return;
+
+    state.page = nextPage;
+    update();
+  });
+
+  function renderResults(rows, pageInfo){
+    const q = state.q.trim();
+    const hasPaging = getPerPage() !== Infinity;
+
+    if(rows.length === 0){
+      metaEl.innerHTML = q ? `We found <strong>0</strong> records for “${escapeHtml(q)}”.` : `We found <strong>0</strong> records.`;
+    } else if(hasPaging){
+      metaEl.innerHTML = q
+        ? `Showing <strong>${pageInfo.start}–${pageInfo.end}</strong> of <strong>${rows.length}</strong> records for “${escapeHtml(q)}”.`
+        : `Showing <strong>${pageInfo.start}–${pageInfo.end}</strong> of <strong>${rows.length}</strong> records.`;
+    } else {
+      metaEl.innerHTML = q
+        ? `We found <strong>${rows.length}</strong> records for “${escapeHtml(q)}”.`
+        : `We found <strong>${rows.length}</strong> records.`;
+    }
+
+    resultsEl.innerHTML = pageInfo.pageRows.map(r => `
+      <article class="resultCard">
+        <div class="resultGrid">
+          <div>
+            <h3 class="resultTitle margin-0">
+              <a class="usa-link" href="${escapeHtml(r.landingUrl)}">${escapeHtml(r.title || "Untitled")}</a>
+            </h3>
+            <div class="resultDoi">${escapeHtml(r.doi)}</div>
+            ${contributorsSummaryHTML(r)}
+          </div>
+
+          <div>
+            <div class="metaLabel">Subject</div>
+            <div class="metaValue">${escapeHtml(r.subject || "—")}</div>
+          </div>
+
+          <div>
+            <div class="metaLabel">Dataset Files</div>
+            <div class="metaValue">
+              ${escapeHtml(String(r.datasetFiles.count || 0))}
+              <span class="text-base">(${escapeHtml(String(r.datasetFiles.sizeGB || 0))} GB)</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="metaLabel">Published Date</div>
+            <div class="metaValue">${escapeHtml(r.dateLabel || "—")}</div>
+          </div>
+
+          <div class="resultActions">
+            <button class="iconBtn" type="button" aria-label="Save record">☆</button>
+          </div>
+        </div>
+      </article>
+    `).join("");
+
+    emptyEl.hidden = rows.length !== 0;
+  }
+
+  function renderFacets(){
+    const base = allResults
+      .filter(r => (r.status || "").toLowerCase() !== "draft")
+      .filter(r => matchesSearch(r, state.q));
+
+    const years = buildFacetValues(base, r => (r.dateISO || r.createdAt || "").slice(0,4));
+    const subs  = buildFacetValues(base, r => r.subject || "Unspecified");
+    const types = buildFacetValues(base, r => r.fileType || "Unknown");
+    const keys  = buildFacetValuesMulti(base, r => (r.keywords || []));
+
+    // Normalize selected keywords to the facet's canonical casing when possible.
+    const keyCanon = new Map(keys.map(k => [String(k.value || "").trim().toLowerCase(), k.value]));
+    const nextSelected = new Set();
+    state.keywords.forEach(k => {
+      const lk = String(k || "").trim().toLowerCase();
+      if(!lk) return;
+      nextSelected.add(keyCanon.get(lk) || k);
+    });
+    state.keywords = nextSelected;
+
+    // Ensure selected keywords still render even if zero-count under current base.
+    state.keywords.forEach(k => {
+      if(!keys.some(x => x.value === k)) keys.push({ value: k, count: 0 });
+    });
+
+    const onYear = (val, checked) => { checked ? state.years.add(val) : state.years.delete(val); state.page = 1; update(); };
+    const onSub  = (val, checked) => { checked ? state.subjects.add(val) : state.subjects.delete(val); state.page = 1; update(); };
+    const onType = (val, checked) => { checked ? state.types.add(val) : state.types.delete(val); state.page = 1; update(); };
+    const onKey  = (val, checked) => { checked ? state.keywords.add(val) : state.keywords.delete(val); state.page = 1; update(); };
+
+    renderFacetUSWDS(yearListEl, years, state.years, onYear, "yearDesc");
+    renderFacetUSWDS(catListEl, subs, state.subjects, onSub);
+    if(keywordListEl) renderFacetUSWDS(keywordListEl, keys, state.keywords, onKey);
+    renderFacetUSWDS(typeListEl, types, state.types, onType);
+
+    renderFacetUSWDS(yearListM, years, state.years, onYear, "yearDesc");
+    renderFacetUSWDS(catListM, subs, state.subjects, onSub);
+    if(keywordListM) renderFacetUSWDS(keywordListM, keys, state.keywords, onKey);
+    renderFacetUSWDS(typeListM, types, state.types, onType);
+  }
+
+
+  function renderPopList(list, q){
+    const query = q.trim().toLowerCase();
+    const rows = !query ? list : list.filter(p => `${fmtName(p)} ${p.affil || ""}`.toLowerCase().includes(query));
+    popMeta.textContent = `${rows.length} of ${list.length} shown`;
+
+    popList.innerHTML = rows.map(p => `
+      <div class="contrib-row" title="${escapeHtml(fmtName(p))} — ${escapeHtml(p.affil || "")}">
+        <div class="nm">${escapeHtml(fmtName(p))}</div>
+        <div class="aff">${escapeHtml(p.affil || "")}</div>
+      </div>
+    `).join("");
+  }
+
+  function openPopoverForResult(resultId, anchorEl){
+    const r = allResults.find(x => x.id === resultId);
+    if(!r) return;
+
+    activeContribs = r.contributors || [];
+    lastFocus = anchorEl;
+
+    popTitle.textContent = `Contributors (${activeContribs.length})`;
+    popViewRecord.href = r.landingUrl;
+    popSearch.value = "";
+    renderPopList(activeContribs, "");
+
+    pop.hidden = false;
+    pop.setAttribute("aria-hidden", "false");
+    backdrop.hidden = false;
+
+    const rect = anchorEl.getBoundingClientRect();
+    const pad = 10;
+    const pr = pop.getBoundingClientRect();
+
+    let popTop = Math.min(rect.bottom + 8, window.innerHeight - pr.height - pad);
+    popTop = Math.max(pad, popTop);
+
+    let popLeft = Math.min(rect.left, window.innerWidth - pr.width - pad);
+    popLeft = Math.max(pad, popLeft);
+
+    pop.style.top = `${popTop}px`;
+    pop.style.left = `${popLeft}px`;
+
+    setTimeout(() => popSearch.focus(), 0);
+  }
+
+  function closePopover(){
+    pop.hidden = true;
+    pop.setAttribute("aria-hidden", "true");
+    backdrop.hidden = true;
+    activeContribs = [];
+    if(lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
+  }
+
+  let lastDrawerFocus = null;
+  function openDrawer(){
+    lastDrawerFocus = document.activeElement;
+    filterDrawer.hidden = false;
+    filterBackdrop.hidden = false;
+    openFiltersBtn.setAttribute("aria-expanded", "true");
+    document.body.style.overflow = "hidden";
+    setTimeout(() => {
+      const first = filterDrawer.querySelector("button, input, select, a");
+      if(first) first.focus();
+    }, 0);
+  }
+  function closeDrawer(){
+    filterDrawer.hidden = true;
+    filterBackdrop.hidden = true;
+    openFiltersBtn.setAttribute("aria-expanded", "false");
+    document.body.style.overflow = "";
+    if(lastDrawerFocus && typeof lastDrawerFocus.focus === "function") lastDrawerFocus.focus();
+  }
+
+  function update(){
+    const filtered = sortResults(applyFilters());
+    const pageInfo = paginate(filtered);
+
+    renderResults(filtered, pageInfo);
+    renderChips();
+    renderPager(pageInfo.totalPages);
+
+    if(!pop.hidden) closePopover();
+  }
+
+  function clearAll(){
+    state.q = "";
+    state.years.clear();
+    state.subjects.clear();
+    state.types.clear();
+    state.keywords.clear();
+    state.page = 1;
+
+    qEl.value = "";
+    syncSearchClearVisibility();
+
+    renderFacets();
+    update();
+  }
+
+  let t = null;
+  qEl.addEventListener("input", () => {
+    clearTimeout(t);
+    const val = qEl.value || "";
+    syncSearchClearVisibility();
+
+    t = setTimeout(() => {
+      state.q = val;
+      state.page = 1;
+      renderFacets();
+      update();
+    }, 140);
+  });
+
+  clearSearchBtn.addEventListener("click", () => {
+    qEl.value = "";
+    state.q = "";
+    state.page = 1;
+
+    syncSearchClearVisibility();
+    renderFacets();
+    update();
+
+    qEl.focus();
+  });
+
+  if(searchGoBtn){
+    searchGoBtn.addEventListener("click", () => {
+      if(qEl) qEl.focus();
+    });
+  }
+
+  sortEl.addEventListener("change", () => {
+    state.sort = sortEl.value;
+    state.page = 1;
+    update();
+  });
+
+  perPageEl.addEventListener("change", () => {
+    const v = perPageEl.value;
+    state.perPage = (v === "all") ? Infinity : Number(v);
+    state.page = 1;
+    update();
+  });
+
+  if(clearBtn) clearBtn.addEventListener("click", clearAll);
+  if(emptyClear) emptyClear.addEventListener("click", clearAll);
+
+  if(openFiltersBtn) openFiltersBtn.addEventListener("click", openDrawer);
+  if(closeFiltersBtn) closeFiltersBtn.addEventListener("click", closeDrawer);
+  if(filterBackdrop) filterBackdrop.addEventListener("click", closeDrawer);
+
+  if(clearBtnMobile) clearBtnMobile.addEventListener("click", clearAll);
+  if(applyFiltersMobile) applyFiltersMobile.addEventListener("click", closeDrawer);
+
+  resultsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest('button[data-action="open-pop"]');
+    if(!btn) return;
+    openPopoverForResult(btn.getAttribute("data-result-id"), btn);
+  });
+
+  popClose.addEventListener("click", closePopover);
+  backdrop.addEventListener("click", closePopover);
+
+  popSearch.addEventListener("input", () => {
+    if(!activeContribs.length) return;
+    renderPopList(activeContribs, popSearch.value);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if(e.key !== "Escape") return;
+    if(!pop.hidden){ closePopover(); return; }
+    if(!filterDrawer.hidden){ closeDrawer(); return; }
+  });
+
+  function syncFacetCheckboxes(){
+    const sync = (rootId, selectedSet) => {
+      const root = document.getElementById(rootId);
+      if(!root) return;
+      root.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = selectedSet.has(cb.value);
+      });
+    };
+
+    sync("yearList", state.years);
+    sync("catList", state.subjects);
+    sync("keywordList", state.keywords);
+    sync("typeList", state.types);
+
+    sync("yearListM", state.years);
+    sync("catListM", state.subjects);
+    sync("keywordListM", state.keywords);
+    sync("typeListM", state.types);
+  }
+
+  function init(){
+    qEl.value = "";
+    state.q = "";
+    syncSearchClearVisibility();
+
+    perPageEl.value = "10";
+    state.perPage = 10;
+
+    applyUrlParams();
+
+    wireSectionToggles(document);
+
+    renderFacets();
+    syncFacetCheckboxes();
+    update();
+  }
+
+  init();
+})();

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Curator Review</title>
+
+    <!-- USWDS init -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- Portal shared layer -->
+    <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
+    <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
+
+    <!-- Page styles -->
+    <link rel="stylesheet" href="./curation.css" />
+  </head>
+
+  <body data-auth="true">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content" class="padding-y-4">
+      <div class="grid-container-widescreen">
+        <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
+          <ol class="usa-breadcrumb__list">
+            <li class="usa-breadcrumb__list-item">
+              <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
+            </li>
+            <li class="usa-breadcrumb__list-item">
+              <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
+            </li>
+            <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+              <span>Curator Review</span>
+            </li>
+          </ol>
+        </nav>
+
+        <header class="cur-head margin-top-2">
+          <div>
+            <h1 class="margin-0">Curator Review</h1>
+            <p class="text-base margin-top-1 cur-sub">
+              Datasets submitted for review. Open one to edit metadata, add notes, and publish or request updates.
+            </p>
+          </div>
+
+          <div class="cur-actions">
+            <span class="usa-tag usa-tag--big">Role: <strong data-role-label></strong></span>
+          </div>
+        </header>
+
+        <section class="margin-top-3" aria-label="Pending datasets">
+          <div id="curAccessDenied" class="usa-alert usa-alert--error" hidden>
+            <div class="usa-alert__body">
+              <h4 class="usa-alert__heading">Curator access required</h4>
+              <p class="usa-alert__text">Switch your role to Curator in Settings to use this page.</p>
+            </div>
+          </div>
+
+          <div id="curEmpty" class="usa-alert usa-alert--info" hidden>
+            <div class="usa-alert__body">
+              <h4 class="usa-alert__heading">Nothing in review</h4>
+              <p class="usa-alert__text">No datasets are currently awaiting curator review.</p>
+            </div>
+          </div>
+
+          <div id="curList" class="cur-list" aria-live="polite"></div>
+        </section>
+      </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader -->
+    <script type="module" src="../../assets/js/includes.js"></script>
+
+    <!-- Page JS -->
+    <script type="module" src="./curation.js"></script>
+  </body>
+</html>
