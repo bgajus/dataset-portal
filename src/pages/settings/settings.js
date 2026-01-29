@@ -1,244 +1,243 @@
-// /src/pages/settings/settings.js
-// Profile settings (demo) — stores user info + avatar in localStorage
+// Settings page logic:
+// - Demo access: Role + Auth toggle (with redirect)
+// - Profile fields + avatar upload
+//
+// Depends on window.DatasetPortal helpers exposed by src/assets/js/includes.js
 
-const $ = (id) => document.getElementById(id);
-
-const els = {
-  form: $("profileForm"),
-  first: $("firstName"),
-  middle: $("middleName"),
-  last: $("lastName"),
-  email: $("email"),
-  affiliation: $("affiliation"),
-  orcid: $("orcid"),
-
-  avatarFile: $("avatarFile"),
-  avatarPreviewImg: $("avatarPreviewImg"),
-  avatarPreviewInitials: $("avatarPreviewInitials"),
-  avatarError: $("avatarError"),
-  removeAvatar: $("removeAvatar"),
-
-  saveTop: $("saveProfile"),
-  saveBottom: $("saveProfileBottom"),
-  toast: $("saveToast"),
-
-  roleSelect: $("roleSelect"),
-  toggleAuthBtn: $("toggleAuthBtn"),
-  authStateLabel: $("authStateLabel"),
-};
-
-function getAuthState() {
-  const stored = localStorage.getItem('dp-auth');
-  const raw = (stored ?? 'true').toString().toLowerCase();
-  return raw !== 'false' && raw !== '0' && raw !== 'no';
-}
-
-function setAuthState(isAuthed) {
-  window.DatasetPortal?.setAuth?.(!!isAuthed);
-}
-
-function getProfile() {
-  return window.DatasetPortal?.getUserProfile?.() || {
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    email: "",
-    affiliation: "",
-    orcid: "",
-    avatarDataUrl: "",
-  };
-}
-
-function setToast(text) {
-  if (!els.toast) return;
-  els.toast.textContent = text;
-  els.toast.hidden = false;
-  window.clearTimeout(setToast._t);
-  setToast._t = window.setTimeout(() => {
-    els.toast.hidden = true;
-  }, 1500);
-}
-
-function initials(firstName, lastName) {
-  const f = String(firstName || "").trim();
-  const l = String(lastName || "").trim();
-  return `${f ? f[0].toUpperCase() : ""}${l ? l[0].toUpperCase() : ""}` || "??";
-}
-
-function renderAvatarPreview(profile) {
-  const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
-  if (els.avatarPreviewImg) {
-    if (hasAvatar) {
-      els.avatarPreviewImg.src = profile.avatarDataUrl;
-      els.avatarPreviewImg.alt = `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() || "User avatar";
-      els.avatarPreviewImg.hidden = false;
-    } else {
-      els.avatarPreviewImg.removeAttribute("src");
-      els.avatarPreviewImg.alt = "";
-      els.avatarPreviewImg.hidden = true;
-    }
-  }
-
-  if (els.avatarPreviewInitials) {
-    els.avatarPreviewInitials.textContent = initials(profile.firstName, profile.lastName);
-    els.avatarPreviewInitials.hidden = hasAvatar;
-  }
-}
-
-function fillForm(profile) {
-  if (els.first) els.first.value = profile.firstName || "";
-  if (els.middle) els.middle.value = profile.middleName || "";
-  if (els.last) els.last.value = profile.lastName || "";
-  if (els.email) els.email.value = profile.email || "";
-  if (els.affiliation) els.affiliation.value = profile.affiliation || "";
-  if (els.orcid) els.orcid.value = profile.orcid || "";
-
-  renderAvatarPreview(profile);
-}
-
-function sanitizeOrcid(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-
-  // allow either just digits/hyphens or a full URL
-  const stripped = raw
-    .replace(/^https?:\/\/(www\.)?orcid\.org\//i, "")
-    .replace(/[^0-9X-]/gi, "")
-    .slice(0, 19); // 0000-0000-0000-0000
-
-  return stripped;
-}
-
-function validateAvatarFile(file) {
-  if (!file) return "";
-  if (!file.type || !file.type.startsWith("image/")) return "Please choose an image file.";
-
-  // keep it light for localStorage demo (roughly)
-  const maxBytes = 600 * 1024; // 600 KB
-  if (file.size > maxBytes) return "That image is a bit large for this demo (max ~600KB).";
-
-  return "";
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function handleAvatarUpload() {
-  if (!els.avatarFile) return;
-  const file = els.avatarFile.files?.[0];
-
-  if (els.avatarError) {
-    els.avatarError.hidden = true;
-    els.avatarError.textContent = "";
-  }
-
-  const err = validateAvatarFile(file);
-  if (err) {
-    if (els.avatarError) {
-      els.avatarError.hidden = false;
-      els.avatarError.textContent = err;
-    }
-    els.avatarFile.value = "";
-    return;
-  }
-
-  if (!file) return;
-
+function getAuthFromLocalStorage() {
   try {
-    const dataUrl = await readFileAsDataUrl(file);
-    const profile = getProfile();
-    profile.avatarDataUrl = dataUrl;
+    const raw = (localStorage.getItem("dp-auth") ?? "false")
+      .toString()
+      .toLowerCase();
+    return raw === "true" || raw === "1" || raw === "yes";
+  } catch (_) {
+    return false;
+  }
+}
 
-    window.DatasetPortal?.saveUserProfile?.(profile);
-    renderAvatarPreview(profile);
-    setToast("Avatar updated");
+function setAuthToLocalStorage(isAuthed) {
+  try {
+    localStorage.setItem("dp-auth", isAuthed ? "true" : "false");
+    return true;
   } catch (e) {
-    if (els.avatarError) {
-      els.avatarError.hidden = false;
-      els.avatarError.textContent = "Could not read that file.";
-    }
-  } finally {
-    els.avatarFile.value = "";
+    console.warn("Failed to set dp-auth:", e);
+    return false;
   }
 }
 
-function handleRemoveAvatar() {
-  const profile = getProfile();
-  profile.avatarDataUrl = "";
-  window.DatasetPortal?.saveUserProfile?.(profile);
-  renderAvatarPreview(profile);
-  setToast("Avatar removed");
+function showToast() {
+  const toast = document.getElementById("saveToast");
+  if (!toast) return;
+  toast.hidden = false;
+  window.clearTimeout(showToast._t);
+  showToast._t = window.setTimeout(() => {
+    toast.hidden = true;
+  }, 1200);
 }
 
-function saveProfile() {
-  const profile = getProfile();
-
-  profile.firstName = String(els.first?.value || "").trim();
-  profile.middleName = String(els.middle?.value || "").trim();
-  profile.lastName = String(els.last?.value || "").trim();
-  profile.email = String(els.email?.value || "").trim();
-  profile.affiliation = String(els.affiliation?.value || "").trim();
-  profile.orcid = sanitizeOrcid(els.orcid?.value || "");
-
-  // keep avatar as-is (set via upload)
-
-  const ok = window.DatasetPortal?.saveUserProfile?.(profile);
-  if (ok) {
-    // reflect sanitized ORCID formatting
-    if (els.orcid) els.orcid.value = profile.orcid;
-    renderAvatarPreview(profile);
-    setToast("Saved");
-  } else {
-    setToast("Could not save");
-  }
+function safe(val) {
+  return (val ?? "").toString();
 }
 
-function init() {
-  const profile = getProfile();
-  fillForm(profile);
+function initDemoAccess() {
+  const roleSelect = document.getElementById("roleSelect");
+  const toggleAuthBtn = document.getElementById("toggleAuthBtn");
+  const authStateLabel = document.getElementById("authStateLabel");
 
   // Role
-  if (els.roleSelect) {
-    const currentRole = window.DatasetPortal?.getRole?.() || "Submitter";
-    els.roleSelect.value = currentRole;
-    els.roleSelect.addEventListener("change", () => {
-      window.DatasetPortal?.setRole?.(els.roleSelect.value);
+  if (roleSelect && window.DatasetPortal?.getRole) {
+    const currentRole = window.DatasetPortal.getRole();
+    roleSelect.value = currentRole;
+
+    roleSelect.addEventListener("change", () => {
+      const nextRole = roleSelect.value;
+      if (window.DatasetPortal?.setRole) {
+        window.DatasetPortal.setRole(nextRole); // reloads inside includes.js helper
+      } else {
+        localStorage.setItem("constellation:role:v1", nextRole);
+        window.location.reload();
+      }
     });
   }
 
-  // Auth toggle label
-  const renderAuthLabel = () => {
-    if (!els.authStateLabel) return;
-    els.authStateLabel.textContent = getAuthState() ? "Signed in" : "Signed out";
-  };
+  // Auth label
+  function renderAuthLabel() {
+    const isAuthed = getAuthFromLocalStorage();
+    if (authStateLabel)
+      authStateLabel.textContent = isAuthed ? "Signed in" : "Signed out";
+  }
+
   renderAuthLabel();
-  els.toggleAuthBtn?.addEventListener("click", () => {
-    setAuthState(!getAuthState());
+
+  // Auth toggle + redirect
+  if (toggleAuthBtn) {
+    toggleAuthBtn.addEventListener("click", () => {
+      const isAuthed = getAuthFromLocalStorage();
+      const next = !isAuthed;
+
+      setAuthToLocalStorage(next);
+
+      // Redirect behavior:
+      // - signing IN goes to dashboard
+      // - signing OUT goes to homepage
+      if (next) {
+        window.location.href = "/src/pages/dashboard/index.html";
+      } else {
+        window.location.href = "/index.html";
+      }
+    });
+  }
+}
+
+function initProfile() {
+  const profile = window.DatasetPortal?.getUserProfile
+    ? window.DatasetPortal.getUserProfile()
+    : {};
+
+  // Fill fields
+  const map = {
+    firstName: profile.firstName,
+    middleName: profile.middleName,
+    lastName: profile.lastName,
+    email: profile.email,
+    affiliation: profile.affiliation,
+    orcid: profile.orcid,
+  };
+
+  Object.keys(map).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = safe(map[id]);
   });
 
-  els.avatarFile?.addEventListener("change", handleAvatarUpload);
-  els.removeAvatar?.addEventListener("click", handleRemoveAvatar);
+  // Avatar preview
+  const previewImg = document.getElementById("avatarPreviewImg");
+  const previewInitials = document.getElementById("avatarPreviewInitials");
 
-  els.saveTop?.addEventListener("click", saveProfile);
-  els.saveBottom?.addEventListener("click", saveProfile);
+  function initialsFrom(p) {
+    const a = safe(p.firstName).trim().slice(0, 1).toUpperCase();
+    const b = safe(p.lastName).trim().slice(0, 1).toUpperCase();
+    return a + b || "??";
+  }
 
-  // Update initials preview live as user types name
-  const onNameInput = () => {
-    const p = getProfile();
-    p.firstName = String(els.first?.value || "").trim();
-    p.lastName = String(els.last?.value || "").trim();
-    // don't persist until save; only preview initials
-    renderAvatarPreview({ ...getProfile(), firstName: p.firstName, lastName: p.lastName });
-  };
+  function renderAvatar(p) {
+    const has = !!safe(p.avatarDataUrl).trim();
+    if (previewInitials) previewInitials.textContent = initialsFrom(p);
 
-  els.first?.addEventListener("input", onNameInput);
-  els.last?.addEventListener("input", onNameInput);
+    if (previewImg) {
+      if (has) {
+        previewImg.src = p.avatarDataUrl;
+        previewImg.alt =
+          `${safe(p.firstName).trim()} ${safe(p.lastName).trim()}`.trim() ||
+          "Avatar";
+        previewImg.hidden = false;
+        if (previewInitials) previewInitials.hidden = true;
+      } else {
+        previewImg.removeAttribute("src");
+        previewImg.alt = "";
+        previewImg.hidden = true;
+        if (previewInitials) previewInitials.hidden = false;
+      }
+    }
+  }
+
+  renderAvatar(profile);
+
+  // Avatar upload/remove
+  const avatarFile = document.getElementById("avatarFile");
+  const removeAvatar = document.getElementById("removeAvatar");
+  const avatarError = document.getElementById("avatarError");
+
+  function setAvatarError(msg) {
+    if (!avatarError) return;
+    avatarError.textContent = msg || "";
+    avatarError.hidden = !msg;
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (avatarFile) {
+    avatarFile.addEventListener("change", async () => {
+      setAvatarError("");
+      const file = avatarFile.files && avatarFile.files[0];
+      if (!file) return;
+
+      const maxBytes = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxBytes) {
+        setAvatarError("Please choose an image under 2MB.");
+        avatarFile.value = "";
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        setAvatarError("Please choose an image file.");
+        avatarFile.value = "";
+        return;
+      }
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const nextProfile = { ...profile, avatarDataUrl: dataUrl };
+        window.DatasetPortal?.saveUserProfile?.(nextProfile);
+        Object.assign(profile, nextProfile);
+        renderAvatar(profile);
+      } catch (e) {
+        setAvatarError(
+          "Could not read that file. Please try a different image.",
+        );
+      } finally {
+        avatarFile.value = "";
+      }
+    });
+  }
+
+  if (removeAvatar) {
+    removeAvatar.addEventListener("click", () => {
+      setAvatarError("");
+      const nextProfile = { ...profile, avatarDataUrl: "" };
+      window.DatasetPortal?.saveUserProfile?.(nextProfile);
+      Object.assign(profile, nextProfile);
+      renderAvatar(profile);
+    });
+  }
+
+  // Save buttons
+  const saveTop = document.getElementById("saveProfile");
+  const saveBottom = document.getElementById("saveProfileBottom");
+
+  function gatherProfileFromForm() {
+    return {
+      ...profile,
+      firstName: safe(document.getElementById("firstName")?.value).trim(),
+      middleName: safe(document.getElementById("middleName")?.value).trim(),
+      lastName: safe(document.getElementById("lastName")?.value).trim(),
+      email: safe(document.getElementById("email")?.value).trim(),
+      affiliation: safe(document.getElementById("affiliation")?.value).trim(),
+      orcid: safe(document.getElementById("orcid")?.value).trim(),
+    };
+  }
+
+  function saveProfile() {
+    const next = gatherProfileFromForm();
+    window.DatasetPortal?.saveUserProfile?.(next);
+    Object.assign(profile, next);
+    renderAvatar(profile);
+    showToast();
+  }
+
+  if (saveTop) saveTop.addEventListener("click", saveProfile);
+  if (saveBottom) saveBottom.addEventListener("click", saveProfile);
+}
+
+function init() {
+  initDemoAccess();
+  initProfile();
 }
 
 if (document.readyState === "loading") {

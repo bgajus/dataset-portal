@@ -7,13 +7,13 @@
  *   <div data-include="portal-footer"></div>
  *
  * Auth state:
- *   - Set <body data-auth="true|false"> per page (recommended)
- *   - Or set localStorage 'dp-auth' to 'true'/'false'
+ *   - Demo auth should be driven by localStorage 'dp-auth'
+ *   - Pages MAY have <body data-auth="true|false"> but localStorage wins
  */
 
 const INCLUDE_MAP = {
-  'portal-header': '/components/header.html',
-  'portal-footer': '/components/footer.html',
+  "portal-header": "/components/header.html",
+  "portal-footer": "/components/footer.html",
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -30,10 +30,20 @@ const ROLE_STORAGE_KEY = "constellation:role:v1";
 const NOTIF_STORAGE_KEY = "constellation:notifications:v1";
 
 function normalizeRole(role) {
-  const r = String(role || "").trim().toLowerCase();
+  const r = String(role || "")
+    .trim()
+    .toLowerCase();
   if (r === "curator") return "Curator";
   if (r === "admin") return "Admin";
   return "Submitter";
+}
+
+function parseRoleList(value) {
+  // Supports: "Curator", "Admin", "Curator,Admin", "Curator, Admin"
+  return String(value || "")
+    .split(",")
+    .map((s) => normalizeRole(s))
+    .filter(Boolean);
 }
 
 function getRole() {
@@ -55,14 +65,21 @@ function setRole(role) {
   }
 }
 
-function roleAllows(requiredRole) {
+function roleAllows(requiredRoleOrList) {
   const role = getRole();
-  const req = normalizeRole(requiredRole);
-  if (!req) return true;
-  if (req === "Submitter") return true;
-  if (req === "Curator") return role === "Curator" || role === "Admin";
-  if (req === "Admin") return role === "Admin";
-  return true;
+  const allowed = parseRoleList(requiredRoleOrList);
+
+  // If no requirement provided, allow.
+  if (!allowed.length) return true;
+
+  // Admin sees everything.
+  if (role === "Admin") return true;
+
+  // If the element explicitly allows Submitter, allow everyone.
+  if (allowed.includes("Submitter")) return true;
+
+  // Otherwise role must match one of allowed.
+  return allowed.includes(role);
 }
 
 function applyRoleState(rootEl) {
@@ -70,13 +87,11 @@ function applyRoleState(rootEl) {
 
   rootEl.dataset.role = getRole();
 
-  // Elements can declare data-requires-role="Curator" or "Admin"
   rootEl.querySelectorAll("[data-requires-role]").forEach((el) => {
     const req = el.getAttribute("data-requires-role");
     el.hidden = !roleAllows(req);
   });
 
-  // Optional: show current role label if element exists
   const roleLabel = rootEl.querySelector("[data-role-label]");
   if (roleLabel) roleLabel.textContent = getRole();
 }
@@ -97,7 +112,10 @@ function readNotifications() {
 
 function writeNotifications(list) {
   try {
-    localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+    localStorage.setItem(
+      NOTIF_STORAGE_KEY,
+      JSON.stringify(Array.isArray(list) ? list : []),
+    );
   } catch (e) {
     console.warn("Failed to write notifications:", e);
   }
@@ -134,52 +152,6 @@ function addNotification({
   return item;
 }
 
-function getCurrentUserEmail() {
-  const p = getUserProfile();
-  return String(p?.email || "").trim();
-}
-
-function getNotificationsForCurrentUser() {
-  const role = getRole();
-  const email = getCurrentUserEmail();
-  return readNotifications().filter((n) => {
-    if (!n) return false;
-    const byRole = normalizeRole(n.toRole) === role;
-    if (!byRole) return false;
-    // If a notification is addressed to a specific email, enforce it
-    if (String(n.toEmail || "").trim()) {
-      return String(n.toEmail || "").trim().toLowerCase() === email.toLowerCase();
-    }
-    return true;
-  });
-}
-
-function markNotificationRead(id) {
-  const list = readNotifications();
-  const next = list.map((n) => (n?.id === id ? { ...n, read: true } : n));
-  writeNotifications(next);
-  updateNotifBadge();
-}
-
-function markAllNotificationsRead() {
-  const list = readNotifications();
-  const next = list.map((n) => ({ ...n, read: true }));
-  writeNotifications(next);
-  updateNotifBadge();
-}
-
-function getUnreadCountForCurrentUser() {
-  return getNotificationsForCurrentUser().filter((n) => !n.read).length;
-}
-
-function updateNotifBadge() {
-  const badge = document.getElementById("notifBadge");
-  if (!badge) return;
-  const count = getUnreadCountForCurrentUser();
-  badge.hidden = count <= 0;
-  badge.textContent = String(count);
-}
-
 function getDefaultUserProfile() {
   return {
     firstName: "Brian",
@@ -188,7 +160,7 @@ function getDefaultUserProfile() {
     email: "",
     affiliation: "",
     orcid: "",
-    avatarDataUrl: "", // base64/data URL
+    avatarDataUrl: "",
   };
 }
 
@@ -209,7 +181,7 @@ function getUserInitials(profile) {
   const last = String(profile?.lastName || "").trim();
   const a = first ? first[0].toUpperCase() : "";
   const b = last ? last[0].toUpperCase() : "";
-  return (a + b) || "??";
+  return a + b || "??";
 }
 
 function applyUserProfileToHeader() {
@@ -224,7 +196,10 @@ function applyUserProfileToHeader() {
   if (imgEl) {
     if (hasAvatar) {
       imgEl.src = profile.avatarDataUrl;
-      imgEl.alt = `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() || "User avatar";
+      imgEl.alt =
+        `${String(profile.firstName || "").trim()} ${String(
+          profile.lastName || "",
+        ).trim()}`.trim() || "User avatar";
       imgEl.hidden = false;
       if (initialsEl) initialsEl.hidden = true;
     } else {
@@ -236,17 +211,33 @@ function applyUserProfileToHeader() {
   }
 }
 
+/**
+ * IMPORTANT: localStorage dp-auth is the source of truth.
+ * Some pages may have <body data-auth="false"> hardcoded for old demos;
+ * this function intentionally ignores that if dp-auth exists.
+ */
 function getAuthState() {
+  // 1) localStorage wins
+  let stored = null;
+  try {
+    stored = localStorage.getItem("dp-auth");
+  } catch (_) {}
+
+  if (stored !== null && stored !== undefined) {
+    const raw = String(stored).toLowerCase();
+    return raw === "true" || raw === "1" || raw === "yes";
+  }
+
+  // 2) fallback to body attribute if localStorage doesn't exist yet
   const bodyAttr = document.body?.dataset?.auth;
-  const stored = localStorage.getItem('dp-auth');
-  const raw = (bodyAttr ?? stored ?? 'false').toString().toLowerCase();
-  return raw === 'true' || raw === '1' || raw === 'yes';
+  const raw = (bodyAttr ?? "false").toString().toLowerCase();
+  return raw === "true" || raw === "1" || raw === "yes";
 }
 
 function applyAuthState(rootEl, isAuthed) {
   if (!rootEl) return;
 
-  rootEl.dataset.auth = isAuthed ? 'true' : 'false';
+  rootEl.dataset.auth = isAuthed ? "true" : "false";
 
   rootEl.querySelectorAll('[data-requires-auth="true"]').forEach((el) => {
     el.hidden = !isAuthed;
@@ -258,13 +249,13 @@ function applyAuthState(rootEl, isAuthed) {
 }
 
 function htmlToNodes(html) {
-  const tpl = document.createElement('template');
+  const tpl = document.createElement("template");
   tpl.innerHTML = html;
-  return Array.from(tpl.content.childNodes); // includes text nodes; that's OK
+  return Array.from(tpl.content.childNodes);
 }
 
 async function loadInclude(target, includeKey) {
-  const key = (includeKey || '').trim();
+  const key = (includeKey || "").trim();
   const url = INCLUDE_MAP[key];
 
   if (!url) {
@@ -272,7 +263,7 @@ async function loadInclude(target, includeKey) {
     return;
   }
 
-  const res = await fetch(url, { cache: 'no-cache' });
+  const res = await fetch(url, { cache: "no-cache" });
   if (!res.ok) {
     console.warn(`[includes] Failed to load ${url} (${res.status})`);
     return;
@@ -284,34 +275,33 @@ async function loadInclude(target, includeKey) {
     return;
   }
 
-  // Build nodes from the fetched HTML (supports multiple top-level elements).
   const nodes = htmlToNodes(html);
 
-  // Apply auth toggles to any included elements (wrap to query safely).
-  const wrap = document.createElement('div');
+  const wrap = document.createElement("div");
   nodes.forEach((n) => wrap.appendChild(n.cloneNode(true)));
+
+  // Apply state inside the included header/footer before inserting
   applyAuthState(wrap, getAuthState());
   applyRoleState(wrap);
 
-  // Replace placeholder with the wrapped children.
   const outNodes = Array.from(wrap.childNodes);
   target.replaceWith(...outNodes);
 }
 
 function setActiveNav() {
   const currentPath = window.location.pathname;
-  const navLinks = document.querySelectorAll(".portal-authnav__item[data-path], .usa-menu__link[data-path]");
+  const navLinks = document.querySelectorAll(
+    ".portal-authnav__item[data-path], .usa-menu__link[data-path]",
+  );
 
-  navLinks.forEach(link => {
+  navLinks.forEach((link) => {
     const linkPath = link.getAttribute("data-path");
-    // Remove active from all
     link.classList.remove("is-active");
     link.removeAttribute("aria-current");
 
-    // Add to matching one (partial match for flexibility)
-    if (currentPath.includes(linkPath)) {
+    if (linkPath && currentPath.includes(linkPath)) {
       link.classList.add("is-active");
-      link.setAttribute("aria-current", "page"); // Accessibility win
+      link.setAttribute("aria-current", "page");
     }
   });
 }
@@ -319,18 +309,16 @@ function setActiveNav() {
 function initAvatarDropdown() {
   const avatarBtn = document.getElementById("avatarBtn");
   const userMenu = document.getElementById("userMenu");
-
   if (!avatarBtn || !userMenu) return;
 
   function toggleMenu() {
     const isExpanded = avatarBtn.getAttribute("aria-expanded") === "true";
-    avatarBtn.setAttribute("aria-expanded", !isExpanded);
+    avatarBtn.setAttribute("aria-expanded", String(!isExpanded));
     userMenu.hidden = isExpanded;
 
-    // Focus first menu item when opening
     if (!isExpanded) {
       setTimeout(() => {
-        const firstLink = userMenu.querySelector('a');
+        const firstLink = userMenu.querySelector("a");
         if (firstLink) firstLink.focus();
       }, 0);
     }
@@ -338,7 +326,6 @@ function initAvatarDropdown() {
 
   avatarBtn.addEventListener("click", toggleMenu);
 
-  // Close on outside click
   document.addEventListener("click", (e) => {
     if (!avatarBtn.contains(e.target) && !userMenu.contains(e.target)) {
       avatarBtn.setAttribute("aria-expanded", "false");
@@ -346,7 +333,6 @@ function initAvatarDropdown() {
     }
   });
 
-  // Close on ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !userMenu.hidden) {
       avatarBtn.setAttribute("aria-expanded", "false");
@@ -355,62 +341,99 @@ function initAvatarDropdown() {
     }
   });
 
-  // Sign Out (demo)
   document.getElementById("signOutBtn")?.addEventListener("click", () => {
-    alert("Signed out (demo) — redirecting to login...");
-    // Real implementation: clear auth and reload
-    // window.DatasetPortal.setAuth(false);
+    // Sign out demo: set dp-auth false and redirect home
+    try {
+      localStorage.setItem("dp-auth", "false");
+    } catch (_) {}
+    window.location.href = "/index.html";
   });
+}
+
+function getNotificationsForCurrentUser() {
+  const role = getRole();
+  const email = String(getUserProfile()?.email || "")
+    .trim()
+    .toLowerCase();
+
+  return readNotifications().filter((n) => {
+    if (!n) return false;
+    const byRole = normalizeRole(n.toRole) === role;
+    if (!byRole) return false;
+
+    const toEmail = String(n.toEmail || "")
+      .trim()
+      .toLowerCase();
+    if (toEmail) return toEmail === email;
+    return true;
+  });
+}
+
+function getUnreadCountForCurrentUser() {
+  return getNotificationsForCurrentUser().filter((n) => !n.read).length;
+}
+
+function updateNotifBadge() {
+  const badge = document.getElementById("notifBadge");
+  if (!badge) return;
+
+  const count = getUnreadCountForCurrentUser();
+  badge.hidden = count <= 0;
+  badge.textContent = String(count);
+}
+
+function markNotificationRead(id) {
+  const list = readNotifications();
+  const next = list.map((n) => (n?.id === id ? { ...n, read: true } : n));
+  writeNotifications(next);
+  updateNotifBadge();
+}
+
+function markAllNotificationsRead() {
+  const list = readNotifications();
+  const next = list.map((n) => ({ ...n, read: true }));
+  writeNotifications(next);
+  updateNotifBadge();
 }
 
 async function initIncludes() {
   const isAuthed = getAuthState();
 
-  const placeholders = Array.from(document.querySelectorAll('[data-include]'));
+  const placeholders = Array.from(document.querySelectorAll("[data-include]"));
   await Promise.all(
-    placeholders.map((ph) =>
-      loadInclude(ph, ph.getAttribute('data-include'))
-    )
+    placeholders.map((ph) => loadInclude(ph, ph.getAttribute("data-include"))),
   );
 
-  // Apply auth toggles across the whole page (fallback safety)
+  // Apply state to the full page as a safety net
   applyAuthState(document.body, isAuthed);
   applyRoleState(document.body);
 
-  // Post-processing helpers
-  document.querySelectorAll('[data-footer-year]').forEach((el) => {
+  document.querySelectorAll("[data-footer-year]").forEach((el) => {
     el.textContent = String(new Date().getFullYear());
   });
 
-  // Highlight active nav item after includes load
   setActiveNav();
-
-  // Initialize avatar dropdown
   initAvatarDropdown();
-
-  // Apply user profile (avatar initials / photo)
   applyUserProfileToHeader();
-
-  // Notification badge in header
   updateNotifBadge();
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initIncludes);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initIncludes);
 } else {
   initIncludes();
 }
 
-// Also re-run on popstate (back/forward navigation) for single-page feel
-window.addEventListener('popstate', setActiveNav);
+window.addEventListener("popstate", setActiveNav);
 
 window.DatasetPortal = window.DatasetPortal || {};
 window.DatasetPortal.setAuth = function setAuth(isAuthed) {
-  localStorage.setItem('dp-auth', isAuthed ? 'true' : 'false');
+  try {
+    localStorage.setItem("dp-auth", isAuthed ? "true" : "false");
+  } catch (_) {}
   window.location.reload();
 };
 
-// Expose user profile helpers for pages that want them (e.g., Settings)
 window.DatasetPortal.getUserProfile = function () {
   return getUserProfile();
 };
@@ -422,12 +445,11 @@ window.DatasetPortal.saveUserProfile = function (profile) {
     applyUserProfileToHeader();
     return true;
   } catch (e) {
-    console.warn('Failed to save user profile:', e);
+    console.warn("Failed to save user profile:", e);
     return false;
   }
 };
 
-// Role helpers
 window.DatasetPortal.getRole = function () {
   return getRole();
 };
@@ -438,7 +460,6 @@ window.DatasetPortal.setRole = function (role) {
   return ok;
 };
 
-// Notifications helpers
 window.DatasetPortal.notifications = {
   add: addNotification,
   listForMe: getNotificationsForCurrentUser,

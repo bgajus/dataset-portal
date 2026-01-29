@@ -3,7 +3,8 @@
   <div class="portal-announcement" aria-label="Announcement">
     <div class="portal-shell">
       <p class="portal-announcement__text">
-        We’ve just launched a new update! Checkout the <a href="javascript:void(0)" class="portal-announcement__link">new dashboard</a>.
+        We’ve just launched a new update! Checkout the <a href="javascript:void(0)"
+          class="portal-announcement__link">new dashboard</a>.
       </p>
     </div>
   </div>
@@ -25,7 +26,7 @@
         <!-- Logged out -->
         <div class="portal-auth__loggedout" data-requires-auth="false">
           <a class="portal-auth__signup" href="javascript:void(0)">Sign Up</a>
-          <a href="/src/pages/dashboard/index.html" class="usa-link--unstyled">
+          <a href="/src/pages/login/index.html" class="usa-link--unstyled">
             <button type="button" class="usa-button btnBrandSolid" aria-label="Log in">Log In</button>
           </a>
         </div>
@@ -37,13 +38,13 @@
             <span id="notifBadge" class="portal-bell__badge" hidden>0</span>
           </a>
 
-          <button type="button" class="portal-avatar" id="avatarBtn" aria-expanded="false" aria-haspopup="true" aria-controls="userMenu">
+          <button type="button" class="portal-avatar" id="avatarBtn" aria-expanded="false" aria-haspopup="true"
+            aria-controls="userMenu">
             <img class="portal-avatar__img" id="avatarImg" alt="" hidden />
             <span class="portal-avatar__initials" id="avatarInitials" aria-hidden="true">BG</span>
             <span class="usa-sr-only">User menu</span>
           </button>
 
-          <!-- Dropdown Menu -->
           <div id="userMenu" class="usa-menu usa-menu--vertical" hidden role="menu" aria-labelledby="avatarBtn">
             <ul class="usa-menu__list">
               <li class="usa-menu__item">
@@ -58,7 +59,7 @@
               </li>
               <li class="usa-menu__item">
                 <a class="usa-menu__link" href="javascript:void(0)" data-path="/analytics">
-                  <i class="fa-solid fa-chart-line" aria-hidden="true"></i> Analytics & Reports
+                  <i class="fa-solid fa-chart-line" aria-hidden="true"></i> Analytics &amp; Reports
                 </a>
               </li>
               <li class="usa-menu__item">
@@ -66,11 +67,13 @@
                   <i class="fa-solid fa-bell" aria-hidden="true"></i> Notifications
                 </a>
               </li>
-              <li class="usa-menu__item" data-requires-role="Curator" hidden>
+
+              <li class="usa-menu__item" data-requires-role="Curator,Admin" hidden>
                 <a class="usa-menu__link" href="/src/pages/curation/index.html" data-path="/curation">
                   <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Curator Review
                 </a>
               </li>
+
               <li class="usa-menu__item">
                 <a class="usa-menu__link" href="/src/pages/settings/index.html" data-path="/settings">
                   <i class="fa-solid fa-gear" aria-hidden="true"></i> Settings
@@ -93,12 +96,30 @@
   <div class="portal-authnav" data-requires-auth="true" hidden>
     <div class="portal-shell">
       <nav class="portal-authnav__menu" aria-label="Account navigation">
-        <a class="portal-authnav__item" href="/src/pages/dashboard/index.html" data-path="/dashboard"><i class="fa-solid fa-square-poll-vertical" aria-hidden="true"></i><span>Dashboard</span></a>
-        <a class="portal-authnav__item" href="/src/pages/my-datasets/index.html" data-path="/my-datasets"><i class="fa-solid fa-table-list" aria-hidden="true"></i><span>My Datasets</span></a>
-        <a class="portal-authnav__item" href="javascript:void(0)" data-path="/analytics"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Analytics &amp; Reports</span></a>
-        <a class="portal-authnav__item" href="/src/pages/notifications/index.html" data-path="/notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notifications</span></a>
-        <a class="portal-authnav__item" href="/src/pages/curation/index.html" data-path="/curation" data-requires-role="Curator" hidden><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>Curator Review</span></a>
-        <a class="portal-authnav__item" href="/src/pages/settings/index.html" data-path="/settings"><i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span></a>
+        <a class="portal-authnav__item" href="/src/pages/dashboard/index.html" data-path="/dashboard">
+          <i class="fa-solid fa-square-poll-vertical" aria-hidden="true"></i><span>Dashboard</span>
+        </a>
+
+        <a class="portal-authnav__item" href="/src/pages/my-datasets/index.html" data-path="/my-datasets">
+          <i class="fa-solid fa-table-list" aria-hidden="true"></i><span>My Datasets</span>
+        </a>
+
+        <a class="portal-authnav__item" href="javascript:void(0)" data-path="/analytics">
+          <i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Analytics &amp; Reports</span>
+        </a>
+
+        <a class="portal-authnav__item" href="/src/pages/notifications/index.html" data-path="/notifications">
+          <i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notifications</span>
+        </a>
+
+        <a class="portal-authnav__item" href="/src/pages/curation/index.html" data-path="/curation"
+          data-requires-role="Curator,Admin" hidden>
+          <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>Curator Review</span>
+        </a>
+
+        <a class="portal-authnav__item" href="/src/pages/settings/index.html" data-path="/settings">
+          <i class="fa-solid fa-gear" aria-hidden="true"></i><span>Settings</span>
+        </a>
       </nav>
     </div>
   </div>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log in • Constellation Dataset Portal</title>
+
+    <!-- USWDS init -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- Portal shared layer -->
+    <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
+    <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
+
+    <!-- Page styles -->
+    <link rel="stylesheet" href="./login.css" />
+</head>
+
+<body>
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content" class="login">
+        <div class="login__bg" aria-hidden="true"></div>
+
+        <div class="login__wrap">
+            <div class="login__card usa-prose">
+                <div class="login__brand">
+                    <img src="/constellation_logo.svg" alt="Constellation" class="login__logo" />
+                </div>
+
+                <h1 class="login__title">Log in</h1>
+                <p class="login__sub">
+                    Demo sign-in to access your dashboard and manage dataset records.
+                </p>
+
+                <form id="loginForm" class="usa-form" novalidate>
+                    <label class="usa-label" for="email">Email</label>
+                    <input class="usa-input" id="email" name="email" type="email" autocomplete="email"
+                        placeholder="name@example.org" required />
+
+                    <label class="usa-label margin-top-2" for="password">Password</label>
+                    <input class="usa-input" id="password" name="password" type="password"
+                        autocomplete="current-password" placeholder="••••••••" required />
+
+                    <div class="login__row margin-top-2">
+                        <label class="usa-checkbox">
+                            <input class="usa-checkbox__input" type="checkbox" id="remember" />
+                            <span class="usa-checkbox__label">Remember me</span>
+                        </label>
+
+                        <a class="usa-link login__help" href="javascript:void(0)">Forgot password?</a>
+                    </div>
+
+                    <div id="loginError" class="usa-error-message margin-top-2" hidden></div>
+
+                    <button class="usa-button btnBrandSolid login__submit margin-top-2" type="submit">
+                        Sign in
+                    </button>
+
+                    <div class="login__alt margin-top-2">
+                        <span>Don’t have an account?</span>
+                        <a class="usa-link" href="javascript:void(0)">Create one</a>
+                    </div>
+
+                    <hr class="login__divider" />
+
+                    <div class="login__demo">
+                        <div class="text-bold">Demo behavior</div>
+                        <div class="text-base margin-top-05">
+                            Signing in sets you as a <strong>Submitter</strong> and enables the authenticated
+                            navigation.
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <aside class="login__panel" aria-label="About the portal">
+                <div class="login__panelInner">
+                    <h2 class="login__panelTitle">Constellation Dataset Portal</h2>
+                    <p class="login__panelText">
+                        A demo interface for dataset discovery, submission, curation review, and publication workflows.
+                    </p>
+
+                    <ul class="login__panelList">
+                        <li><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search and filter published
+                            datasets</li>
+                        <li><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Submit records for review</li>
+                        <li><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Curator review queue and
+                            decisions</li>
+                        <li><i class="fa-solid fa-bell" aria-hidden="true"></i> Notifications tied to workflow state
+                        </li>
+                    </ul>
+
+                    <div class="login__panelHint">
+                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                        <span>Demo uses local storage — no real authentication.</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader -->
+    <script type="module" src="../../assets/js/includes.js"></script>
+
+    <!-- Page JS -->
+    <script type="module" src="./login.js"></script>
+</body>
+
+</html>

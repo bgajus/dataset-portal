@@ -1,214 +1,225 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Settings</title>
 
-    <!-- USWDS init -->
-    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings</title>
 
-    <!-- USWDS + Font Awesome -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- USWDS init -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
 
-    <!-- Portal shared layer -->
-    <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
-    <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
+  <!-- USWDS + Font Awesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-    <!-- Page styles -->
-    <link rel="stylesheet" href="./settings.css" />
-  </head>
+  <!-- Portal shared layer -->
+  <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
+  <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
 
-  <body data-auth="true">
-    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+  <!-- Page styles -->
+  <link rel="stylesheet" href="./settings.css" />
+</head>
 
-    <div data-include="portal-header"></div>
+<!--
+    IMPORTANT:
+    Do NOT hardcode data-auth here.
+    Auth in this demo should be driven by localStorage "dp-auth",
+    so Toggle Auth can actually change header + menus across pages.
+  -->
 
-    <main id="main-content" class="padding-y-4">
-      <div class="grid-container-widescreen">
-        <!-- Breadcrumbs -->
-        <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
-          <ol class="usa-breadcrumb__list">
-            <li class="usa-breadcrumb__list-item">
-              <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
-            </li>
-            <li class="usa-breadcrumb__list-item">
-              <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
-            </li>
-            <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
-              <span>Settings</span>
-            </li>
-          </ol>
-        </nav>
+<body>
+  <a class="usa-skipnav" href="#main-content">Skip to main content</a>
 
-        <header class="settings-head margin-top-2">
-          <h1 class="margin-0">Settings</h1>
-          <p class="text-base margin-top-1 settings-sub">
-            Update your personal information and avatar.
-          </p>
-        </header>
+  <div data-include="portal-header"></div>
 
-        <!-- Layout -->
-        <div class="settings-layout margin-top-3">
-          <!-- Left: page nav (pattern used on many sites) -->
-          <aside class="settings-nav" aria-label="Settings navigation">
-            <div class="settings-nav__card">
-              <div class="settings-nav__title">Account</div>
-              <a class="settings-nav__item is-active" href="/src/pages/settings/index.html" aria-current="page">
-                <i class="fa-solid fa-user-gear" aria-hidden="true"></i>
-                Profile
-              </a>
-              <a class="settings-nav__item" href="javascript:void(0)">
-                <i class="fa-solid fa-shield" aria-hidden="true"></i>
-                Security
-              </a>
-              <a class="settings-nav__item" href="javascript:void(0)">
-                <i class="fa-solid fa-bell" aria-hidden="true"></i>
-                Notifications
-              </a>
+  <main id="main-content" class="padding-y-4">
+    <div class="grid-container-widescreen">
+      <!-- Breadcrumbs -->
+      <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
+        <ol class="usa-breadcrumb__list">
+          <li class="usa-breadcrumb__list-item">
+            <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
+          </li>
+          <li class="usa-breadcrumb__list-item">
+            <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
+          </li>
+          <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+            <span>Settings</span>
+          </li>
+        </ol>
+      </nav>
+
+      <header class="settings-head margin-top-2">
+        <h1 class="margin-0">Settings</h1>
+        <p class="text-base margin-top-1 settings-sub">
+          Update your personal information and avatar.
+        </p>
+      </header>
+
+      <!-- Layout -->
+      <div class="settings-layout margin-top-3">
+        <!-- Left: page nav (pattern used on many sites) -->
+        <aside class="settings-nav" aria-label="Settings navigation">
+          <div class="settings-nav__card">
+            <div class="settings-nav__title">Account</div>
+            <a class="settings-nav__item is-active" href="/src/pages/settings/index.html" aria-current="page">
+              <i class="fa-solid fa-user-gear" aria-hidden="true"></i>
+              Profile
+            </a>
+            <a class="settings-nav__item" href="javascript:void(0)">
+              <i class="fa-solid fa-shield" aria-hidden="true"></i>
+              Security
+            </a>
+            <a class="settings-nav__item" href="javascript:void(0)">
+              <i class="fa-solid fa-bell" aria-hidden="true"></i>
+              Notifications
+            </a>
+          </div>
+        </aside>
+
+        <!-- Right: content -->
+        <section class="settings-main" aria-label="Profile settings">
+          <!-- Demo controls (role + auth) -->
+          <div class="settings-card">
+            <div class="settings-card__head">
+              <h2 class="settings-card__title margin-0">Demo access</h2>
             </div>
-          </aside>
+            <div class="settings-card__body">
+              <div class="grid-row grid-gap">
+                <div class="tablet:grid-col-6">
+                  <label class="usa-label" for="roleSelect">Role</label>
+                  <span class="usa-hint">Controls which workflow pages are visible (demo only).</span>
+                  <select class="usa-select" id="roleSelect" name="roleSelect">
+                    <option value="Submitter">Submitter</option>
+                    <option value="Curator">Curator</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </div>
 
-          <!-- Right: content -->
-          <section class="settings-main" aria-label="Profile settings">
-            <!-- Demo controls (role + auth) -->
-            <div class="settings-card">
-              <div class="settings-card__head">
-                <h2 class="settings-card__title margin-0">Demo access</h2>
-              </div>
-              <div class="settings-card__body">
-                <div class="grid-row grid-gap">
-                  <div class="tablet:grid-col-6">
-                    <label class="usa-label" for="roleSelect">Role</label>
-                    <span class="usa-hint">Controls which workflow pages are visible (demo only).</span>
-                    <select class="usa-select" id="roleSelect" name="roleSelect">
-                      <option value="Submitter">Submitter</option>
-                      <option value="Curator">Curator</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                  </div>
-
-                  <div class="tablet:grid-col-6">
-                    <div class="text-bold margin-top-2">Signed in</div>
-                    <span class="usa-hint">This demo uses a simple toggle for auth UI.</span>
-                    <div class="margin-top-1">
-                      <button id="toggleAuthBtn" class="usa-button usa-button--outline btnBrandOutline" type="button">
-                        Toggle auth
-                      </button>
-                      <span class="margin-left-1 text-base">Current: <strong id="authStateLabel">Signed in</strong></span>
-                    </div>
+                <div class="tablet:grid-col-6">
+                  <div class="text-bold margin-top-2">Signed in</div>
+                  <span class="usa-hint">This demo uses a simple toggle for auth UI.</span>
+                  <div class="margin-top-1">
+                    <button id="toggleAuthBtn" class="usa-button usa-button--outline btnBrandOutline" type="button">
+                      Toggle auth
+                    </button>
+                    <span class="margin-left-1 text-base">Current: <strong id="authStateLabel">—</strong></span>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div class="settings-card">
-              <div class="settings-card__head">
-                <h2 class="settings-card__title margin-0">Profile</h2>
-                <div class="settings-card__actions">
-                  <button id="saveProfile" class="usa-button btnBrandSolid" type="button">
+          <div class="settings-card">
+            <div class="settings-card__head">
+              <h2 class="settings-card__title margin-0">Profile</h2>
+              <div class="settings-card__actions">
+                <button id="saveProfile" class="usa-button btnBrandSolid" type="button">
+                  Save changes
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-card__body">
+              <!-- Avatar row -->
+              <div class="settings-avatar">
+                <div class="settings-avatar__preview" aria-label="Avatar preview">
+                  <img id="avatarPreviewImg" class="settings-avatar__img" alt="" hidden />
+                  <div id="avatarPreviewInitials" class="settings-avatar__initials" aria-hidden="true">BG</div>
+                </div>
+
+                <div class="settings-avatar__controls">
+                  <div class="text-bold">Avatar</div>
+                  <div class="usa-hint margin-top-05">
+                    Upload a square image for best results. If you don’t upload a photo, we’ll use your initials.
+                  </div>
+
+                  <div class="settings-avatar__buttons margin-top-2">
+                    <label class="usa-button usa-button--outline btnBrandOutline settings-filebtn" for="avatarFile">
+                      <i class="fa-solid fa-upload" aria-hidden="true"></i>
+                      Upload photo
+                    </label>
+                    <input id="avatarFile" class="usa-file-input" type="file" accept="image/*" />
+
+                    <button id="removeAvatar" class="usa-button usa-button--unstyled settings-remove" type="button">
+                      Remove
+                    </button>
+                  </div>
+
+                  <div id="avatarError" class="usa-error-message margin-top-1" hidden></div>
+                </div>
+              </div>
+
+              <hr class="settings-divider" />
+
+              <!-- Form -->
+              <form id="profileForm" class="settings-form" autocomplete="on">
+                <div class="grid-row grid-gap">
+                  <div class="tablet:grid-col-4">
+                    <label class="usa-label" for="firstName">First name</label>
+                    <input class="usa-input" id="firstName" name="firstName" type="text" />
+                  </div>
+
+                  <div class="tablet:grid-col-4">
+                    <label class="usa-label" for="middleName">Middle name</label>
+                    <input class="usa-input" id="middleName" name="middleName" type="text" />
+                  </div>
+
+                  <div class="tablet:grid-col-4">
+                    <label class="usa-label" for="lastName">Last name</label>
+                    <input class="usa-input" id="lastName" name="lastName" type="text" />
+                  </div>
+                </div>
+
+                <div class="grid-row grid-gap margin-top-2">
+                  <div class="tablet:grid-col-6">
+                    <label class="usa-label" for="email">Email address</label>
+                    <input class="usa-input" id="email" name="email" type="email" placeholder="name@example.org" />
+                  </div>
+
+                  <div class="tablet:grid-col-6">
+                    <label class="usa-label" for="affiliation">Affiliation</label>
+                    <input class="usa-input" id="affiliation" name="affiliation" type="text"
+                      placeholder="Oak Ridge National Laboratory" />
+                  </div>
+                </div>
+
+                <div class="grid-row grid-gap margin-top-2">
+                  <div class="tablet:grid-col-6">
+                    <label class="usa-label" for="orcid">ORCID</label>
+                    <span class="usa-hint">Example: 0000-0002-1825-0097</span>
+                    <input class="usa-input" id="orcid" name="orcid" type="text" inputmode="numeric"
+                      placeholder="0000-0000-0000-0000" />
+                  </div>
+                </div>
+
+                <div class="settings-form__footer margin-top-4">
+                  <button class="usa-button btnBrandSolid" type="button" id="saveProfileBottom">
                     Save changes
                   </button>
-                </div>
-              </div>
-
-              <div class="settings-card__body">
-                <!-- Avatar row -->
-                <div class="settings-avatar">
-                  <div class="settings-avatar__preview" aria-label="Avatar preview">
-                    <img id="avatarPreviewImg" class="settings-avatar__img" alt="" hidden />
-                    <div id="avatarPreviewInitials" class="settings-avatar__initials" aria-hidden="true">BG</div>
-                  </div>
-
-                  <div class="settings-avatar__controls">
-                    <div class="text-bold">Avatar</div>
-                    <div class="usa-hint margin-top-05">
-                      Upload a square image for best results. If you don’t upload a photo, we’ll use your initials.
-                    </div>
-
-                    <div class="settings-avatar__buttons margin-top-2">
-                      <label class="usa-button usa-button--outline btnBrandOutline settings-filebtn" for="avatarFile">
-                        <i class="fa-solid fa-upload" aria-hidden="true"></i>
-                        Upload photo
-                      </label>
-                      <input id="avatarFile" class="usa-file-input" type="file" accept="image/*" />
-
-                      <button id="removeAvatar" class="usa-button usa-button--unstyled settings-remove" type="button">
-                        Remove
-                      </button>
-                    </div>
-
-                    <div id="avatarError" class="usa-error-message margin-top-1" hidden></div>
+                  <div id="saveToast" class="settings-toast" role="status" aria-live="polite" hidden>
+                    Saved
                   </div>
                 </div>
-
-                <hr class="settings-divider" />
-
-                <!-- Form -->
-                <form id="profileForm" class="settings-form" autocomplete="on">
-                  <div class="grid-row grid-gap">
-                    <div class="tablet:grid-col-4">
-                      <label class="usa-label" for="firstName">First name</label>
-                      <input class="usa-input" id="firstName" name="firstName" type="text" />
-                    </div>
-
-                    <div class="tablet:grid-col-4">
-                      <label class="usa-label" for="middleName">Middle name</label>
-                      <input class="usa-input" id="middleName" name="middleName" type="text" />
-                    </div>
-
-                    <div class="tablet:grid-col-4">
-                      <label class="usa-label" for="lastName">Last name</label>
-                      <input class="usa-input" id="lastName" name="lastName" type="text" />
-                    </div>
-                  </div>
-
-                  <div class="grid-row grid-gap margin-top-2">
-                    <div class="tablet:grid-col-6">
-                      <label class="usa-label" for="email">Email address</label>
-                      <input class="usa-input" id="email" name="email" type="email" placeholder="name@example.org" />
-                    </div>
-
-                    <div class="tablet:grid-col-6">
-                      <label class="usa-label" for="affiliation">Affiliation</label>
-                      <input class="usa-input" id="affiliation" name="affiliation" type="text" placeholder="Oak Ridge National Laboratory" />
-                    </div>
-                  </div>
-
-                  <div class="grid-row grid-gap margin-top-2">
-                    <div class="tablet:grid-col-6">
-                      <label class="usa-label" for="orcid">ORCID</label>
-                      <span class="usa-hint">Example: 0000-0002-1825-0097</span>
-                      <input class="usa-input" id="orcid" name="orcid" type="text" inputmode="numeric" placeholder="0000-0000-0000-0000" />
-                    </div>
-                  </div>
-
-                  <div class="settings-form__footer margin-top-4">
-                    <button class="usa-button btnBrandSolid" type="button" id="saveProfileBottom">
-                      Save changes
-                    </button>
-                    <div id="saveToast" class="settings-toast" role="status" aria-live="polite" hidden>
-                      Saved
-                    </div>
-                  </div>
-                </form>
-              </div>
+              </form>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
-    </main>
+    </div>
+  </main>
 
-    <div data-include="portal-footer"></div>
+  <div data-include="portal-footer"></div>
 
-    <!-- USWDS JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+  <!-- USWDS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
 
-    <!-- Shared includes loader -->
-    <script type="module" src="../../assets/js/includes.js"></script>
+  <!-- Shared includes loader -->
+  <script type="module" src="../../assets/js/includes.js"></script>
 
-    <!-- Page JS -->
-    <script type="module" src="./settings.js"></script>
-  </body>
+  <!-- Page JS -->
+  <script type="module" src="./settings.js"></script>
+</body>
+
 </html>
