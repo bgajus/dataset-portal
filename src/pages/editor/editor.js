@@ -1,5 +1,4 @@
 // editor.js — Schema-driven metadata editor
-// Uses METADATA_SCHEMA as the single source of truth for sections/fields/required rules.
 
 import {
   getRecord,
@@ -13,15 +12,10 @@ import {
   getAllSchemaFields,
   getPath,
   setPath,
-  SUBJECT_OPTIONS,
-  DATASET_TYPE_OPTIONS,
   KEYWORD_SUGGESTIONS,
 } from "/src/assets/js/metadata-schema.js";
 
 (() => {
-  // ──────────────────────────────────────────────────────────────
-  // Helpers
-  // ──────────────────────────────────────────────────────────────
   const $ = (id) => document.getElementById(id);
 
   function escapeHtml(str) {
@@ -85,9 +79,7 @@ import {
     return u.searchParams.get(name);
   }
 
-  // ──────────────────────────────────────────────────────────────
   // DOM refs
-  // ──────────────────────────────────────────────────────────────
   const pageTitleEl = $("pageTitle");
   const titleEditingEl = $("titleEditing");
   const startedOnDateEl = $("startedOnDate");
@@ -112,13 +104,23 @@ import {
   const reqHistEmpty = $("reqHistEmpty");
   const reqHistList = $("reqHistList");
 
-  // Curator review panel (demo)
-  const curatorPanel = $("curatorPanel");
+  // Curator drawer + controls
+  const curatorReviewBtn = $("curatorReviewBtn");
+  const curatorDrawer = $("curatorDrawer");
+  const curDrawerStatusChip = $("curDrawerStatusChip");
+
+  const curDrawerToggleHistoryBtn = $("curDrawerToggleHistoryBtn");
+  const curDrawerHistoryWrap = $("curDrawerHistoryWrap");
+  const curDrawerHistoryCount = $("curDrawerHistoryCount");
+  const curDrawerLatestMsg = $("curDrawerLatestMsg");
+  const curDrawerLatestMeta = $("curDrawerLatestMeta");
+  const curDrawerHistEmpty = $("curDrawerHistEmpty");
+  const curDrawerHistList = $("curDrawerHistList");
+
   const curatorNoteEl = $("curatorNote");
   const requestUpdatesBtn = $("requestUpdatesBtn");
   const publishBtn = $("publishBtn");
 
-  // Status chip (top-left)
   const statusChipEl = document.querySelector(".status-chip");
 
   // Schema-driven containers
@@ -153,9 +155,8 @@ import {
   const lastNameEl = $("lastName");
   const emailEl = $("email");
   const orcidEl = $("orcid");
-  const affiliationEl = $("affiliation");
+  const affiliationEl = $("affiliationEl") || $("affiliation");
 
-  // Accordion
   const metaAccordion = $("metaAccordion");
 
   let currentRecord = null;
@@ -176,17 +177,93 @@ import {
 
   function isRecordLocked() {
     const s = String(currentRecord?.status || "").toLowerCase();
-    // Once submitted, submitters should not be able to edit.
-    // Curators can edit *while in review* (demo).
     if (s === "published") return true;
     if (s === "in review") return !isCuratorMode();
     return false;
   }
 
   // ──────────────────────────────────────────────────────────────
-  // Curator request history (shared behavior with curator review)
+  // Curator drawer open/close (no overlay; allow background interaction)
   // ──────────────────────────────────────────────────────────────
+  function openCuratorDrawer() {
+    if (!curatorDrawer) return;
+    curatorDrawer.hidden = false;
+    curatorDrawer.setAttribute("aria-hidden", "false");
 
+    syncDrawerStatusChip();
+    renderDrawerHistoryIfOpen();
+
+    const first =
+      curatorDrawer.querySelector("[data-cur-drawer-close]") || curatorNoteEl;
+    try {
+      first?.focus?.();
+    } catch (_) {}
+  }
+
+  function closeCuratorDrawer() {
+    if (!curatorDrawer) return;
+    curatorDrawer.hidden = true;
+    curatorDrawer.setAttribute("aria-hidden", "true");
+  }
+
+  function wireCuratorDrawer() {
+    if (!curatorDrawer) return;
+
+    curatorDrawer.querySelectorAll("[data-cur-drawer-close]").forEach((el) => {
+      el.addEventListener("click", closeCuratorDrawer);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!curatorDrawer || curatorDrawer.hidden) return;
+      closeCuratorDrawer();
+    });
+
+    curatorReviewBtn?.addEventListener("click", () => {
+      if (curatorNoteEl)
+        curatorNoteEl.value = String(currentRecord?.curatorNote || "");
+      openCuratorDrawer();
+    });
+
+    // History toggle inside drawer
+    curDrawerToggleHistoryBtn?.addEventListener("click", () => {
+      const isOpen = curDrawerHistoryWrap
+        ? !curDrawerHistoryWrap.hidden
+        : false;
+      const nextOpen = !isOpen;
+
+      if (curDrawerHistoryWrap) curDrawerHistoryWrap.hidden = !nextOpen;
+      curDrawerToggleHistoryBtn.setAttribute(
+        "aria-expanded",
+        nextOpen ? "true" : "false",
+      );
+
+      if (nextOpen) renderDrawerHistory();
+    });
+  }
+
+  function syncDrawerStatusChip() {
+    if (!curDrawerStatusChip || !currentRecord) return;
+
+    const label = String(currentRecord.status || "Draft");
+    const norm = label.toLowerCase().trim();
+
+    let key = "draft";
+    if (norm === "in review" || norm === "in-review" || norm === "review")
+      key = "in-review";
+    else if (norm === "needs updates" || norm === "needs-updates")
+      key = "needs-updates";
+    else if (norm === "published") key = "published";
+    else if (norm === "draft") key = "draft";
+
+    curDrawerStatusChip.textContent = label;
+    curDrawerStatusChip.setAttribute("aria-label", `Status: ${label}`);
+    curDrawerStatusChip.setAttribute("data-status", key);
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Curator request history helpers
+  // ──────────────────────────────────────────────────────────────
   function ensureHistory(rec) {
     if (!rec || typeof rec !== "object") return rec;
     if (!Array.isArray(rec.reviewRequests)) rec.reviewRequests = [];
@@ -199,15 +276,14 @@ import {
 
   function getLatestRequest(rec) {
     const h = getHistory(rec);
-    return h.length ? h[0] : null; // newest first
+    return h.length ? h[0] : null;
   }
 
+  // Submitter modal open/close
   function openReqModal() {
     if (!reqHistoryModal) return;
     reqHistoryModal.hidden = false;
     document.body.style.overflow = "hidden";
-
-    // focus close button
     const focusEl =
       reqHistoryModal.querySelector("[data-req-close]") || reqHistoryModal;
     try {
@@ -240,50 +316,75 @@ import {
   }
 
   function renderRequestPanel() {
-    if (!curRequestPanel) return;
-    if (!currentRecord) {
-      curRequestPanel.hidden = true;
-      return;
+    // Submitter panel
+    if (curRequestPanel) {
+      if (!currentRecord) {
+        curRequestPanel.hidden = true;
+      } else {
+        ensureHistory(currentRecord);
+
+        const history = getHistory(currentRecord);
+        const latest = getLatestRequest(currentRecord);
+
+        const statusNorm = String(currentRecord.status || "").toLowerCase();
+        const legacyNote = safeTrim(currentRecord.curatorNote);
+        const shouldShow =
+          history.length > 0 || !!legacyNote || statusNorm === "needs updates";
+
+        if (!shouldShow) {
+          curRequestPanel.hidden = true;
+        } else {
+          curRequestPanel.hidden = false;
+
+          if (curHistoryCountEl)
+            curHistoryCountEl.textContent = String(history.length || 0);
+
+          const msg = latest?.message
+            ? String(latest.message)
+            : legacyNote || "—";
+          if (curLatestMsgEl) curLatestMsgEl.textContent = msg;
+
+          const when = latest?.createdAt
+            ? formatShortDateTime(latest.createdAt)
+            : "";
+          const meta = when
+            ? `Most recent request: ${when}`
+            : legacyNote
+              ? "Most recent request: (legacy note)"
+              : "";
+          if (curLatestMetaEl) curLatestMetaEl.textContent = meta || "—";
+
+          if (curViewHistoryBtn)
+            curViewHistoryBtn.hidden = history.length === 0;
+        }
+      }
     }
 
-    ensureHistory(currentRecord);
+    // Drawer latest + count
+    if (currentRecord) {
+      ensureHistory(currentRecord);
+      const history = getHistory(currentRecord);
+      const latest = getLatestRequest(currentRecord);
+      const legacyNote = safeTrim(currentRecord.curatorNote);
 
-    const history = getHistory(currentRecord);
-    const latest = getLatestRequest(currentRecord);
+      if (curDrawerHistoryCount)
+        curDrawerHistoryCount.textContent = String(history.length || 0);
 
-    // Show panel if there is request history OR legacy single note OR status is Needs Updates
-    const statusNorm = String(currentRecord.status || "").toLowerCase();
-    const legacyNote = safeTrim(currentRecord.curatorNote);
-    const shouldShow =
-      history.length > 0 || !!legacyNote || statusNorm === "needs updates";
+      const msg = latest?.message ? String(latest.message) : legacyNote || "—";
+      if (curDrawerLatestMsg) curDrawerLatestMsg.textContent = msg;
 
-    if (!shouldShow) {
-      curRequestPanel.hidden = true;
-      return;
-    }
-
-    curRequestPanel.hidden = false;
-
-    // Count
-    if (curHistoryCountEl)
-      curHistoryCountEl.textContent = String(history.length || 0);
-
-    // Latest message (prefer history newest; fallback to legacy)
-    const msg = latest?.message ? String(latest.message) : legacyNote || "—";
-    if (curLatestMsgEl) curLatestMsgEl.textContent = msg;
-
-    // Meta line
-    const when = latest?.createdAt ? formatShortDateTime(latest.createdAt) : "";
-    const meta = when
-      ? `Most recent request: ${when}`
-      : legacyNote
-        ? "Most recent request: (legacy note)"
+      const when = latest?.createdAt
+        ? formatShortDateTime(latest.createdAt)
         : "";
-    if (curLatestMetaEl) curLatestMetaEl.textContent = meta || "—";
+      const meta = when
+        ? `Most recent request: ${when}`
+        : legacyNote
+          ? "Most recent request: (legacy note)"
+          : "";
+      if (curDrawerLatestMeta) curDrawerLatestMeta.textContent = meta || "—";
 
-    // Hide the view history link if there is no history yet
-    if (curViewHistoryBtn) {
-      curViewHistoryBtn.hidden = history.length === 0;
+      // If drawer history is open, refresh it
+      renderDrawerHistoryIfOpen();
     }
   }
 
@@ -321,18 +422,45 @@ import {
       .join("");
   }
 
+  function renderDrawerHistoryIfOpen() {
+    if (!curDrawerHistoryWrap) return;
+    if (curDrawerHistoryWrap.hidden) return;
+    renderDrawerHistory();
+  }
+
+  function renderDrawerHistory() {
+    if (!currentRecord || !curDrawerHistList) return;
+    ensureHistory(currentRecord);
+    const history = getHistory(currentRecord);
+
+    if (curDrawerHistEmpty) curDrawerHistEmpty.hidden = history.length !== 0;
+
+    curDrawerHistList.innerHTML = history
+      .map((h) => {
+        const when = formatShortDateTime(h.createdAt);
+        return `
+          <article class="cur-drawer__histItem">
+            <div class="cur-drawer__histTop">
+              <strong>Request updates</strong>
+              <div class="cur-drawer__histWhen">${escapeHtml(when)}</div>
+            </div>
+            <div class="cur-drawer__histMsg">${escapeHtml(h.message || "")}</div>
+          </article>
+        `;
+      })
+      .join("");
+  }
+
   // ──────────────────────────────────────────────────────────────
   // UI gates
   // ──────────────────────────────────────────────────────────────
-
-  function showCuratorPanelIfNeeded() {
-    if (!curatorPanel) return;
+  function showCuratorReviewIfNeeded() {
+    if (!curatorReviewBtn) return;
     const s = String(currentRecord?.status || "").toLowerCase();
     const show =
       isCuratorMode() && (s === "in review" || s === "needs updates");
-    curatorPanel.hidden = !show;
-    if (show && curatorNoteEl)
-      curatorNoteEl.value = String(currentRecord?.curatorNote || "");
+    curatorReviewBtn.hidden = !show;
+    curatorReviewBtn.setAttribute("aria-hidden", show ? "false" : "true");
   }
 
   function setStatusChip(status) {
@@ -351,12 +479,13 @@ import {
     statusChipEl.textContent = label;
     statusChipEl.setAttribute("aria-label", `Status: ${label}`);
     statusChipEl.setAttribute("data-status", key);
+
+    syncDrawerStatusChip();
   }
 
   function applyLockedUI() {
     const locked = isRecordLocked();
 
-    // Banner
     if (lockBanner) {
       lockBanner.hidden = !locked;
       if (locked) {
@@ -365,7 +494,6 @@ import {
       }
     }
 
-    // Disable save when locked. Submit is disabled when locked OR when required fields are missing.
     if (saveBtn) saveBtn.disabled = locked;
     if (submitBtn) {
       if (locked) {
@@ -381,7 +509,6 @@ import {
       }
     }
 
-    // Disable all editable controls inside accordion content panels
     const panels = Array.from(
       document.querySelectorAll("[data-section-content]"),
     );
@@ -400,7 +527,6 @@ import {
       });
     });
 
-    // Upload with Globus is an <a>, so handle it explicitly
     if (uploadWithGlobusBtn) {
       if (locked) {
         uploadWithGlobusBtn.classList.add("is-disabled");
@@ -413,21 +539,19 @@ import {
       }
     }
 
-    // Authors modal controls (in case user opened it before lock)
     if (locked) {
       try {
         modal?.setAttribute("hidden", "");
       } catch (_) {}
     }
 
-    showCuratorPanelIfNeeded();
+    showCuratorReviewIfNeeded();
     renderRequestPanel();
   }
 
   // ──────────────────────────────────────────────────────────────
-  // Schema-driven rendering
+  // Schema rendering
   // ──────────────────────────────────────────────────────────────
-
   function makeIdFromPath(path) {
     return String(path)
       .replace(/[^a-zA-Z0-9]+/g, "-")
@@ -595,9 +719,6 @@ import {
     renderSection("related");
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // Keywords suggestions (schema field type)
-  // ──────────────────────────────────────────────────────────────
   function buildKeywordSuggestionsFromStore() {
     const dl = document.getElementById("keywordsDatalist");
     if (!dl) return;
@@ -621,9 +742,6 @@ import {
       .join("");
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // Record I/O helpers
-  // ──────────────────────────────────────────────────────────────
   function readFieldValue(fieldEl) {
     const path = fieldEl.getAttribute("data-path");
     if (!path) return null;
@@ -695,10 +813,6 @@ import {
       writeFieldValue(el, v);
     });
   }
-
-  // ──────────────────────────────────────────────────────────────
-  // Required / completion logic (schema-aware)
-  // ──────────────────────────────────────────────────────────────
 
   function isRelatedConditionalActive() {
     const section = getSchemaSection("related");
@@ -890,21 +1004,11 @@ import {
     }
   });
 
-  function wireJumpChips() {
-    // kept for compatibility; click/keydown handlers above already provide behavior
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // Title UI
-  // ──────────────────────────────────────────────────────────────
   function updateTitleUI(title) {
     const t = safeTrim(title) || "Untitled Dataset";
     if (pageTitleEl) pageTitleEl.textContent = t;
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // Upload demo
-  // ──────────────────────────────────────────────────────────────
   function simulateUploadComplete() {
     uploadedFiles = [
       { name: "dataset-files.zip", size: "1.2 GB" },
@@ -936,9 +1040,6 @@ import {
     setTimeout(simulateUploadComplete, 450);
   });
 
-  // ──────────────────────────────────────────────────────────────
-  // Authors modal
-  // ──────────────────────────────────────────────────────────────
   function openAuthorModal(mode = "add") {
     if (!modal) return;
     modal.hidden = false;
@@ -1049,6 +1150,7 @@ import {
           openAuthorModal("edit");
         },
       );
+
       li.querySelector('[data-action="delete"]')?.addEventListener(
         "click",
         () => {
@@ -1165,9 +1267,6 @@ import {
     updateCompletionUI();
   });
 
-  // ──────────────────────────────────────────────────────────────
-  // Save / preview / submit
-  // ──────────────────────────────────────────────────────────────
   function showSaveToast() {
     if (!saveToast) return;
     saveToast.hidden = false;
@@ -1222,7 +1321,7 @@ import {
     } catch (_) {}
   });
 
-  // Curator actions (demo) — now also write request history
+  // Curator actions
   requestUpdatesBtn?.addEventListener("click", () => {
     if (!currentRecord) return;
     if (!isCuratorMode()) return;
@@ -1254,18 +1353,6 @@ import {
 
     setStatusChip(currentRecord.status);
     applyLockedUI();
-
-    try {
-      window.DatasetPortal?.notifications?.add?.({
-        toRole: "Submitter",
-        toEmail: String(currentRecord.submitterEmail || "").trim(),
-        title: "Changes requested",
-        message: `Curator request: ${note}`,
-        href: `/src/pages/editor/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
-        recordDoi: currentRecord.doi,
-        kind: "updates",
-      });
-    } catch (_) {}
   });
 
   publishBtn?.addEventListener("click", () => {
@@ -1277,34 +1364,17 @@ import {
     saveRecord(currentRecord);
     setStatusChip(currentRecord.status);
     applyLockedUI();
-
-    try {
-      window.DatasetPortal?.notifications?.add?.({
-        toRole: "Submitter",
-        toEmail: String(currentRecord.submitterEmail || "").trim(),
-        title: "Dataset published",
-        message: note
-          ? `Curator note: ${note}`
-          : "Your dataset has been published.",
-        href: `/src/pages/dataset/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
-        recordDoi: currentRecord.doi,
-        kind: "publish",
-      });
-    } catch (_) {}
+    closeCuratorDrawer();
   });
 
-  // ──────────────────────────────────────────────────────────────
   // Init
-  // ──────────────────────────────────────────────────────────────
   function init() {
     renderAllSchemaSections();
 
-    // Load record from DOI query param, else create a new draft
     const doi = getQueryParam("doi");
     currentRecord = doi ? getRecord(doi) : null;
     if (!currentRecord) currentRecord = createNewDraft("Untitled Dataset");
 
-    // Capture submitter attribution early (demo)
     if (!currentRecord.submitterEmail || !currentRecord.submitterName) {
       const p = window.DatasetPortal?.getUserProfile?.() || {};
       const name =
@@ -1319,7 +1389,6 @@ import {
       : [];
     authors = Array.isArray(currentRecord.authors) ? currentRecord.authors : [];
 
-    // Hydrate UI
     hydrateFieldsFromRecord();
     buildKeywordSuggestionsFromStore();
     renderAuthorsList();
@@ -1329,11 +1398,8 @@ import {
     if (startedOnDateEl)
       startedOnDateEl.textContent = formatShortDate(currentRecord.createdAt);
 
-    // Wire listeners after DOM exists
     bindSchemaFieldListeners();
-    wireJumpChips();
 
-    // Upload demo UI hydrate
     if (Array.isArray(uploadedFiles) && uploadedFiles.length) {
       if (uploadedFilesList) {
         uploadedFilesList.innerHTML = uploadedFiles
@@ -1346,12 +1412,13 @@ import {
       if (uploadedPanel) uploadedPanel.hidden = false;
     }
 
-    // Wire request history interactions
     wireReqModalClose();
     curViewHistoryBtn?.addEventListener("click", () => {
       renderRequestHistoryModal();
       openReqModal();
     });
+
+    wireCuratorDrawer();
 
     updateCompletionUI();
     applyLockedUI();

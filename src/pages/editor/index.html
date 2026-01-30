@@ -73,6 +73,13 @@
           </div>
 
           <div class="action-right">
+            <!-- Curator drawer toggle (shown only in curator mode while In Review / Needs Updates) -->
+            <button type="button" class="usa-button usa-button--outline btnBrandOutline cur-drawer__open"
+              id="curatorReviewBtn" hidden aria-hidden="true">
+              <i class="fa-solid fa-clipboard-check margin-right-05" aria-hidden="true"></i>
+              Curator Review
+            </button>
+
             <span class="tt" data-tt="Preview">
               <button type="button" class="usa-button usa-button--outline icon-btn brand-outline" id="previewBtn"
                 aria-label="Preview">
@@ -136,30 +143,6 @@
           <div class="req-panel__meta" id="curLatestMeta">—</div>
         </section>
 
-        <!-- Curator actions (demo) -->
-        <section id="curatorPanel" class="editor-curator margin-bottom-3" hidden>
-          <div class="editor-curator__head">
-            <div>
-              <h2 class="margin-0">Curator review</h2>
-              <p class="margin-top-05 text-base">Add a note for the submitter, request updates, or publish.</p>
-            </div>
-            <div class="editor-curator__role">Role: <strong data-role-label></strong></div>
-          </div>
-
-          <label class="usa-label" for="curatorNote">Curator note</label>
-          <textarea id="curatorNote" class="usa-textarea" rows="3"
-            placeholder="e.g., Please clarify methodology and add funding details."></textarea>
-
-          <div class="editor-curator__actions margin-top-2">
-            <button id="requestUpdatesBtn" type="button" class="usa-button usa-button--outline btnBrandOutline">
-              Request updates
-            </button>
-            <button id="publishBtn" type="button" class="usa-button btnBrandSolid">
-              Publish dataset
-            </button>
-          </div>
-        </section>
-
         <div class="usa-accordion" aria-multiselectable="true" id="metaAccordion">
 
           <!-- UPLOAD FILES (DEFAULT OPEN) -->
@@ -203,7 +186,7 @@
             </div>
           </div>
 
-          <!-- DESCRIPTION (DEFAULT CLOSED) -->
+          <!-- DESCRIPTION -->
           <h2 class="usa-accordion__heading" data-section="description">
             <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-description">
               <span>Description</span>
@@ -234,7 +217,7 @@
               </button>
             </div>
 
-            <!-- AUTHORS MODAL - hidden by default, with accessibility attributes -->
+            <!-- AUTHORS MODAL -->
             <div id="author-modal" class="modal" hidden aria-modal="true" role="dialog" aria-labelledby="modal-title">
               <div class="modal-content">
                 <button type="button" class="modal-close usa-button usa-button--unstyled"
@@ -290,7 +273,6 @@
           </h2>
           <div id="sect-subjects" class="usa-accordion__content usa-prose" data-section-content="subjects" hidden>
             <div id="subjectsFields"></div>
-
           </div>
 
           <!-- FUNDING -->
@@ -323,7 +305,7 @@
       </div>
     </div>
 
-    <!-- Request history modal (submitter + curator can view) -->
+    <!-- Request history modal (submitter only; curator drawer uses inline history) -->
     <div id="reqHistoryModal" class="req-modal" role="dialog" aria-modal="true" aria-labelledby="reqHistoryTitle"
       hidden>
       <div class="req-modal__overlay" data-req-close></div>
@@ -363,6 +345,79 @@
           <button type="button" class="usa-button btnBrandSolid" data-req-close>Close</button>
         </div>
       </div>
+    </div>
+
+    <!-- Curator Review Drawer (no overlay; allow interaction with page behind) -->
+    <div id="curatorDrawer" class="cur-drawer" hidden aria-hidden="true">
+      <aside class="cur-drawer__panel" role="dialog" aria-modal="false" aria-labelledby="curDrawerTitle">
+        <header class="cur-drawer__head">
+          <div class="cur-drawer__headLeft">
+            <div class="cur-drawer__titleRow">
+              <h2 id="curDrawerTitle" class="margin-0">Curator review</h2>
+              <span id="curDrawerStatusChip" class="status-chip" data-status="draft" aria-label="Status: Draft">
+                Draft
+              </span>
+            </div>
+            <div class="cur-drawer__role">Role: <strong data-role-label></strong></div>
+          </div>
+
+          <button type="button" class="cur-drawer__x usa-button usa-button--unstyled" aria-label="Close curator review"
+            data-cur-drawer-close>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="cur-drawer__body">
+          <p class="margin-top-0 text-base cur-drawer__sub">
+            Review the submitter’s metadata and either request updates or publish.
+          </p>
+
+          <!-- Latest request + inline history toggle -->
+          <section class="cur-drawer__context" aria-label="Request context">
+            <div class="cur-drawer__contextHead">
+              <div class="cur-drawer__contextTitle">
+                <i class="fa-solid fa-note-sticky" aria-hidden="true"></i>
+                <span>Most recent request</span>
+              </div>
+
+              <button id="curDrawerToggleHistoryBtn" type="button"
+                class="usa-button usa-button--unstyled cur-drawer__historyLink" aria-expanded="false"
+                aria-controls="curDrawerHistoryWrap">
+                History (<span id="curDrawerHistoryCount">0</span>)
+                <i class="fa-solid fa-chevron-down cur-drawer__chev" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <div class="cur-drawer__contextMsg" id="curDrawerLatestMsg">—</div>
+            <div class="cur-drawer__contextMeta" id="curDrawerLatestMeta">—</div>
+
+            <div id="curDrawerHistoryWrap" class="cur-drawer__historyWrap" hidden>
+              <div id="curDrawerHistEmpty" class="usa-alert usa-alert--info margin-top-2" hidden>
+                <div class="usa-alert__body">
+                  <p class="usa-alert__text">No request history yet.</p>
+                </div>
+              </div>
+
+              <div id="curDrawerHistList" class="cur-drawer__histList margin-top-2" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <hr class="cur-drawer__divider" />
+
+          <label class="usa-label" for="curatorNote">Curator note</label>
+          <textarea id="curatorNote" class="usa-textarea" rows="4"
+            placeholder="e.g., Please clarify methodology and add funding details."></textarea>
+
+          <div class="cur-drawer__actions margin-top-2">
+            <button id="requestUpdatesBtn" type="button" class="usa-button usa-button--outline btnBrandOutline">
+              Request updates
+            </button>
+            <button id="publishBtn" type="button" class="usa-button btnBrandSolid">
+              Publish dataset
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
   </main>
 
