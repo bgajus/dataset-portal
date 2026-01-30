@@ -1,84 +1,144 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Notifications</title>
 
-    <!-- USWDS init -->
-    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notifications</title>
 
-    <!-- USWDS + Font Awesome -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- USWDS init -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
 
-    <!-- Portal shared layer -->
-    <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
-    <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
+  <!-- USWDS + Font Awesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-    <!-- Page styles -->
-    <link rel="stylesheet" href="./notifications.css" />
-  </head>
+  <!-- Portal shared layer -->
+  <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
+  <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
 
-  <body data-auth="true">
-    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+  <!-- Page styles -->
+  <link rel="stylesheet" href="./notifications.css" />
+</head>
 
-    <div data-include="portal-header"></div>
+<body data-auth="true">
+  <a class="usa-skipnav" href="#main-content">Skip to main content</a>
 
-    <main id="main-content" class="padding-y-4">
-      <div class="grid-container-widescreen">
-        <!-- Breadcrumbs -->
-        <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
-          <ol class="usa-breadcrumb__list">
-            <li class="usa-breadcrumb__list-item">
-              <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
-            </li>
-            <li class="usa-breadcrumb__list-item">
-              <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
-            </li>
-            <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
-              <span>Notifications</span>
-            </li>
-          </ol>
-        </nav>
+  <div data-include="portal-header"></div>
 
-        <header class="notif-head margin-top-2">
-          <div>
-            <h1 class="margin-0">Notifications</h1>
-            <p class="text-base margin-top-1 notif-sub">
-              Updates related to your datasets and review workflow.
-            </p>
+  <main id="main-content" class="padding-y-4">
+    <div class="grid-container-widescreen">
+      <!-- Breadcrumbs -->
+      <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
+        <ol class="usa-breadcrumb__list">
+          <li class="usa-breadcrumb__list-item">
+            <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
+          </li>
+          <li class="usa-breadcrumb__list-item">
+            <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
+          </li>
+          <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+            <span>Notifications</span>
+          </li>
+        </ol>
+      </nav>
+
+      <header class="notif-head margin-top-2">
+        <div>
+          <h1 class="margin-0">Notifications</h1>
+          <p class="text-base margin-top-1 notif-sub">
+            Updates related to your datasets and review workflow.
+          </p>
+        </div>
+
+        <div class="notif-actions" aria-label="Notifications actions">
+          <div class="usa-checkbox notif-selectall">
+            <input class="usa-checkbox__input" id="selectAllNotifs" type="checkbox" />
+            <label class="usa-checkbox__label" for="selectAllNotifs">Select all</label>
           </div>
 
-          <div class="notif-actions">
-            <button id="markAllRead" class="usa-button usa-button--outline btnBrandOutline" type="button">
-              Mark all read
-            </button>
-          </div>
-        </header>
+          <span id="selectedCountLabel" class="notif-selectedCount" hidden>
+            Selected: <strong id="selectedCount">0</strong>
+          </span>
 
-        <section class="margin-top-3" aria-label="Notifications list">
-          <div id="notifEmpty" class="usa-alert usa-alert--info" hidden>
-            <div class="usa-alert__body">
-              <h4 class="usa-alert__heading">No notifications</h4>
-              <p class="usa-alert__text">You’re all caught up.</p>
+          <button id="deleteSelected" class="usa-button usa-button--outline notif-btnDanger" type="button" disabled>
+            <i class="fa-regular fa-trash-can margin-right-1" aria-hidden="true"></i>
+            <span id="deleteSelectedLabel">Delete selected</span>
+          </button>
+
+          <button id="deleteAll" class="usa-button usa-button--outline notif-btnDanger" type="button">
+            Delete all
+          </button>
+
+          <button id="markAllRead" class="usa-button usa-button--outline btnBrandOutline" type="button">
+            Mark all read
+          </button>
+        </div>
+      </header>
+
+      <section class="margin-top-3" aria-label="Notifications list">
+        <div id="notifEmpty" class="usa-alert usa-alert--info" hidden>
+          <div class="usa-alert__body">
+            <h4 class="usa-alert__heading">No notifications</h4>
+            <p class="usa-alert__text">You’re all caught up.</p>
+          </div>
+        </div>
+
+        <div id="notifList" class="notif-list" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <!-- Confirm modal (USWDS-styled) -->
+    <div id="notifConfirmModal" class="notif-modal" hidden aria-hidden="true">
+      <div class="notif-modal__overlay" data-modal-close></div>
+
+      <div class="usa-modal" role="dialog" aria-modal="true" aria-labelledby="notifConfirmTitle"
+        aria-describedby="notifConfirmDesc">
+        <div class="usa-modal__content">
+          <div class="usa-modal__main">
+            <h2 class="usa-modal__heading" id="notifConfirmTitle">Confirm</h2>
+            <div class="usa-prose">
+              <p id="notifConfirmDesc" class="margin-top-1 margin-bottom-0">
+                Are you sure?
+              </p>
             </div>
           </div>
 
-          <div id="notifList" class="notif-list" aria-live="polite"></div>
-        </section>
+          <div class="usa-modal__footer">
+            <ul class="usa-button-group">
+              <li class="usa-button-group__item">
+                <button type="button" class="usa-button usa-button--outline" data-modal-close id="notifConfirmCancel">
+                  Cancel
+                </button>
+              </li>
+              <li class="usa-button-group__item">
+                <button type="button" class="usa-button notif-btnDangerSolid" id="notifConfirmOk">
+                  Delete
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <button type="button" class="usa-button usa-modal__close" aria-label="Close this window" data-modal-close>
+            <svg class="usa-icon" aria-hidden="true" focusable="false" role="img">
+              <use href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/img/sprite.svg#close"></use>
+            </svg>
+          </button>
+        </div>
       </div>
-    </main>
+    </div>
+  </main>
 
-    <div data-include="portal-footer"></div>
+  <div data-include="portal-footer"></div>
 
-    <!-- USWDS JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+  <!-- USWDS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
 
-    <!-- Shared includes loader -->
-    <script type="module" src="../../assets/js/includes.js"></script>
+  <!-- Shared includes loader -->
+  <script type="module" src="../../assets/js/includes.js"></script>
 
-    <!-- Page JS -->
-    <script type="module" src="./notifications.js"></script>
-  </body>
+  <!-- Page JS -->
+  <script type="module" src="./notifications.js"></script>
+</body>
+
 </html>

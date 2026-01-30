@@ -1,10 +1,204 @@
-.notif-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
-.notif-sub{color:#5b616b}
-.notif-actions{display:flex;gap:.5rem;align-items:center}
-.notif-list{display:flex;flex-direction:column;gap:.75rem}
-.notif-card{border:1px solid rgba(0,0,0,.12);border-radius:.75rem;background:#fff;padding:1rem}
-.notif-card.is-unread{border-left:4px solid var(--brand)}
-.notif-meta{display:flex;justify-content:space-between;gap:1rem;align-items:center}
-.notif-title{font-weight:700;margin:0}
-.notif-msg{margin:.25rem 0 0 0}
-.notif-time{color:#5b616b;font-size:.875rem}
+/* Notifications page */
+
+.notif-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.notif-sub {
+    color: #5b616b;
+}
+
+.notif-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.notif-selectall {
+    margin: 0;
+}
+
+.notif-selectall .usa-checkbox__label {
+    margin-top: 0;
+}
+
+/* Selected counter */
+.notif-selectedCount {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    background: rgba(0, 0, 0, 0.03);
+    color: #1b1b1b;
+    font-size: 0.875rem;
+}
+
+/* "Danger" actions should feel calmer (not bright red) */
+.notif-btnDanger {
+    border-color: rgba(0, 0, 0, 0.25) !important;
+    color: #1b1b1b !important;
+}
+
+.notif-btnDanger:hover {
+    border-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.notif-btnDanger:focus,
+.notif-btnDanger:focus-visible {
+    outline: 2px solid rgba(0, 0, 0, 0.45);
+    outline-offset: 2px;
+}
+
+/* subtle "danger hint" only on hover for icon */
+.notif-btnDanger:hover .fa-trash-can {
+    color: rgba(181, 9, 9, 0.9);
+}
+
+/* Solid confirm button inside modal (still calm) */
+.notif-btnDangerSolid {
+    background: rgba(181, 9, 9, 0.9) !important;
+    border-color: rgba(181, 9, 9, 0.9) !important;
+    color: #fff !important;
+}
+
+.notif-btnDangerSolid:hover {
+    background: rgba(138, 4, 4, 0.95) !important;
+    border-color: rgba(138, 4, 4, 0.95) !important;
+}
+
+.notif-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.notif-card {
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 0.75rem;
+    background: #fff;
+    padding: 1rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+/* Unread cue */
+.notif-card.is-unread {
+    border-left: 4px solid var(--brand);
+}
+
+/* Selected highlight */
+.notif-card.is-selected {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 25%, transparent);
+    background: color-mix(in srgb, var(--brand) 4%, white);
+}
+
+.notif-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.notif-check {
+    padding-top: 0.1rem;
+}
+
+.notif-check .usa-checkbox {
+    margin: 0;
+}
+
+.notif-check .usa-checkbox__label {
+    margin-top: 0;
+}
+
+.notif-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.notif-title {
+    font-weight: 700;
+    margin: 0;
+}
+
+.notif-msg {
+    margin: 0.25rem 0 0 0;
+}
+
+.notif-time {
+    color: #5b616b;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.notif-foot {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.notif-foot .usa-link {
+    margin-right: auto;
+}
+
+.notif-iconbtn {
+    border: 0;
+    background: transparent;
+    padding: 0.25rem 0.35rem;
+    border-radius: 0.5rem;
+    color: #5b616b;
+    cursor: pointer;
+}
+
+.notif-iconbtn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #1b1b1b;
+}
+
+.notif-iconbtn:focus,
+.notif-iconbtn:focus-visible {
+    outline: 2px solid rgba(0, 0, 0, 0.35);
+    outline-offset: 2px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Modal shell (USWDS-styled content, simple overlay)
+   ────────────────────────────────────────────────────────────── */
+.notif-modal[hidden] {
+    display: none !important;
+}
+
+.notif-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+}
+
+.notif-modal__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.notif-modal .usa-modal {
+    position: relative;
+    z-index: 1;
+    margin: 8vh auto 0 auto;
+    max-width: 34rem;
+    width: calc(100% - 2rem);
+}
