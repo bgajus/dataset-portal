@@ -109,6 +109,27 @@ a.usa-button.brand-solid:focus-visible {
   box-shadow: 0 0 0 .25rem var(--brandFocus);
 }
 
+/* ✅ Publish (green) button utility */
+.usa-button.btnPublishGreen,
+a.usa-button.btnPublishGreen {
+  background-color: #20c05c !important;
+  border-color: #20c05c !important;
+  color: #fff !important;
+}
+
+.usa-button.btnPublishGreen:hover,
+a.usa-button.btnPublishGreen:hover {
+  filter: brightness(0.95);
+}
+
+.usa-button.btnPublishGreen:focus,
+.usa-button.btnPublishGreen:focus-visible,
+a.usa-button.btnPublishGreen:focus,
+a.usa-button.btnPublishGreen:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 .25rem var(--brandFocus);
+}
+
 /* Help icon buttons: ensure no underline */
 .usa-button.usa-button--unstyled.text-no-underline,
 .usa-button.usa-button--unstyled.text-no-underline:hover {

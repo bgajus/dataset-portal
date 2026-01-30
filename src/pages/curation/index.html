@@ -1,88 +1,193 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Curator Review</title>
 
-    <!-- USWDS init -->
-    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Curator Review</title>
 
-    <!-- USWDS + Font Awesome -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- USWDS init -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
 
-    <!-- Portal shared layer -->
-    <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
-    <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
+  <!-- USWDS + Font Awesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-    <!-- Page styles -->
-    <link rel="stylesheet" href="./curation.css" />
-  </head>
+  <!-- Portal shared layer -->
+  <link rel="stylesheet" href="../../assets/css/portal-tokens.css" />
+  <link rel="stylesheet" href="../../assets/css/portal-ui.css" />
 
-  <body data-auth="true">
-    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+  <!-- Page styles -->
+  <link rel="stylesheet" href="./curation.css" />
+</head>
 
-    <div data-include="portal-header"></div>
+<body data-auth="true">
+  <a class="usa-skipnav" href="#main-content">Skip to main content</a>
 
-    <main id="main-content" class="padding-y-4">
-      <div class="grid-container-widescreen">
-        <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
-          <ol class="usa-breadcrumb__list">
-            <li class="usa-breadcrumb__list-item">
-              <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
-            </li>
-            <li class="usa-breadcrumb__list-item">
-              <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
-            </li>
-            <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
-              <span>Curator Review</span>
-            </li>
-          </ol>
-        </nav>
+  <div data-include="portal-header"></div>
 
-        <header class="cur-head margin-top-2">
-          <div>
-            <h1 class="margin-0">Curator Review</h1>
-            <p class="text-base margin-top-1 cur-sub">
-              Datasets submitted for review. Open one to edit metadata, add notes, and publish or request updates.
-            </p>
+  <main id="main-content" class="padding-y-4">
+    <div class="grid-container-widescreen">
+      <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
+        <ol class="usa-breadcrumb__list">
+          <li class="usa-breadcrumb__list-item">
+            <a class="usa-breadcrumb__link" href="/index.html"><span>Home</span></a>
+          </li>
+          <li class="usa-breadcrumb__list-item">
+            <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
+          </li>
+          <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+            <span>Curator Review</span>
+          </li>
+        </ol>
+      </nav>
+
+      <header class="cur-head margin-top-2">
+        <div>
+          <h1 class="margin-0">Curator Review</h1>
+          <p class="text-base margin-top-1 cur-sub">
+            Datasets submitted for review. Open one to edit metadata, add notes, and publish or request updates.
+          </p>
+        </div>
+
+        <div class="cur-actions">
+          <span class="usa-tag usa-tag--big">Role: <strong data-role-label></strong></span>
+        </div>
+      </header>
+
+      <section class="margin-top-3" aria-label="Pending datasets">
+        <div id="curAccessDenied" class="usa-alert usa-alert--error" hidden>
+          <div class="usa-alert__body">
+            <h4 class="usa-alert__heading">Curator access required</h4>
+            <p class="usa-alert__text">Switch your role to Curator in Settings to use this page.</p>
           </div>
+        </div>
 
-          <div class="cur-actions">
-            <span class="usa-tag usa-tag--big">Role: <strong data-role-label></strong></span>
+        <div id="curEmpty" class="usa-alert usa-alert--info" hidden>
+          <div class="usa-alert__body">
+            <h4 class="usa-alert__heading">Nothing in review</h4>
+            <p class="usa-alert__text">No datasets are currently awaiting curator review.</p>
           </div>
-        </header>
+        </div>
 
-        <section class="margin-top-3" aria-label="Pending datasets">
-          <div id="curAccessDenied" class="usa-alert usa-alert--error" hidden>
-            <div class="usa-alert__body">
-              <h4 class="usa-alert__heading">Curator access required</h4>
-              <p class="usa-alert__text">Switch your role to Curator in Settings to use this page.</p>
-            </div>
-          </div>
+        <div id="curList" class="cur-list" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
 
-          <div id="curEmpty" class="usa-alert usa-alert--info" hidden>
-            <div class="usa-alert__body">
-              <h4 class="usa-alert__heading">Nothing in review</h4>
-              <p class="usa-alert__text">No datasets are currently awaiting curator review.</p>
-            </div>
-          </div>
+  <!-- Request Updates Modal -->
+  <dialog id="requestUpdatesDialog" class="dp-modal" aria-labelledby="requestUpdatesTitle">
+    <form method="dialog" class="dp-modal__card" id="requestUpdatesForm">
+      <div class="dp-modal__head">
+        <div>
+          <h2 id="requestUpdatesTitle" class="dp-modal__title">Request updates</h2>
+          <p class="dp-modal__sub">
+            Send this dataset back to the submitter with clear instructions on what to change.
+          </p>
+        </div>
 
-          <div id="curList" class="cur-list" aria-live="polite"></div>
-        </section>
+        <button type="button" class="dp-modal__x" id="requestUpdatesCloseBtn" aria-label="Close">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
       </div>
-    </main>
 
-    <div data-include="portal-footer"></div>
+      <div class="dp-modal__meta">
+        <div class="dp-modal__metaTitle" id="requestUpdatesDatasetTitle">Dataset</div>
+        <div class="dp-modal__metaDoi" id="requestUpdatesDatasetDoi">DOI</div>
+      </div>
 
-    <!-- USWDS JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+      <div class="dp-modal__body">
+        <label class="usa-label" for="requestUpdatesNote">
+          Note to submitter <span class="dp-required">*</span>
+        </label>
+        <span class="usa-hint">Be specific. This note will appear in the submitter’s Notifications and editor
+          page.</span>
+        <textarea class="usa-textarea" id="requestUpdatesNote" name="requestUpdatesNote" rows="5" required
+          placeholder="Example: Please add funding information and clarify the dataset description. Also verify the keywords and subject selection."></textarea>
 
-    <!-- Shared includes loader -->
-    <script type="module" src="../../assets/js/includes.js"></script>
+        <div id="requestUpdatesError" class="usa-error-message margin-top-1" hidden></div>
 
-    <!-- Page JS -->
-    <script type="module" src="./curation.js"></script>
-  </body>
+        <fieldset class="usa-fieldset margin-top-3">
+          <legend class="usa-legend">Common reasons (optional)</legend>
+          <div class="dp-checkgrid">
+            <label class="usa-checkbox">
+              <input class="usa-checkbox__input" type="checkbox" value="Metadata incomplete" name="reasons" />
+              <span class="usa-checkbox__label">Metadata incomplete</span>
+            </label>
+
+            <label class="usa-checkbox">
+              <input class="usa-checkbox__input" type="checkbox" value="Files missing or unclear" name="reasons" />
+              <span class="usa-checkbox__label">Files missing or unclear</span>
+            </label>
+
+            <label class="usa-checkbox">
+              <input class="usa-checkbox__input" type="checkbox" value="Subject classification unclear"
+                name="reasons" />
+              <span class="usa-checkbox__label">Subject classification unclear</span>
+            </label>
+
+            <label class="usa-checkbox">
+              <input class="usa-checkbox__input" type="checkbox" value="Keywords need refinement" name="reasons" />
+              <span class="usa-checkbox__label">Keywords need refinement</span>
+            </label>
+
+            <label class="usa-checkbox">
+              <input class="usa-checkbox__input" type="checkbox" value="Related works / citations missing"
+                name="reasons" />
+              <span class="usa-checkbox__label">Related works / citations missing</span>
+            </label>
+
+            <label class="usa-checkbox">
+              <input class="usa-checkbox__input" type="checkbox" value="Licensing / access details needed"
+                name="reasons" />
+              <span class="usa-checkbox__label">Licensing / access details needed</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="margin-top-3">
+          <label class="usa-label" for="requestUpdatesDue">Requested by (optional)</label>
+          <span class="usa-hint">Adds urgency for demo purposes. No enforcement.</span>
+          <input class="usa-input" id="requestUpdatesDue" name="requestUpdatesDue" type="date" />
+        </div>
+
+        <div class="dp-preview margin-top-3" aria-label="Submitter preview">
+          <div class="dp-preview__head">
+            <i class="fa-solid fa-bell" aria-hidden="true"></i>
+            <div>
+              <div class="dp-preview__title">Preview (what submitter sees)</div>
+              <div class="dp-preview__sub">Notification + note will link back to the editor.</div>
+            </div>
+          </div>
+
+          <div class="dp-preview__body" id="requestUpdatesPreview">
+            <div class="dp-preview__line dp-preview__muted">Start typing a note to see the preview…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dp-modal__foot">
+        <button type="button" class="usa-button usa-button--outline btnBrandOutline" id="requestUpdatesCancelBtn">
+          Cancel
+        </button>
+
+        <button type="submit" class="usa-button btnBrandSolid" id="requestUpdatesSendBtn">
+          Send back to submitter
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <div data-include="portal-footer"></div>
+
+  <!-- USWDS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+  <!-- Shared includes loader -->
+  <script type="module" src="../../assets/js/includes.js"></script>
+
+  <!-- Page JS -->
+  <script type="module" src="./curation.js"></script>
+</body>
+
 </html>

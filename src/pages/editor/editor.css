@@ -1,12 +1,12 @@
-:root{
-  --chip-bg-incomplete:#f8e1e1;
-  --chip-text-incomplete:#8b0a03;
+:root {
+  --chip-bg-incomplete: #f8e1e1;
+  --chip-text-incomplete: #8b0a03;
 
-  --chip-bg-complete:#d7f0e2;
-  --chip-text-complete:#146947;
+  --chip-bg-complete: #d7f0e2;
+  --chip-text-complete: #146947;
 
-  --chip-bg-neutral:#e6e6e6;
-  --chip-text-neutral:#1b1b1b;
+  --chip-bg-neutral: #e6e6e6;
+  --chip-text-neutral: #1b1b1b;
 }
 
 .required-star {
@@ -33,11 +33,13 @@
   right: 0;
   bottom: -4px;
   height: 4px;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.08), rgba(0,0,0,0));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0));
   pointer-events: none;
 }
 
-.below-divider { margin-top: 0.75rem; }
+.below-divider {
+  margin-top: 0.75rem;
+}
 
 /* Breadcrumb row layout */
 .crumb-row {
@@ -48,9 +50,13 @@
   margin-bottom: 0.5rem;
 }
 
-.usa-breadcrumb { margin: 0; }
+.usa-breadcrumb {
+  margin: 0;
+}
 
-.usa-breadcrumb .usa-breadcrumb__link:hover { text-decoration: underline; }
+.usa-breadcrumb .usa-breadcrumb__link:hover {
+  text-decoration: underline;
+}
 
 .usa-breadcrumb .usa-breadcrumb__link:focus,
 .usa-breadcrumb .usa-breadcrumb__link:focus-visible {
@@ -68,13 +74,22 @@
   color: var(--brand) !important;
   text-decoration: none !important;
 }
+
 .help-icon-btn:hover,
 .help-icon-btn:active,
 .help-icon-btn:focus {
   text-decoration: none !important;
 }
-.help-icon-btn i { font-size: 1.35rem; color: currentColor; }
-.help-icon-btn:hover { opacity: 0.85; }
+
+.help-icon-btn i {
+  font-size: 1.35rem;
+  color: currentColor;
+}
+
+.help-icon-btn:hover {
+  opacity: 0.85;
+}
+
 .help-icon-btn:focus,
 .help-icon-btn:focus-visible {
   outline: none;
@@ -89,7 +104,11 @@
   gap: 0.6rem;
   flex-wrap: wrap;
 }
-.title-editing { font-size: 0.98rem; color: #565c65; }
+
+.title-editing {
+  font-size: 0.98rem;
+  color: #565c65;
+}
 
 /* Action row */
 .action-row {
@@ -100,12 +119,14 @@
   flex-wrap: wrap;
   margin-bottom: 0.5rem;
 }
+
 .action-left {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
+
 .action-right {
   display: flex;
   align-items: center;
@@ -121,23 +142,33 @@
   border-radius: 999px;
   font-size: 0.9rem;
   font-weight: 600;
-  background: #119bf1; /* default (Draft) */
+  background: #119bf1;
+  /* default (Draft) */
   color: #fff;
   white-space: nowrap;
 }
 
 /* Color-coded states */
-.status-chip[data-status="draft"] { background: #119bf1; }
-.status-chip[data-status="in-review"] { background: #f59a00; }
-.status-chip[data-status="needs-updates"] { background: #b50909; }
-.status-chip[data-status="published"] { background: #2e8540; }
+.status-chip[data-status="draft"] {
+  background: #119bf1;
+}
 
-/* Curator panel (demo) */
-.editor-curator{border:1px solid rgba(0,0,0,.12);border-radius:.75rem;background:#fff;padding:1rem}
-.editor-curator__head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}
-.editor-curator__role{color:#5b616b;font-size:.875rem}
-.editor-curator__actions{display:flex;gap:.5rem;flex-wrap:wrap}
-.started-on { color: #565c65; white-space: nowrap; }
+.status-chip[data-status="in-review"] {
+  background: #f59a00;
+}
+
+.status-chip[data-status="needs-updates"] {
+  background: #b50909;
+}
+
+.status-chip[data-status="published"] {
+  background: #2e8540;
+}
+
+.started-on {
+  color: #565c65;
+  white-space: nowrap;
+}
 
 /* Divider */
 .section-divider {
@@ -148,8 +179,15 @@
 }
 
 /* Submit: only brand when enabled */
-#submitBtn:not(:disabled) { background-color: var(--brand); color: #fff; }
-#submitBtn:not(:disabled):hover { background-color: #4a367f; color: #fff; }
+#submitBtn:not(:disabled) {
+  background-color: var(--brand);
+  color: #fff;
+}
+
+#submitBtn:not(:disabled):hover {
+  background-color: #4a367f;
+  color: #fff;
+}
 
 /* Focus ring (brand) for buttons/inputs */
 .usa-button:focus,
@@ -182,7 +220,11 @@
   padding-left: 0.9rem;
   padding-right: 0.9rem;
 }
-.icon-btn i { font-size: 1.05rem; line-height: 1; }
+
+.icon-btn i {
+  font-size: 1.05rem;
+  line-height: 1;
+}
 
 /* Accordion layout */
 .usa-accordion__button {
@@ -204,9 +246,21 @@
   background: var(--chip-bg-neutral);
   color: var(--chip-text-neutral);
 }
-.acc-status[data-state="incomplete"] { background: var(--chip-bg-incomplete); color: var(--chip-text-incomplete); }
-.acc-status[data-state="complete"] { background: var(--chip-bg-complete); color: var(--chip-text-complete); }
-.acc-status[data-state="neutral"] { background: var(--chip-bg-neutral); color: var(--chip-text-neutral); }
+
+.acc-status[data-state="incomplete"] {
+  background: var(--chip-bg-incomplete);
+  color: var(--chip-text-incomplete);
+}
+
+.acc-status[data-state="complete"] {
+  background: var(--chip-bg-complete);
+  color: var(--chip-text-complete);
+}
+
+.acc-status[data-state="neutral"] {
+  background: var(--chip-bg-neutral);
+  color: var(--chip-text-neutral);
+}
 
 /* Chip styles (used inside .acc-status for clickable Missing chips) */
 .chip {
@@ -265,70 +319,202 @@ button.chip:focus-visible {
 /* Save toast */
 .save-toast {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  padding: 0.75rem 1rem;
-  background: #1b1b1b;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  background: rgba(0, 0, 0, 0.85);
   color: #fff;
+  padding: 0.55rem 0.75rem;
   border-radius: 0.5rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-  z-index: 100;
+  z-index: 9999;
+  font-size: 0.9rem;
 }
 
-/* Authors list + modal */
-.authors-list { list-style: none; padding: 0; margin: 0; }
-.author-row {
+/* --------- (your existing file continues below in your repo) ---------
+   NOTE: If you already have additional styles after this point in your local
+   file, keep them — the key part is the new block appended below.
+--------------------------------------------------------------------- */
+
+
+/* ──────────────────────────────────────────────────────────────
+   NEW: Workflow timeline (sticky header)
+   ────────────────────────────────────────────────────────────── */
+
+.wf-timeline {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.75rem;
+  background: #fff;
+
+}
+
+.wf-timeline__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 48rem) {
+  .wf-timeline__list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.wf-step {
+  position: relative;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.6rem;
+  border: 1px solid #eaeaea;
+  background: #fafafa;
+}
+
+.wf-step__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid #dfe1e2;
-  border-radius: 0.5rem;
-  margin-bottom: 0.5rem;
-  background: #fff;
+  gap: 0.5rem;
 }
-.author-row.dragging { opacity: 0.6; }
-.drag-handle { cursor: grab; user-select: none; font-size: 1rem; line-height: 1; opacity: 0.75; }
-.author-info { flex: 1; min-width: 0; }
-.author-actions { display: inline-flex; gap: 0.5rem; white-space: nowrap; }
 
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 999;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  backdrop-filter: blur(2px);
-  padding: 2rem 1rem;
+.wf-step__label {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #1b1b1b;
 }
-.modal[aria-hidden="false"] { display: block; }
 
-.modal-content {
-  background: #fff;
-  margin: 0 auto;
-  max-width: 560px;
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  position: relative;
-}
-.modal-close {
-  position: absolute;
-  right: 0.75rem;
-  top: 0.5rem;
-  font-size: 1.75rem;
-  line-height: 1;
-  padding: 0.25rem 0.5rem;
+.wf-step__meta {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
   color: #565c65;
 }
-.modal-close:hover { color: #1b1b1b; }
 
-/* Disable styles for <a> buttons (e.g., Upload with Globus) when record is locked */
-.usa-button.is-disabled,
-a.usa-button.is-disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  pointer-events: none;
-  text-decoration: none;
+.wf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.14rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.04);
+  color: #1b1b1b;
+  white-space: nowrap;
+}
+
+.wf-step.is-current {
+  border-color: rgba(88, 65, 153, .28);
+  background: rgba(88, 65, 153, .06);
+}
+
+.wf-step.is-done {
+  border-color: rgba(46, 133, 64, .22);
+  background: rgba(46, 133, 64, .06);
+}
+
+.wf-pill--current {
+  background: rgba(88, 65, 153, .12);
+  border-color: rgba(88, 65, 153, .18);
+  color: var(--brand);
+}
+
+.wf-pill--done {
+  background: rgba(46, 133, 64, .12);
+  border-color: rgba(46, 133, 64, .18);
+  color: #146947;
+}
+
+.wf-pill--warn {
+  background: rgba(245, 154, 0, .16);
+  border-color: rgba(245, 154, 0, .2);
+  color: #7a4a00;
+}
+
+.wf-pill--danger {
+  background: rgba(181, 9, 9, .12);
+  border-color: rgba(181, 9, 9, .18);
+  color: #8b0a03;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   NEW: Curator request note card (shown on Needs Updates)
+   ────────────────────────────────────────────────────────────── */
+
+.curator-note-card {
+  border: 1px solid rgba(181, 9, 9, .22);
+  background: rgba(181, 9, 9, .06);
+  border-radius: 0.9rem;
+  padding: 1rem 1.1rem;
+}
+
+.curator-note__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.curator-note__title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 900;
+  margin: 0;
+  font-size: 1.05rem;
+  color: #1b1b1b;
+}
+
+.curator-note__title i {
+  color: #8b0a03;
+}
+
+.curator-note__when {
+  font-size: 0.85rem;
+  color: #565c65;
+  white-space: nowrap;
+}
+
+.curator-note__body {
+  margin-top: 0.5rem;
+  color: #1b1b1b;
+}
+
+.curator-note__msg {
+  margin: 0;
+}
+
+.curator-note__tags {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.curator-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: rgba(181, 9, 9, .12);
+  border: 1px solid rgba(181, 9, 9, .18);
+  color: #8b0a03;
+}
+
+.curator-note__footer {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.curator-note__hint {
+  font-size: 0.9rem;
+  color: #565c65;
 }
