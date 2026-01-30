@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="./curation.css" />
 </head>
 
-<body>
+<body data-auth="true">
   <a class="usa-skipnav" href="#main-content">Skip to main content</a>
 
   <div data-include="portal-header"></div>
@@ -46,7 +46,8 @@
         <div>
           <h1 class="margin-0">Curator Review</h1>
           <p class="text-base margin-top-1 cur-sub">
-            Datasets submitted for review. Open one to edit metadata, add notes, and publish or request updates.
+            Your working queue. Datasets stay here until they’re published.
+            Review and publish when ready.
           </p>
         </div>
 
@@ -55,7 +56,7 @@
         </div>
       </header>
 
-      <section class="margin-top-3" aria-label="Pending datasets">
+      <section class="margin-top-3" aria-label="Curator queue">
         <div id="curAccessDenied" class="usa-alert usa-alert--error" hidden>
           <div class="usa-alert__body">
             <h4 class="usa-alert__heading">Curator access required</h4>
@@ -65,131 +66,13 @@
 
         <div id="curEmpty" class="usa-alert usa-alert--info" hidden>
           <div class="usa-alert__body">
-            <h4 class="usa-alert__heading">Nothing in review</h4>
-            <p class="usa-alert__text">No datasets are currently awaiting curator review.</p>
+            <h4 class="usa-alert__heading">No items in your queue</h4>
+            <p class="usa-alert__text">Nothing is currently In Review or Needs Updates.</p>
           </div>
         </div>
 
         <div id="curList" class="cur-list" aria-live="polite"></div>
       </section>
-    </div>
-
-    <!-- Request Updates Modal -->
-    <div id="curRequestModal" class="cur-modal" role="dialog" aria-modal="true" aria-labelledby="curRequestTitle"
-      hidden>
-      <div class="cur-modal__overlay" data-cur-modal-close></div>
-      <div class="cur-modal__panel" role="document">
-        <div class="cur-modal__head">
-          <div>
-            <h2 id="curRequestTitle" class="cur-modal__title margin-0">Request updates</h2>
-            <p class="cur-modal__sub margin-top-05">
-              This message will be added to the dataset’s request history and sent to the submitter.
-            </p>
-          </div>
-
-          <button type="button" class="cur-modal__x usa-button usa-button--unstyled" aria-label="Close"
-            data-cur-modal-close>
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-          </button>
-        </div>
-
-        <div class="cur-modal__body">
-          <div class="cur-modal__meta">
-            <div class="cur-modal__k">
-              Dataset
-            </div>
-            <div class="cur-modal__v">
-              <div id="curReqDatasetTitle" class="cur-modal__datasetTitle">—</div>
-              <div id="curReqDatasetDoi" class="cur-modal__datasetDoi">—</div>
-            </div>
-          </div>
-
-          <label class="usa-label margin-top-2" for="curReqMessage">
-            Message to submitter <span class="text-red">*</span>
-          </label>
-          <span class="usa-hint">Be specific about what needs to change so the submitter can address it quickly.</span>
-          <textarea id="curReqMessage" class="usa-textarea" rows="6"
-            placeholder="Example: Please add funding information and clarify the dataset description. Also confirm the subject classification."
-            required></textarea>
-          <div id="curReqError" class="usa-error-message margin-top-1" hidden></div>
-
-          <fieldset class="usa-fieldset margin-top-3">
-            <legend class="usa-legend">Optional flags</legend>
-            <div class="usa-checkbox">
-              <input class="usa-checkbox__input" id="flagMeta" type="checkbox" value="Metadata incomplete" />
-              <label class="usa-checkbox__label" for="flagMeta">Metadata incomplete</label>
-            </div>
-            <div class="usa-checkbox">
-              <input class="usa-checkbox__input" id="flagFiles" type="checkbox" value="Files missing or unclear" />
-              <label class="usa-checkbox__label" for="flagFiles">Files missing or unclear</label>
-            </div>
-            <div class="usa-checkbox">
-              <input class="usa-checkbox__input" id="flagSubject" type="checkbox"
-                value="Subject classification needs review" />
-              <label class="usa-checkbox__label" for="flagSubject">Subject classification needs review</label>
-            </div>
-            <div class="usa-checkbox">
-              <input class="usa-checkbox__input" id="flagOther" type="checkbox" value="Other" />
-              <label class="usa-checkbox__label" for="flagOther">Other</label>
-            </div>
-          </fieldset>
-        </div>
-
-        <div class="cur-modal__foot">
-          <button type="button" class="usa-button usa-button--outline btnBrandOutline" data-cur-modal-close>
-            Cancel
-          </button>
-          <button id="curReqSend" type="button" class="usa-button btnBrandSolid">
-            Send back for updates
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Request History Modal -->
-    <div id="curHistoryModal" class="cur-modal" role="dialog" aria-modal="true" aria-labelledby="curHistoryTitle"
-      hidden>
-      <div class="cur-modal__overlay" data-cur-modal-close></div>
-      <div class="cur-modal__panel cur-modal__panel--wide" role="document">
-        <div class="cur-modal__head">
-          <div>
-            <h2 id="curHistoryTitle" class="cur-modal__title margin-0">Request history</h2>
-            <p class="cur-modal__sub margin-top-05">
-              All curator “Request updates” notes for this dataset (newest first).
-            </p>
-          </div>
-
-          <button type="button" class="cur-modal__x usa-button usa-button--unstyled" aria-label="Close"
-            data-cur-modal-close>
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-          </button>
-        </div>
-
-        <div class="cur-modal__body">
-          <div class="cur-modal__meta">
-            <div class="cur-modal__k">Dataset</div>
-            <div class="cur-modal__v">
-              <div id="curHistDatasetTitle" class="cur-modal__datasetTitle">—</div>
-              <div id="curHistDatasetDoi" class="cur-modal__datasetDoi">—</div>
-            </div>
-          </div>
-
-          <div id="curHistEmpty" class="usa-alert usa-alert--info margin-top-3" hidden>
-            <div class="usa-alert__body">
-              <h4 class="usa-alert__heading">No request history</h4>
-              <p class="usa-alert__text">No update requests have been sent for this dataset yet.</p>
-            </div>
-          </div>
-
-          <div id="curHistList" class="cur-hist margin-top-3" aria-live="polite"></div>
-        </div>
-
-        <div class="cur-modal__foot">
-          <button type="button" class="usa-button btnBrandSolid" data-cur-modal-close>
-            Close
-          </button>
-        </div>
-      </div>
     </div>
   </main>
 
