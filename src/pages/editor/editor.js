@@ -1,7 +1,12 @@
 // editor.js — Schema-driven metadata editor
 // Uses METADATA_SCHEMA as the single source of truth for sections/fields/required rules.
 
-import { getRecord, saveRecord, createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
+import {
+  getRecord,
+  saveRecord,
+  createNewDraft,
+  getAllRecords,
+} from "/src/assets/js/shared-store.js";
 import {
   METADATA_SCHEMA,
   getSchemaSection,
@@ -20,13 +25,17 @@ import {
   const $ = (id) => document.getElementById(id);
 
   function escapeHtml(str) {
-    return String(str ?? "").replace(/[&<>"']/g, (s) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    }[s]));
+    return String(str ?? "").replace(
+      /[&<>"']/g,
+      (s) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[s],
+    );
   }
 
   function safeTrim(v) {
@@ -49,7 +58,26 @@ import {
 
   function formatShortDate(iso) {
     const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  function formatShortDateTime(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch (_) {
+      return "";
+    }
   }
 
   function getQueryParam(name) {
@@ -70,6 +98,19 @@ import {
   const saveToast = $("saveToast");
   const requiredRemainingEl = $("requiredRemaining");
   const lockBanner = $("lockBanner");
+
+  // Submitter request panel + modal
+  const curRequestPanel = $("curRequestPanel");
+  const curViewHistoryBtn = $("curViewHistoryBtn");
+  const curHistoryCountEl = $("curHistoryCount");
+  const curLatestMsgEl = $("curLatestMsg");
+  const curLatestMetaEl = $("curLatestMeta");
+
+  const reqHistoryModal = $("reqHistoryModal");
+  const reqHistDatasetTitle = $("reqHistDatasetTitle");
+  const reqHistDatasetDoi = $("reqHistDatasetDoi");
+  const reqHistEmpty = $("reqHistEmpty");
+  const reqHistList = $("reqHistList");
 
   // Curator review panel (demo)
   const curatorPanel = $("curatorPanel");
@@ -94,7 +135,9 @@ import {
 
   // Help
   const helpBtn = $("helpBtn");
-  helpBtn?.addEventListener("click", () => alert("Help (demo) — link this to docs or a support panel."));
+  helpBtn?.addEventListener("click", () =>
+    alert("Help (demo) — link this to docs or a support panel."),
+  );
 
   // Authors (special)
   const authorsListEl = $("authors-list");
@@ -140,12 +183,156 @@ import {
     return false;
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // Curator request history (shared behavior with curator review)
+  // ──────────────────────────────────────────────────────────────
+
+  function ensureHistory(rec) {
+    if (!rec || typeof rec !== "object") return rec;
+    if (!Array.isArray(rec.reviewRequests)) rec.reviewRequests = [];
+    return rec;
+  }
+
+  function getHistory(rec) {
+    return Array.isArray(rec?.reviewRequests) ? rec.reviewRequests : [];
+  }
+
+  function getLatestRequest(rec) {
+    const h = getHistory(rec);
+    return h.length ? h[0] : null; // newest first
+  }
+
+  function openReqModal() {
+    if (!reqHistoryModal) return;
+    reqHistoryModal.hidden = false;
+    document.body.style.overflow = "hidden";
+
+    // focus close button
+    const focusEl =
+      reqHistoryModal.querySelector("[data-req-close]") || reqHistoryModal;
+    try {
+      focusEl?.focus?.();
+    } catch (_) {}
+  }
+
+  function closeReqModal() {
+    if (!reqHistoryModal) return;
+    reqHistoryModal.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  function wireReqModalClose() {
+    if (!reqHistoryModal) return;
+
+    reqHistoryModal.querySelectorAll("[data-req-close]").forEach((el) => {
+      el.addEventListener("click", closeReqModal);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (
+        e.key === "Escape" &&
+        reqHistoryModal &&
+        reqHistoryModal.hidden === false
+      ) {
+        closeReqModal();
+      }
+    });
+  }
+
+  function renderRequestPanel() {
+    if (!curRequestPanel) return;
+    if (!currentRecord) {
+      curRequestPanel.hidden = true;
+      return;
+    }
+
+    ensureHistory(currentRecord);
+
+    const history = getHistory(currentRecord);
+    const latest = getLatestRequest(currentRecord);
+
+    // Show panel if there is request history OR legacy single note OR status is Needs Updates
+    const statusNorm = String(currentRecord.status || "").toLowerCase();
+    const legacyNote = safeTrim(currentRecord.curatorNote);
+    const shouldShow =
+      history.length > 0 || !!legacyNote || statusNorm === "needs updates";
+
+    if (!shouldShow) {
+      curRequestPanel.hidden = true;
+      return;
+    }
+
+    curRequestPanel.hidden = false;
+
+    // Count
+    if (curHistoryCountEl)
+      curHistoryCountEl.textContent = String(history.length || 0);
+
+    // Latest message (prefer history newest; fallback to legacy)
+    const msg = latest?.message ? String(latest.message) : legacyNote || "—";
+    if (curLatestMsgEl) curLatestMsgEl.textContent = msg;
+
+    // Meta line
+    const when = latest?.createdAt ? formatShortDateTime(latest.createdAt) : "";
+    const meta = when
+      ? `Most recent request: ${when}`
+      : legacyNote
+        ? "Most recent request: (legacy note)"
+        : "";
+    if (curLatestMetaEl) curLatestMetaEl.textContent = meta || "—";
+
+    // Hide the view history link if there is no history yet
+    if (curViewHistoryBtn) {
+      curViewHistoryBtn.hidden = history.length === 0;
+    }
+  }
+
+  function renderRequestHistoryModal() {
+    if (!currentRecord || !reqHistList) return;
+
+    ensureHistory(currentRecord);
+    const history = getHistory(currentRecord);
+
+    if (reqHistDatasetTitle)
+      reqHistDatasetTitle.textContent = String(
+        currentRecord.title || "Untitled Dataset",
+      );
+    if (reqHistDatasetDoi)
+      reqHistDatasetDoi.textContent = String(currentRecord.doi || "");
+
+    if (reqHistEmpty) reqHistEmpty.hidden = history.length !== 0;
+
+    reqHistList.innerHTML = history
+      .map((h) => {
+        const when = formatShortDateTime(h.createdAt);
+        return `
+        <article class="req-hist__item">
+          <div class="req-hist__top">
+            <div class="req-hist__label">
+              <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+              Request updates
+            </div>
+            <div class="req-hist__when">${escapeHtml(when)}</div>
+          </div>
+          <div class="req-hist__msg">${escapeHtml(h.message || "")}</div>
+        </article>
+      `;
+      })
+      .join("");
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // UI gates
+  // ──────────────────────────────────────────────────────────────
+
   function showCuratorPanelIfNeeded() {
     if (!curatorPanel) return;
     const s = String(currentRecord?.status || "").toLowerCase();
-    const show = isCuratorMode() && (s === "in review" || s === "needs updates");
+    const show =
+      isCuratorMode() && (s === "in review" || s === "needs updates");
     curatorPanel.hidden = !show;
-    if (show && curatorNoteEl) curatorNoteEl.value = String(currentRecord?.curatorNote || "");
+    if (show && curatorNoteEl)
+      curatorNoteEl.value = String(currentRecord?.curatorNote || "");
   }
 
   function setStatusChip(status) {
@@ -153,11 +340,11 @@ import {
     const label = status || "Draft";
     const norm = String(label).toLowerCase().trim();
 
-    // Drive chip styling via a data attribute so CSS can color-code states.
-    // Keep the human label text exactly as stored.
     let key = "draft";
-    if (norm === "in review" || norm === "in-review" || norm === "review") key = "in-review";
-    else if (norm === "needs updates" || norm === "needs-updates") key = "needs-updates";
+    if (norm === "in review" || norm === "in-review" || norm === "review")
+      key = "in-review";
+    else if (norm === "needs updates" || norm === "needs-updates")
+      key = "needs-updates";
     else if (norm === "published") key = "published";
     else if (norm === "draft") key = "draft";
 
@@ -187,23 +374,26 @@ import {
       } else {
         const remaining = getMissingRequiredFields().length;
         submitBtn.disabled = remaining !== 0;
-        submitBtn.setAttribute("aria-disabled", remaining !== 0 ? "true" : "false");
+        submitBtn.setAttribute(
+          "aria-disabled",
+          remaining !== 0 ? "true" : "false",
+        );
       }
     }
 
     // Disable all editable controls inside accordion content panels
-    const panels = Array.from(document.querySelectorAll("[data-section-content]"));
+    const panels = Array.from(
+      document.querySelectorAll("[data-section-content]"),
+    );
     panels.forEach((panel) => {
-      const controls = Array.from(panel.querySelectorAll("input, select, textarea, button"));
+      const controls = Array.from(
+        panel.querySelectorAll("input, select, textarea, button"),
+      );
       controls.forEach((el) => {
-        // Skip accordion toggle buttons (not inside panels) — panels only.
-        // Allow buttons that should remain active even in locked mode (none right now)
         if (locked) {
           el.disabled = true;
           el.setAttribute("aria-disabled", "true");
         } else {
-          // Re-enable general form controls when unlocked.
-          // (Do not handle Submit gating here — that is handled above.)
           el.disabled = false;
           el.removeAttribute("aria-disabled");
         }
@@ -225,10 +415,13 @@ import {
 
     // Authors modal controls (in case user opened it before lock)
     if (locked) {
-      try { modal?.setAttribute("hidden", ""); } catch (_) {}
+      try {
+        modal?.setAttribute("hidden", "");
+      } catch (_) {}
     }
 
     showCuratorPanelIfNeeded();
+    renderRequestPanel();
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -236,17 +429,23 @@ import {
   // ──────────────────────────────────────────────────────────────
 
   function makeIdFromPath(path) {
-    return String(path).replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return String(path)
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 
   function renderField(field, sectionId) {
     const id = makeIdFromPath(field.key);
-    const requiredStar = field.required ? ' <span class="required-star" aria-hidden="true">*</span>' : "";
+    const requiredStar = field.required
+      ? ' <span class="required-star" aria-hidden="true">*</span>'
+      : "";
     const requiredAttrs = field.required ? "required data-required" : "";
-    const hintHtml = field.hint ? `<div class="usa-hint">${escapeHtml(field.hint)}</div>` : "";
+    const hintHtml = field.hint
+      ? `<div class="usa-hint">${escapeHtml(field.hint)}</div>`
+      : "";
 
-    // Conditional group for Related Works
-    const conditionalAttr = sectionId === "related" ? 'data-conditional="related"' : "";
+    const conditionalAttr =
+      sectionId === "related" ? 'data-conditional="related"' : "";
 
     if (field.type === "text") {
       return `
@@ -286,10 +485,13 @@ import {
     }
 
     if (field.type === "select") {
-      const opts = (Array.isArray(field.options) ? field.options : []).map((o) => {
-        if (typeof o === "string") return `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`;
-        return `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`;
-      }).join("");
+      const opts = (Array.isArray(field.options) ? field.options : [])
+        .map((o) => {
+          if (typeof o === "string")
+            return `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`;
+          return `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`;
+        })
+        .join("");
 
       const placeholder = field.placeholder || "Select";
 
@@ -313,9 +515,11 @@ import {
     }
 
     if (field.type === "multiselect") {
-      const opts = (Array.isArray(field.options) ? field.options : []).map((o) => {
-        return `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`;
-      }).join("");
+      const opts = (Array.isArray(field.options) ? field.options : [])
+        .map((o) => {
+          return `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`;
+        })
+        .join("");
 
       return `
         <div class="usa-form-group">
@@ -356,7 +560,6 @@ import {
       `;
     }
 
-    // Fallback
     return "";
   }
 
@@ -373,10 +576,10 @@ import {
     const container = containerMap[sectionId];
     if (!container) return;
 
-    // Slight grouping by UX within section: keep order as defined in schema
-    container.innerHTML = section.fields.map((f) => renderField(f, sectionId)).join("");
+    container.innerHTML = section.fields
+      .map((f) => renderField(f, sectionId))
+      .join("");
 
-    // Add a note for conditional related rule
     if (sectionId === "related" && section.conditionalRequired?.note) {
       const note = document.createElement("div");
       note.className = "usa-hint margin-bottom-2";
@@ -399,11 +602,12 @@ import {
     const dl = document.getElementById("keywordsDatalist");
     if (!dl) return;
 
-    // Merge:
-    // 1) a small curated demo list (schema)
-    // 2) keywords already used across saved records (store)
     const all = getAllRecords();
-    const set = new Set((Array.isArray(KEYWORD_SUGGESTIONS) ? KEYWORD_SUGGESTIONS : []).map((k) => safeTrim(k)).filter(Boolean));
+    const set = new Set(
+      (Array.isArray(KEYWORD_SUGGESTIONS) ? KEYWORD_SUGGESTIONS : [])
+        .map((k) => safeTrim(k))
+        .filter(Boolean),
+    );
     all.forEach((r) => {
       (Array.isArray(r.keywords) ? r.keywords : []).forEach((k) => {
         const v = safeTrim(k);
@@ -412,7 +616,9 @@ import {
     });
 
     const sorted = Array.from(set).sort((a, b) => a.localeCompare(b));
-    dl.innerHTML = sorted.map((k) => `<option value="${escapeHtml(k)}"></option>`).join("");
+    dl.innerHTML = sorted
+      .map((k) => `<option value="${escapeHtml(k)}"></option>`)
+      .join("");
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -422,12 +628,10 @@ import {
     const path = fieldEl.getAttribute("data-path");
     if (!path) return null;
 
-    // Multi-select
     if (fieldEl.tagName === "SELECT" && fieldEl.multiple) {
       return Array.from(fieldEl.selectedOptions).map((o) => o.value);
     }
 
-    // Keywords are stored as array
     if (path === "keywords") {
       return parseCommaList(fieldEl.value);
     }
@@ -440,7 +644,11 @@ import {
     if (!path) return;
 
     if (fieldEl.tagName === "SELECT" && fieldEl.multiple) {
-      const set = new Set((Array.isArray(value) ? value : []).map((v) => safeTrim(v)).filter(Boolean));
+      const set = new Set(
+        (Array.isArray(value) ? value : [])
+          .map((v) => safeTrim(v))
+          .filter(Boolean),
+      );
       Array.from(fieldEl.options).forEach((opt) => {
         opt.selected = set.has(opt.value);
       });
@@ -465,7 +673,6 @@ import {
         const value = readFieldValue(el);
         setPath(currentRecord, path, value);
 
-        // Title sync (top title)
         if (path === "title") {
           updateTitleUI(value);
           if (titleEditingEl) titleEditingEl.hidden = false;
@@ -502,10 +709,8 @@ import {
   function getMissingRequiredFields() {
     const missing = [];
 
-    // 1) Fields marked required in schema
     const schemaFields = getAllSchemaFields();
     schemaFields.forEach((f) => {
-      // Related fields handled by conditional rule
       if (f.section === "related") return;
       if (!f.required) return;
 
@@ -514,17 +719,14 @@ import {
       if (empty) missing.push({ section: f.section, key: f.key });
     });
 
-    // 2) Upload required (>=1)
     if (!Array.isArray(uploadedFiles) || uploadedFiles.length < 1) {
       missing.push({ section: "upload", key: "uploadedFiles" });
     }
 
-    // 3) Authors required (>=1)
     if (!Array.isArray(authors) || authors.length < 1) {
       missing.push({ section: "authors", key: "authors" });
     }
 
-    // 4) Related conditional: if any entered, all required
     if (isRelatedConditionalActive()) {
       const section = getSchemaSection("related");
       const keys = section?.conditionalRequired?.keys || [];
@@ -544,15 +746,21 @@ import {
     const section = getSchemaSection(sectionId);
     const isOptional = section ? section.required === false : false;
 
-    // Optional sections: show Optional unless conditional required activates (Related Works)
     if (isOptional) {
-      if (sectionId === "related" && isRelatedConditionalActive() && missingCount > 0) {
+      if (
+        sectionId === "related" &&
+        isRelatedConditionalActive() &&
+        missingCount > 0
+      ) {
         chip.dataset.state = "incomplete";
         chip.textContent = `Missing: ${missingCount}`;
         chip.style.cursor = "pointer";
         chip.setAttribute("role", "button");
         chip.setAttribute("tabindex", "0");
-        chip.setAttribute("aria-label", `Jump to first missing required field in ${sectionId}`);
+        chip.setAttribute(
+          "aria-label",
+          `Jump to first missing required field in ${sectionId}`,
+        );
         return;
       }
 
@@ -571,7 +779,10 @@ import {
       chip.style.cursor = "pointer";
       chip.setAttribute("role", "button");
       chip.setAttribute("tabindex", "0");
-      chip.setAttribute("aria-label", `Jump to first missing required field in ${sectionId}`);
+      chip.setAttribute(
+        "aria-label",
+        `Jump to first missing required field in ${sectionId}`,
+      );
     } else {
       chip.dataset.state = "complete";
       chip.textContent = "Complete";
@@ -585,40 +796,44 @@ import {
   function updateCompletionUI() {
     const missing = getMissingRequiredFields();
     const remaining = missing.length;
-    if (requiredRemainingEl) requiredRemainingEl.textContent = String(remaining);
+    if (requiredRemainingEl)
+      requiredRemainingEl.textContent = String(remaining);
 
-    // Update submit gating
     if (submitBtn) {
       submitBtn.disabled = remaining !== 0;
-      submitBtn.setAttribute("aria-disabled", remaining !== 0 ? "true" : "false");
+      submitBtn.setAttribute(
+        "aria-disabled",
+        remaining !== 0 ? "true" : "false",
+      );
     }
 
-    // Section chips
     METADATA_SCHEMA.forEach((s) => {
       const sectionMissing = missing.filter((m) => m.section === s.id).length;
       setSectionStatus(s.id, sectionMissing);
     });
 
-    // Upload alert
     if (uploadRequiredAlert) {
-      uploadRequiredAlert.hidden = Array.isArray(uploadedFiles) && uploadedFiles.length > 0;
+      uploadRequiredAlert.hidden =
+        Array.isArray(uploadedFiles) && uploadedFiles.length > 0;
     }
   }
 
-  // Jump-to-missing behavior (chip click)
   function focusWithScroll(el) {
     if (!el) return;
-    const stickyH = document.getElementById("stickyShell")?.getBoundingClientRect().height || 0;
+    const stickyH =
+      document.getElementById("stickyShell")?.getBoundingClientRect().height ||
+      0;
     const y = el.getBoundingClientRect().top + window.scrollY - stickyH - 16;
     window.scrollTo({ top: y, behavior: "smooth" });
     el.focus?.({ preventScroll: true });
   }
 
   function jumpToFirstMissing(sectionId) {
-    const missing = getMissingRequiredFields().filter((m) => m.section === sectionId);
+    const missing = getMissingRequiredFields().filter(
+      (m) => m.section === sectionId,
+    );
     openAccordionSection(sectionId);
 
-    // Upload + Authors: focus their primary action
     if (sectionId === "upload") {
       focusWithScroll(uploadWithGlobusBtn);
       return;
@@ -635,7 +850,9 @@ import {
   }
 
   function openAccordionSection(sectionId) {
-    const heading = metaAccordion?.querySelector(`.usa-accordion__heading[data-section="${sectionId}"]`);
+    const heading = metaAccordion?.querySelector(
+      `.usa-accordion__heading[data-section="${sectionId}"]`,
+    );
     if (!heading) return;
     const btn = heading.querySelector(".usa-accordion__button");
     const controls = btn?.getAttribute("aria-controls");
@@ -647,7 +864,6 @@ import {
     }
   }
 
-  // Wire chip interactions (click + keyboard)
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (!(t instanceof Element)) return;
@@ -674,48 +890,8 @@ import {
     }
   });
 
-  function scrollToFirstMissingInSection(sectionId) {
-    const missing = getMissingRequiredFields().filter((m) => m.section === sectionId);
-    if (!missing.length) return;
-
-    openAccordionSection(sectionId);
-
-    // Special cases
-    if (sectionId === "upload") {
-      uploadWithGlobusBtn?.scrollIntoView({ behavior: "smooth", block: "center" });
-      uploadWithGlobusBtn?.focus?.({ preventScroll: true });
-      return;
-    }
-    if (sectionId === "authors") {
-      addAuthorBtn?.scrollIntoView({ behavior: "smooth", block: "center" });
-      addAuthorBtn?.focus?.({ preventScroll: true });
-      return;
-    }
-
-    // Find first missing field by data-path
-    const first = missing[0];
-    const id = makeIdFromPath(first.key);
-    const el = document.getElementById(id);
-    if (!el) return;
-
-    // Offset for sticky header
-    const sticky = document.getElementById("stickyShell");
-    const offset = (sticky?.offsetHeight || 0) + 16;
-    const y = el.getBoundingClientRect().top + window.scrollY - offset;
-    window.scrollTo({ top: y, behavior: "smooth" });
-    setTimeout(() => el.focus?.({ preventScroll: true }), 300);
-  }
-
   function wireJumpChips() {
-    metaAccordion?.addEventListener("click", (e) => {
-      const t = e.target;
-      if (!(t instanceof Element)) return;
-      const btn = t.closest("button[data-jump]");
-      if (!btn) return;
-      const sectionId = btn.getAttribute("data-jump");
-      if (!sectionId) return;
-      scrollToFirstMissingInSection(sectionId);
-    });
+    // kept for compatibility; click/keydown handlers above already provide behavior
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -735,39 +911,40 @@ import {
       { name: "README.md", size: "4 KB" },
     ];
 
-    // Persist to the current record so it survives navigation/reload
     if (currentRecord) {
       currentRecord.uploadedFiles = uploadedFiles;
       saveRecord(currentRecord);
     }
 
     if (uploadedFilesList) {
-      uploadedFilesList.innerHTML = uploadedFiles.map((f) => `<li>${escapeHtml(f.name)} <span class="text-italic text-base">(${escapeHtml(f.size)})</span></li>`).join("");
+      uploadedFilesList.innerHTML = uploadedFiles
+        .map(
+          (f) =>
+            `<li>${escapeHtml(f.name)} <span class="text-italic text-base">(${escapeHtml(f.size)})</span></li>`,
+        )
+        .join("");
     }
     if (uploadedPanel) uploadedPanel.hidden = false;
     updateCompletionUI();
   }
 
   uploadWithGlobusBtn?.addEventListener("click", (e) => {
-    // In Review (locked) means no uploads allowed
     if (isRecordLocked()) {
       e.preventDefault();
       return;
     }
-    // Let the link open in new tab, but also simulate completion in this demo
     setTimeout(simulateUploadComplete, 450);
   });
 
   // ──────────────────────────────────────────────────────────────
-  // Authors modal (required: First, Last, Affiliation, Email)
+  // Authors modal
   // ──────────────────────────────────────────────────────────────
   function openAuthorModal(mode = "add") {
     if (!modal) return;
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
-    if (modalTitle) modalTitle.textContent = mode === "edit" ? "Edit Author" : "Add Author";
-
-    // Focus first field
+    if (modalTitle)
+      modalTitle.textContent = mode === "edit" ? "Edit Author" : "Add Author";
     setTimeout(() => firstNameEl?.focus?.(), 0);
   }
 
@@ -801,16 +978,19 @@ import {
     const orcid = safeTrim(orcidEl?.value);
 
     if (!first || !last || !email || !affiliation) {
-      alert("Please fill all required author fields: First Name, Last Name, Institutional Affiliation, Email.");
+      alert(
+        "Please fill all required author fields: First Name, Last Name, Institutional Affiliation, Email.",
+      );
       return false;
     }
-    if (!/^\S+@\S+\.[^\S]+$/.test(email) && !/^\S+@\S+\.\S+$/.test(email)) {
-      // Basic email check
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
       alert("Please enter a valid email address.");
       return false;
     }
     if (!isValidOrcid(orcid)) {
-      alert("ORCID iD should look like 0000-0000-0000-0000 (last digit may be X). ");
+      alert(
+        "ORCID iD should look like 0000-0000-0000-0000 (last digit may be X). ",
+      );
       return false;
     }
     return true;
@@ -840,8 +1020,12 @@ import {
       li.draggable = true;
       li.dataset.index = String(index);
 
-      const emailLine = a.email ? `<small>${escapeHtml(a.email)}</small><br>` : "";
-      const orcidLine = a.orcid ? `<small>ORCID: ${escapeHtml(a.orcid)}</small><br>` : "";
+      const emailLine = a.email
+        ? `<small>${escapeHtml(a.email)}</small><br>`
+        : "";
+      const orcidLine = a.orcid
+        ? `<small>ORCID: ${escapeHtml(a.orcid)}</small><br>`
+        : "";
 
       li.innerHTML = `
         <span class="drag-handle" title="Drag to reorder" aria-hidden="true">↕</span>
@@ -857,18 +1041,24 @@ import {
         </div>
       `;
 
-      li.querySelector('[data-action="edit"]')?.addEventListener("click", () => {
-        editingIndex = index;
-        setAuthorFormFrom(index);
-        openAuthorModal("edit");
-      });
-      li.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
-        authors.splice(index, 1);
-        currentRecord.authors = authors;
-        saveRecord(currentRecord);
-        renderAuthorsList();
-        updateCompletionUI();
-      });
+      li.querySelector('[data-action="edit"]')?.addEventListener(
+        "click",
+        () => {
+          editingIndex = index;
+          setAuthorFormFrom(index);
+          openAuthorModal("edit");
+        },
+      );
+      li.querySelector('[data-action="delete"]')?.addEventListener(
+        "click",
+        () => {
+          authors.splice(index, 1);
+          currentRecord.authors = authors;
+          saveRecord(currentRecord);
+          renderAuthorsList();
+          updateCompletionUI();
+        },
+      );
 
       authorsListEl.appendChild(li);
     });
@@ -892,8 +1082,13 @@ import {
         const dragging = authorsListEl.querySelector(".dragging");
         if (!dragging) return;
 
-        const siblings = [...authorsListEl.querySelectorAll(".author-row:not(.dragging)")];
-        const nextSibling = siblings.find((sibling) => e.clientY <= sibling.offsetTop + sibling.offsetHeight / 2);
+        const siblings = [
+          ...authorsListEl.querySelectorAll(".author-row:not(.dragging)"),
+        ];
+        const nextSibling = siblings.find(
+          (sibling) =>
+            e.clientY <= sibling.offsetTop + sibling.offsetHeight / 2,
+        );
         authorsListEl.insertBefore(dragging, nextSibling || null);
       });
 
@@ -988,14 +1183,11 @@ import {
   previewBtn?.addEventListener("click", () => {
     if (!currentRecord) return;
 
-    // Persist latest edits before preview
     saveRecord(currentRecord);
 
     const doi = currentRecord.doi;
     if (!doi) return;
 
-    // Open dataset landing page in a new tab.
-    // Always use preview=1 from the editor so the dataset page shows the Preview banner.
     const href = `/src/pages/dataset/index.html?doi=${encodeURIComponent(doi)}&preview=1`;
     window.open(href, "_blank", "noopener");
   });
@@ -1005,19 +1197,19 @@ import {
     if (getMissingRequiredFields().length) return;
     currentRecord.status = "In Review";
 
-    // Ensure submitter attribution exists (used by curator workflow / notifications)
     if (!currentRecord.submitterEmail || !currentRecord.submitterName) {
       const p = window.DatasetPortal?.getUserProfile?.() || {};
-      const name = `${String(p.firstName || "").trim()} ${String(p.lastName || "").trim()}`.trim();
+      const name =
+        `${String(p.firstName || "").trim()} ${String(p.lastName || "").trim()}`.trim();
       currentRecord.submitterName = currentRecord.submitterName || name;
-      currentRecord.submitterEmail = currentRecord.submitterEmail || String(p.email || "").trim();
+      currentRecord.submitterEmail =
+        currentRecord.submitterEmail || String(p.email || "").trim();
     }
 
     saveRecord(currentRecord);
     setStatusChip(currentRecord.status);
     applyLockedUI();
 
-    // Notify curators (demo)
     try {
       window.DatasetPortal?.notifications?.add?.({
         toRole: "Curator",
@@ -1030,14 +1222,36 @@ import {
     } catch (_) {}
   });
 
-  // Curator actions (demo)
+  // Curator actions (demo) — now also write request history
   requestUpdatesBtn?.addEventListener("click", () => {
     if (!currentRecord) return;
     if (!isCuratorMode()) return;
+
     const note = String(curatorNoteEl?.value || "").trim();
-    if (note) currentRecord.curatorNote = note;
+    if (!note) {
+      alert("Please enter a curator note before requesting updates.");
+      curatorNoteEl?.focus?.();
+      return;
+    }
+
+    ensureHistory(currentRecord);
+
+    const entry = {
+      id: `req_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      type: "request_updates",
+      createdAt: new Date().toISOString(),
+      createdByRole: window.DatasetPortal?.getRole?.() || "Curator",
+      createdByName: "Curator",
+      message: note,
+      flags: [],
+    };
+
+    currentRecord.reviewRequests.unshift(entry);
+    currentRecord.curatorNote = note; // legacy convenience
+
     currentRecord.status = "Needs Updates";
     saveRecord(currentRecord);
+
     setStatusChip(currentRecord.status);
     applyLockedUI();
 
@@ -1046,7 +1260,7 @@ import {
         toRole: "Submitter",
         toEmail: String(currentRecord.submitterEmail || "").trim(),
         title: "Changes requested",
-        message: note ? `Curator note: ${note}` : "A curator requested changes to your submitted dataset.",
+        message: `Curator request: ${note}`,
         href: `/src/pages/editor/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
         recordDoi: currentRecord.doi,
         kind: "updates",
@@ -1069,7 +1283,9 @@ import {
         toRole: "Submitter",
         toEmail: String(currentRecord.submitterEmail || "").trim(),
         title: "Dataset published",
-        message: note ? `Curator note: ${note}` : "Your dataset has been published.",
+        message: note
+          ? `Curator note: ${note}`
+          : "Your dataset has been published.",
         href: `/src/pages/dataset/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
         recordDoi: currentRecord.doi,
         kind: "publish",
@@ -1091,12 +1307,16 @@ import {
     // Capture submitter attribution early (demo)
     if (!currentRecord.submitterEmail || !currentRecord.submitterName) {
       const p = window.DatasetPortal?.getUserProfile?.() || {};
-      const name = `${String(p.firstName || "").trim()} ${String(p.lastName || "").trim()}`.trim();
+      const name =
+        `${String(p.firstName || "").trim()} ${String(p.lastName || "").trim()}`.trim();
       currentRecord.submitterName = currentRecord.submitterName || name;
-      currentRecord.submitterEmail = currentRecord.submitterEmail || String(p.email || "").trim();
+      currentRecord.submitterEmail =
+        currentRecord.submitterEmail || String(p.email || "").trim();
     }
 
-    uploadedFiles = Array.isArray(currentRecord.uploadedFiles) ? currentRecord.uploadedFiles : [];
+    uploadedFiles = Array.isArray(currentRecord.uploadedFiles)
+      ? currentRecord.uploadedFiles
+      : [];
     authors = Array.isArray(currentRecord.authors) ? currentRecord.authors : [];
 
     // Hydrate UI
@@ -1106,7 +1326,8 @@ import {
 
     updateTitleUI(currentRecord.title);
     setStatusChip(currentRecord.status || "Draft");
-    if (startedOnDateEl) startedOnDateEl.textContent = formatShortDate(currentRecord.createdAt);
+    if (startedOnDateEl)
+      startedOnDateEl.textContent = formatShortDate(currentRecord.createdAt);
 
     // Wire listeners after DOM exists
     bindSchemaFieldListeners();
@@ -1116,11 +1337,21 @@ import {
     if (Array.isArray(uploadedFiles) && uploadedFiles.length) {
       if (uploadedFilesList) {
         uploadedFilesList.innerHTML = uploadedFiles
-          .map((f) => `<li>${escapeHtml(f.name || "file")} <span class="text-italic text-base">(${escapeHtml(f.size || "")})</span></li>`)
+          .map(
+            (f) =>
+              `<li>${escapeHtml(f.name || "file")} <span class="text-italic text-base">(${escapeHtml(f.size || "")})</span></li>`,
+          )
           .join("");
       }
       if (uploadedPanel) uploadedPanel.hidden = false;
     }
+
+    // Wire request history interactions
+    wireReqModalClose();
+    curViewHistoryBtn?.addEventListener("click", () => {
+      renderRequestHistoryModal();
+      openReqModal();
+    });
 
     updateCompletionUI();
     applyLockedUI();
