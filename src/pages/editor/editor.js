@@ -183,6 +183,66 @@ import {
   }
 
   // ──────────────────────────────────────────────────────────────
+  // Required fields remaining banner: animate hide/show when 0
+  // Targets ONLY the alert that contains #requiredRemaining
+  // ──────────────────────────────────────────────────────────────
+  let _requiredAlertEl = null;
+
+  function getRequiredAlertEl() {
+    if (_requiredAlertEl) return _requiredAlertEl;
+    if (!requiredRemainingEl) return null;
+
+    // Find the closest USWDS alert container for the remaining counter
+    const alert = requiredRemainingEl.closest(".usa-alert");
+    if (!alert) return null;
+
+    // Add base class once (CSS handles the transition)
+    alert.classList.add("editor-required-alert");
+    _requiredAlertEl = alert;
+    return alert;
+  }
+
+  function hideRequiredAlertAnimated() {
+    const alert = getRequiredAlertEl();
+    if (!alert) return;
+
+    if (alert.classList.contains("is-hidden")) return;
+
+    // Animate out
+    alert.classList.add("is-hidden");
+
+    // After transition, fully hide so it doesn't occupy space
+    window.setTimeout(() => {
+      alert.hidden = true;
+      alert.setAttribute("aria-hidden", "true");
+    }, 220);
+  }
+
+  function showRequiredAlertAnimated() {
+    const alert = getRequiredAlertEl();
+    if (!alert) return;
+
+    // If it isn't hidden, ensure it's visible and bail
+    if (!alert.classList.contains("is-hidden") && alert.hidden === false)
+      return;
+
+    alert.hidden = false;
+    alert.removeAttribute("aria-hidden");
+
+    // Force reflow so transition plays when removing is-hidden
+    // eslint-disable-next-line no-unused-expressions
+    alert.offsetHeight;
+
+    alert.classList.remove("is-hidden");
+  }
+
+  function syncRequiredAlertVisibility(remaining) {
+    // Default: visible unless remaining === 0
+    if (remaining === 0) hideRequiredAlertAnimated();
+    else showRequiredAlertAnimated();
+  }
+
+  // ──────────────────────────────────────────────────────────────
   // Curator drawer open/close (no overlay; allow background interaction)
   // ──────────────────────────────────────────────────────────────
   function openCuratorDrawer() {
@@ -910,8 +970,12 @@ import {
   function updateCompletionUI() {
     const missing = getMissingRequiredFields();
     const remaining = missing.length;
+
     if (requiredRemainingEl)
       requiredRemainingEl.textContent = String(remaining);
+
+    // NEW: animate the required-fields info alert in/out based on remaining count
+    syncRequiredAlertVisibility(remaining);
 
     if (submitBtn) {
       submitBtn.disabled = remaining !== 0;
@@ -1418,6 +1482,7 @@ import {
       openReqModal();
     });
 
+    // IMPORTANT: curator drawer wiring stays intact (this is what was lost before)
     wireCuratorDrawer();
 
     updateCompletionUI();

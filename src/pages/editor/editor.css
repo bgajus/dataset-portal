@@ -808,3 +808,27 @@ a.usa-button.is-disabled {
     height: calc(100% - 1rem);
   }
 }
+
+/* ==========================================================
+   Required fields info alert animations
+   ========================================================== */
+
+.editor-required-alert {
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease,
+    margin 220ms ease,
+    max-height 220ms ease;
+  transform-origin: top;
+}
+
+/* Hidden state (animated out) */
+.editor-required-alert.is-hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  margin-top: 0;
+  margin-bottom: 0;
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
