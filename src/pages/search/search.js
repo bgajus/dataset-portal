@@ -119,7 +119,11 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   // Load records + always append demo mocks
   // ──────────────────────────────────────────────────────────────
   // Only Published records should appear in public search results.
-  const realRecordsRaw = getAllRecords().filter(r => String(r.status || "").toLowerCase() === "published");
+  // Public search: include Published + Tombstoned records (tombstoned are filtered out by default via UI toggle)
+  const realRecordsRaw = getAllRecords().filter(r => {
+    const s = String(r.status || "").toLowerCase().trim();
+    return s === "published" || s === "tombstoned";
+  });
   let realRecords = realRecordsRaw.map(r => {
     const created = r.createdAt || Date.now();
     return {
@@ -196,6 +200,11 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   const chipsEl = document.getElementById("chips");
   const metaEl = document.getElementById("meta");
   const sortEl = document.getElementById("sort");
+  const moreFiltersBtn = document.getElementById("moreFiltersBtn");
+  const moreFiltersModal = document.getElementById("moreFiltersModal");
+  const modalIncludeTombstonedEl = document.getElementById("modalIncludeTombstoned");
+  const moreFiltersCancel = document.getElementById("moreFiltersCancel");
+  const moreFiltersApply = document.getElementById("moreFiltersApply");
 
   const pagingRow = document.getElementById("pagingRow");
   const perPageEl = document.getElementById("perPage");
@@ -236,6 +245,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     types: new Set(),
     keywords: new Set(),
     sort: "relevance",
+    includeTombstoned: false,
     perPage: 10,
     page: 1
   };
@@ -296,6 +306,10 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     const perPage = (params.get("perPage") || "").trim();
     const page = (params.get("page") || "").trim();
 
+    // Tombstone toggle: include tombstoned datasets in results when set
+    const includeTombstonedRaw = (params.get("tombstoned") || params.get("includeTombstoned") || "").trim();
+    const includeTombstoned = ["1","true","yes","on"].includes(includeTombstonedRaw.toLowerCase());
+
     return {
       q,
       years,
@@ -303,6 +317,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
       types,
       keywords,
       sort,
+      includeTombstoned,
       perPage,
       page
     };
@@ -312,7 +327,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
   let suppressUrlSync = false;
 
   function applyUrlParams(){
-    const { q, years, subjects: sub, types, keywords, sort, perPage, page } = readUrlParams();
+    const { q, years, subjects: sub, types, keywords, sort, includeTombstoned, perPage, page } = readUrlParams();
 
     // Reset state first
     state.q = "";
@@ -363,6 +378,10 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
       if(sortEl) sortEl.value = "relevance";
     }
 
+    // Tombstone toggle
+    state.includeTombstoned = !!includeTombstoned;
+    if(modalIncludeTombstonedEl) modalIncludeTombstonedEl.checked = !!includeTombstoned;
+
     if(perPage){
       const v = perPage.toLowerCase();
       state.perPage = (v === "all") ? Infinity : Number(perPage);
@@ -395,6 +414,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     Array.from(state.keywords).sort((a,b) => String(a).localeCompare(String(b))).forEach(k => params.append("keyword", k));
 
     if(state.sort && state.sort !== "relevance") params.set("sort", state.sort);
+    if(state.includeTombstoned) params.set("tombstoned", "1");
 
     if(state.perPage === Infinity) params.set("perPage", "all");
     else if(state.perPage && state.perPage !== 10) params.set("perPage", String(state.perPage));
@@ -567,7 +587,9 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
       .map(r => ({ ...r, _score: scoreResult(r, q) }))
       .filter(r => {
         // Exclude Draft records from public search
-        if ((r.status || "").toLowerCase() === "draft") return false;
+        const statusNorm = (r.status || "").toLowerCase().trim();
+        if (statusNorm === "draft") return false;
+        if (statusNorm === "tombstoned" && !state.includeTombstoned) return false;
 
         const y = (r.dateISO || r.createdAt || "").slice(0,4);
         if(state.years.size && !state.years.has(y)) return false;
@@ -625,6 +647,7 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     state.subjects.forEach(v => chips.push({ key:`subject:${v}`, label:`${v}` }));
     state.types.forEach(v => chips.push({ key:`type:${v}`, label:`${v}` }));
     state.keywords.forEach(v => chips.push({ key:`keyword:${v}`, label:`${v}` }));
+    if(state.includeTombstoned) chips.push({ key:"tombstoned:on", label:"Including tombstoned" });
 
     chipsEl.innerHTML = chips.length
       ? chips.map(c => `
@@ -816,9 +839,12 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
       <article class="resultCard">
         <div class="resultGrid">
           <div>
+            <div class="resultTitleRow">
             <h3 class="resultTitle margin-0">
               <a class="usa-link" href="${escapeHtml(r.landingUrl)}">${escapeHtml(r.title || "Untitled")}</a>
             </h3>
+            ${(String(r.status || "").toLowerCase().trim() === "tombstoned") ? '<span class="resultChip" aria-label="Tombstoned dataset"><i class="fa-solid fa-skull" aria-hidden="true"></i> Tombstoned</span>' : ""}
+            </div>
             <div class="resultDoi">${escapeHtml(r.doi)}</div>
             ${contributorsSummaryHTML(r)}
           </div>
@@ -853,7 +879,12 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
 
   function renderFacets(){
     const base = allResults
-      .filter(r => (r.status || "").toLowerCase() !== "draft")
+      .filter(r => {
+        const s = (r.status || "").toLowerCase().trim();
+        if (s === "draft") return false;
+        if (s === "tombstoned" && !state.includeTombstoned) return false;
+        return true;
+      })
       .filter(r => matchesSearch(r, state.q));
 
     const years = buildFacetValues(base, r => (r.dateISO || r.createdAt || "").slice(0,4));
@@ -1031,6 +1062,54 @@ import { makeDemoDataset, DEMO_MOCK_COUNT as DEMO_COUNT_FROM_MODULE } from "/src
     state.page = 1;
     update({ history: "push" });
   });
+
+  // More Filters modal (Tombstoned toggle)
+  function openMoreFilters(){
+    if(!moreFiltersModal) return;
+    if(modalIncludeTombstonedEl) modalIncludeTombstonedEl.checked = !!state.includeTombstoned;
+    moreFiltersModal.hidden = false;
+    document.body.style.overflow = "hidden";
+    const focusEl = moreFiltersModal.querySelector("[data-modal-close]") || moreFiltersApply || moreFiltersModal;
+    try{ focusEl?.focus?.(); }catch(_){}
+  }
+
+  function closeMoreFilters(){
+    if(!moreFiltersModal) return;
+    moreFiltersModal.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  if(moreFiltersBtn){
+    moreFiltersBtn.addEventListener("click", openMoreFilters);
+  }
+
+  if(moreFiltersModal){
+    // close on backdrop / X
+    moreFiltersModal.querySelectorAll("[data-modal-close]").forEach(el=>{
+      el.addEventListener("click", closeMoreFilters);
+    });
+    // Esc closes
+    document.addEventListener("keydown", (e)=>{
+      if(e.key !== "Escape") return;
+      if(!moreFiltersModal || moreFiltersModal.hidden) return;
+      closeMoreFilters();
+    });
+  }
+
+  if(moreFiltersCancel){
+    moreFiltersCancel.addEventListener("click", closeMoreFilters);
+  }
+
+  if(moreFiltersApply){
+    moreFiltersApply.addEventListener("click", ()=>{
+      const next = !!(modalIncludeTombstonedEl && modalIncludeTombstonedEl.checked);
+      state.includeTombstoned = next;
+      state.page = 1;
+      closeMoreFilters();
+      update({ history: "push" });
+    });
+  }
+
 
   perPageEl.addEventListener("change", () => {
     const v = perPageEl.value;

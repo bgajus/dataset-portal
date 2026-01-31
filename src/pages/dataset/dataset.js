@@ -37,6 +37,23 @@ import {
     return d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
   }
 
+  function formatShortDateTime(iso) {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch {
+      return "—";
+    }
+  }
+
   function mulberry32(seed) {
     let t = seed >>> 0;
     return function () {
@@ -354,6 +371,81 @@ import {
     if (aside) aside.textContent = ack || "—";
   }
 
+  function statusKeyFromLabel(label) {
+    const norm = String(label || "").toLowerCase().trim();
+    if (norm === "published") return "published";
+    if (norm === "in review" || norm === "in-review" || norm === "review") return "in-review";
+    if (norm === "needs updates" || norm === "needs-updates") return "needs-updates";
+    if (norm === "tombstoned" || norm === "tombstone") return "tombstoned";
+    return "draft";
+  }
+
+  function setStatusChip(ds) {
+    const el = $("dsStatusChip");
+    if (!el) return;
+
+    const label = String(ds?.status || "Draft").trim() || "Draft";
+    const key = statusKeyFromLabel(label);
+
+    el.textContent = label;
+    el.setAttribute("data-status", key);
+    el.setAttribute("aria-label", `Status: ${label}`);
+    el.hidden = false;
+  }
+
+  function isTombstoned(ds) {
+    return statusKeyFromLabel(ds?.status) === "tombstoned";
+  }
+
+  function normalizeReplacement(value) {
+    const v = String(value || "").trim();
+    if (!v) return "";
+    if (isLikelyUrl(v)) return v;
+    if (isLikelyDoi(v)) return `https://doi.org/${v}`;
+    // common case: a DOI URL already pasted without scheme
+    if (/^doi\.org\//i.test(v)) return `https://${v}`;
+    return v;
+  }
+
+  function renderTombstone(ds) {
+    const banner = $("tombstoneBanner");
+    if (!banner) return;
+
+    const active = isTombstoned(ds);
+    banner.hidden = !active;
+
+    const reasonEl = $("tombstoneReason");
+    const dateEl = $("tombstoneDate");
+    const replEl = $("tombstoneReplacement");
+
+    if (!active) return;
+
+    const t = ds?.tombstone && typeof ds.tombstone === "object" ? ds.tombstone : {};
+    const reason = String(t.reason || "").trim();
+    const tombAt = String(t.tombstonedAt || "").trim();
+    const repl = normalizeReplacement(t.replacementUrl || "");
+
+    if (reasonEl) reasonEl.textContent = reason || "—";
+    if (dateEl) dateEl.textContent = tombAt ? formatShortDateTime(tombAt) : "—";
+
+    if (replEl) {
+      if (repl && isLikelyUrl(repl)) {
+        replEl.innerHTML = `<a href="${escapeHtml(repl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(repl)}</a>`;
+      } else {
+        replEl.textContent = repl || "—";
+      }
+    }
+
+    // Disable/replace download affordance
+    const downloadWrap = $("downloadWrap");
+    const downloadBtn = $("downloadBtn");
+    const tombActions = $("tombstoneActionsNote");
+
+    if (downloadWrap) downloadWrap.hidden = true;
+    if (downloadBtn) downloadBtn.disabled = true;
+    if (tombActions) tombActions.hidden = false;
+  }
+
   function renderDetailsCards(ds) {
     // DOI + dates
     $("dsDoi").textContent = ds.doi || "—";
@@ -503,9 +595,13 @@ import {
   }
 
   function initActions(ds) {
-    $("downloadBtn")?.addEventListener("click", () => {
-      alert("Download via Globus (demo) — integration coming soon.");
-    });
+    const dlBtn = $("downloadBtn");
+    if (dlBtn) {
+      dlBtn.addEventListener("click", () => {
+        if (isTombstoned(ds)) return;
+        alert("Download via Globus (demo) — integration coming soon.");
+      });
+    }
 
     $("starBtn")?.addEventListener("click", (e) => {
       const icon = e.currentTarget.querySelector("i");
@@ -531,7 +627,10 @@ import {
     if (previewParam) return true;
     if (ds?._isDemo) return false;
     const status = String(ds?.status || "").trim();
-    return status && status !== "Published";
+    if (!status) return false;
+    if (status === "Published") return false;
+    if (status === "Tombstoned") return false;
+    return true;
   }
 
   function init() {
@@ -559,6 +658,9 @@ import {
 
     const banner = $("previewBanner");
     if (banner) banner.hidden = !shouldShowPreviewBanner(ds, preview);
+
+    setStatusChip(ds);
+    renderTombstone(ds);
 
     renderDetailsCards(ds);
     renderAuthors(ds);

@@ -8,6 +8,64 @@ import { createDefaultsFromSchema } from "./metadata-schema.js";
 const STORAGE_KEY = "constellation:records:v2";
 const LEGACY_STORAGE_KEYS = ["constellation:records:v1"];
 
+// Demo tombstone records (seeded into the store if missing)
+// These are safe to add because they use unique DOIs and do not overwrite existing records.
+const DEMO_TOMBSTONES = [
+  {
+    doi: "10.13139/ORNLNCCS/1400999",
+    title: "Tombstoned Dataset (Blackhole Demo)",
+    status: "Tombstoned",
+    createdAt: new Date(2023, 6, 18).toISOString(),
+    updatedAt: new Date(2025, 8, 22).toISOString(),
+    tombstone: {
+      tombstonedAt: new Date(2025, 8, 22, 14, 10, 0).toISOString(),
+      reason:
+        "Withdrawn due to an issue discovered in the underlying source data. The dataset is no longer available for download.",
+      replacementUrl: "https://doi.org/10.13139/ORNLNCCS/1401001",
+      notes: "",
+    },
+  },
+  {
+    doi: "10.13139/ORNLNCCS/1400998",
+    title: "Retired Benchmark Outputs (Tombstoned)",
+    status: "Tombstoned",
+    createdAt: new Date(2022, 2, 4).toISOString(),
+    updatedAt: new Date(2024, 11, 3).toISOString(),
+    tombstone: {
+      tombstonedAt: new Date(2024, 11, 3, 9, 30, 0).toISOString(),
+      reason:
+        "Withdrawn at the request of the project team. A newer benchmark series supersedes these results.",
+      replacementUrl: "10.13139/ORNLNCCS/1401002",
+      notes: "",
+    },
+  },
+];
+
+// Idempotently seed tombstone demo records into the store (only if missing).
+function seedDemoTombstonesIfMissing() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+    // Only seed when the store is in object format (keyed by DOI).
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+
+    let changed = false;
+    DEMO_TOMBSTONES.forEach((t) => {
+      if (!t || !t.doi) return;
+      if (!parsed[t.doi]) {
+        parsed[t.doi] = normalizeRecordForLoad(t);
+        changed = true;
+      }
+    });
+
+    if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+  } catch (_) {
+    // ignore
+  }
+}
+
 function migrateLegacyStoreIfNeeded() {
   try {
     const existing = localStorage.getItem(STORAGE_KEY);
@@ -48,6 +106,15 @@ function normalizeRecordForSave(record) {
   r.softwareNeeded = String(r.softwareNeeded || "");
   r.uploadedFiles = Array.isArray(r.uploadedFiles) ? r.uploadedFiles : [];
   r.authors = Array.isArray(r.authors) ? r.authors : [];
+
+  // Tombstone metadata (only used when status is Tombstoned)
+  r.tombstone = (r.tombstone && typeof r.tombstone === "object") ? r.tombstone : {};
+  r.tombstone = {
+    tombstonedAt: String(r.tombstone.tombstonedAt || ""),
+    reason: String(r.tombstone.reason || ""),
+    replacementUrl: String(r.tombstone.replacementUrl || ""),
+    notes: String(r.tombstone.notes || ""),
+  };
 
   // Subjects: always store as array of strings
   if (!Array.isArray(r.subjects)) r.subjects = [];
@@ -102,6 +169,15 @@ function normalizeRecordForLoad(record) {
   // Uploads
   if (!Array.isArray(r.uploadedFiles)) r.uploadedFiles = [];
 
+  // Tombstone metadata (best-effort default)
+  if (!r.tombstone || typeof r.tombstone !== "object") r.tombstone = {};
+  r.tombstone = {
+    tombstonedAt: String(r.tombstone.tombstonedAt || ""),
+    reason: String(r.tombstone.reason || ""),
+    replacementUrl: String(r.tombstone.replacementUrl || ""),
+    notes: String(r.tombstone.notes || ""),
+  };
+
   // Back-compat: if subjects missing but subjectsKeywords exists, derive subjects[]
   if (!Array.isArray(r.subjects) || r.subjects.length === 0) {
     const csv = String(r.subjectsKeywords || "").trim();
@@ -128,6 +204,8 @@ function normalizeRecordForLoad(record) {
 function getAllRecords() {
   try {
     migrateLegacyStoreIfNeeded();
+    // Ensure demo tombstones exist even when you already have other demo records.
+    seedDemoTombstonesIfMissing();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
 
@@ -147,6 +225,8 @@ function getAllRecords() {
         if (r && r.doi) migrated[r.doi] = normalizeRecordForLoad(r);
       });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated)); // Migrate once
+      // Now that the store is object format, seed demo tombstones if missing.
+      seedDemoTombstonesIfMissing();
       return Object.values(migrated);
     }
 
@@ -166,6 +246,8 @@ function getRecord(doi) {
   if (!doi) return null;
   try {
     migrateLegacyStoreIfNeeded();
+    // Ensure demo tombstones exist even when you already have other demo records.
+    seedDemoTombstonesIfMissing();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
 
@@ -201,6 +283,8 @@ function saveRecord(record) {
 
   try {
     migrateLegacyStoreIfNeeded();
+    // Ensure demo tombstones exist even when you already have other demo records.
+    seedDemoTombstonesIfMissing();
     const raw = localStorage.getItem(STORAGE_KEY);
     const store = raw ? JSON.parse(raw) : {};
 
@@ -262,7 +346,48 @@ function createNewDraft(title = "Untitled Dataset") {
  */
 function getMockFallback(count = 5) {
   const mocks = [];
-  for (let i = 0; i < count; i++) {
+  const n = Math.max(0, Number(count) || 0);
+
+  // A couple of special “tombstoned” records (only used when the store is truly empty)
+  // These are intentionally discoverable (they still have landing pages), but are not downloadable.
+  const tombstones = [
+    {
+      doi: "10.13139/ORNLNCCS/1400999",
+      title: "Tombstoned Dataset (Blackhole Demo)",
+      status: "Tombstoned",
+      createdAt: new Date(2023, 6, 18).toISOString(),
+      updatedAt: new Date(2025, 8, 22).toISOString(),
+      tombstone: {
+        tombstonedAt: new Date(2025, 8, 22, 14, 10, 0).toISOString(),
+        reason:
+          "Withdrawn due to an issue discovered in the underlying source data. The dataset is no longer available for download.",
+        replacementUrl: "https://doi.org/10.13139/ORNLNCCS/1401001",
+        notes: "",
+      },
+    },
+    {
+      doi: "10.13139/ORNLNCCS/1400998",
+      title: "Retired Benchmark Outputs (Tombstoned)",
+      status: "Tombstoned",
+      createdAt: new Date(2022, 2, 4).toISOString(),
+      updatedAt: new Date(2024, 11, 3).toISOString(),
+      tombstone: {
+        tombstonedAt: new Date(2024, 11, 3, 9, 30, 0).toISOString(),
+        reason: "Removed at the request of the data owner.",
+        replacementUrl: "",
+        notes: "",
+      },
+    },
+  ];
+
+  // If the caller asks for a very small set, prioritize 1 tombstone + a couple published mocks
+  // so the UI can demonstrate the new state.
+  const includeTombstones = n >= 2 ? 2 : n >= 1 ? 1 : 0;
+
+  tombstones.slice(0, includeTombstones).forEach((r) => mocks.push(r));
+
+  const remaining = Math.max(0, n - mocks.length);
+  for (let i = 0; i < remaining; i++) {
     const suffix = 1400000 + i;
     mocks.push({
       doi: `10.13139/ORNLNCCS/${suffix}`,
@@ -272,6 +397,7 @@ function getMockFallback(count = 5) {
       updatedAt: new Date(2024 + i, 0, 1).toISOString(),
     });
   }
+
   return mocks.map(normalizeRecordForLoad);
 }
 

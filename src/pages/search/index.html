@@ -93,7 +93,7 @@
                       <option value="titleDesc">Title (Z–A)</option>
                     </select>
                   </div>
-                </div>
+</div>
               </div>
 
             </div>
@@ -151,6 +151,19 @@
                       <div id="typeList"></div>
                     </div>
                   </div>
+                <div class="margin-top-2 border-top border-base-lighter padding-top-2">
+                  <button
+                    id="moreFiltersBtn"
+                    type="button"
+                    class="usa-button usa-button--outline moreFiltersBtn"
+                    aria-haspopup="dialog"
+                    aria-controls="moreFiltersModal"
+                  >
+                    <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                    More Filters...
+                  </button>
+                </div>
+
                 </div>
               </div>
             </aside>
@@ -159,6 +172,8 @@
             <main class="tablet:grid-col-12 desktop:grid-col-9">
               <section id="results" class="resultsStack"></section>
 
+              <!-- Pagination row: centered pager, per-page on right -->
+              
               <!-- Pagination row: centered pager, per-page on right -->
               <div id="pagingRow" class="pagingRow margin-top-2" hidden>
                 <nav class="usa-pagination pagerInline" aria-label="Pagination" id="pager">
@@ -176,8 +191,7 @@
                   </select>
                 </div>
               </div>
-
-              <section id="empty" class="margin-top-2" hidden>
+<section id="empty" class="margin-top-2" hidden>
                 <div class="usa-alert usa-alert--info">
                   <div class="usa-alert__body">
                     <h3 class="usa-alert__heading">No results match your filters.</h3>
@@ -284,7 +298,42 @@
       <div id="backdrop" class="contrib-backdrop" hidden></div>
     </main>
 
-    <div data-include="portal-footer"></div>
+    
+    <!-- More Filters modal -->
+    <div id="moreFiltersModal" class="dpModal" hidden>
+      <div class="dpModal__backdrop" data-modal-close aria-hidden="true"></div>
+      <div class="dpModal__dialog" role="dialog" aria-modal="true" aria-labelledby="moreFiltersTitle">
+        <div class="dpModal__header">
+          <h2 id="moreFiltersTitle" class="dpModal__title">More Filters</h2>
+          <button type="button" class="dpModal__x usa-button usa-button--unstyled" data-modal-close aria-label="Close">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="dpModal__body">
+          <div class="usa-checkbox">
+            <input class="usa-checkbox__input" id="modalIncludeTombstoned" type="checkbox" />
+            <label class="usa-checkbox__label" for="modalIncludeTombstoned">
+              Include tombstoned records
+            </label>
+            <div class="usa-hint">
+              Tombstoned datasets remain discoverable, but are hidden from results by default.
+            </div>
+          </div>
+        </div>
+
+        <div class="dpModal__footer">
+          <button type="button" class="usa-button usa-button--unstyled dpModal__cancel" id="moreFiltersCancel">
+            Cancel
+          </button>
+          <button type="button" class="usa-button btnBrandSolid" id="moreFiltersApply">
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+
+<div data-include="portal-footer"></div>
 
     <!-- USWDS JS (needed for USWDS components) -->
     <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>

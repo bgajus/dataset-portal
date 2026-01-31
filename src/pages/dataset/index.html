@@ -38,6 +38,32 @@
             </div>
           </section>
 
+          <!-- Tombstone banner (shown when status is Tombstoned) -->
+          <section id="tombstoneBanner" class="dlp-tombstone margin-bottom-2" role="note" aria-label="Tombstone notice" hidden>
+            <div class="dlp-tombstone__inner">
+              <div class="dlp-tombstone__icon" aria-hidden="true">
+                <i class="fa-solid fa-circle-dot"></i>
+              </div>
+              <div class="dlp-tombstone__body">
+                <div class="dlp-tombstone__heading">This dataset has been tombstoned</div>
+                <div class="dlp-tombstone__text">
+                  This record remains available for reference and citation, but the dataset files are no longer accessible.
+                </div>
+
+                <dl class="dlp-tombstone__dl" aria-label="Tombstone details">
+                  <dt>Reason for withdrawal</dt>
+                  <dd id="tombstoneReason">—</dd>
+
+                  <dt>Tombstoned on</dt>
+                  <dd id="tombstoneDate">—</dd>
+
+                  <dt>Replacement / related DOI or URL</dt>
+                  <dd id="tombstoneReplacement">—</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
           <!-- Breadcrumbs -->
           <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
             <ol class="usa-breadcrumb__list">
@@ -63,6 +89,8 @@
                     Dataset title
                   </h1>
 
+                  <span id="dsStatusChip" class="dlp-statusChip" data-status="draft" aria-label="Status: Draft">Draft</span>
+
                   <button id="starBtn" class="dlp-star" type="button" aria-label="Save dataset">
                     <i class="fa-regular fa-star" aria-hidden="true"></i>
                   </button>
@@ -70,13 +98,20 @@
 
                 <div id="dsAuthors" class="dlp-authors margin-top-1"></div>
 
-                <div class="margin-top-2">
+                <div id="downloadWrap" class="margin-top-2">
                   <button id="downloadBtn" class="usa-button btnBrandSolid dlp-download" type="button" aria-label="Download dataset on Globus">
                     Download Dataset on Globus
                     <i class="fa-solid fa-arrow-up-right-from-square margin-left-1" aria-hidden="true"></i>
                   </button>
                   <div class="usa-hint margin-top-1">
                     Downloads will be enabled via Globus during integration.
+                  </div>
+
+                  <div id="tombstoneActionsNote" class="dlp-tombstoneActions margin-top-2" hidden>
+                    <div class="dlp-tombstoneActions__title">Files unavailable</div>
+                    <div class="dlp-tombstoneActions__text">
+                      The files for this dataset are no longer accessible because the record has been tombstoned.
+                    </div>
                   </div>
                 </div>
               </header>
