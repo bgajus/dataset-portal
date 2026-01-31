@@ -8,6 +8,9 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   const els = {
     note: $("dashNote"),
     noteClose: $("dashNoteClose"),
+    noteText: $("dashNoteText"),
+    unreadCount: $("dashUnreadCount"),
+    noteLink: $("dashNoteLink"),
 
     openModal: $("openDoiModal"),
     backdrop: $("doiBackdrop"),
@@ -45,13 +48,115 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     dashUserName: $("dashUserName"),
   };
 
+  // ──────────────────────────────────────────────────────────────
+  // Dashboard notification banner (unread count)
+  // - Only show when unread > 0
+  // - Close hides it, and persists until unread count increases
+  // ──────────────────────────────────────────────────────────────
+
+  function getDismissKey() {
+    // per role + (optionally) email so Submitter/Curator don’t share dismissal state
+    const role = window.DatasetPortal?.getRole?.() || "Submitter";
+    const profile = window.DatasetPortal?.getUserProfile?.() || {};
+    const email = String(profile.email || "")
+      .trim()
+      .toLowerCase();
+    const suffix = email ? `:${email}` : "";
+    return `constellation:dashNoteDismissed:v1:${role}${suffix}`;
+  }
+
+  function readDismissState() {
+    try {
+      const raw = localStorage.getItem(getDismissKey());
+      const obj = raw ? JSON.parse(raw) : null;
+      if (!obj || typeof obj !== "object")
+        return { dismissed: false, dismissedAtCount: 0 };
+      return {
+        dismissed: !!obj.dismissed,
+        dismissedAtCount: Number(obj.dismissedAtCount || 0),
+      };
+    } catch (_) {
+      return { dismissed: false, dismissedAtCount: 0 };
+    }
+  }
+
+  function writeDismissState(state) {
+    try {
+      localStorage.setItem(getDismissKey(), JSON.stringify(state || {}));
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  function getUnreadCount() {
+    try {
+      if (window.DatasetPortal?.notifications?.unreadCount) {
+        return Number(window.DatasetPortal.notifications.unreadCount() || 0);
+      }
+
+      // Fallback (if unreadCount() doesn’t exist): compute from listForMe()
+      const list = window.DatasetPortal?.notifications?.listForMe?.() || [];
+      return (Array.isArray(list) ? list : []).filter(
+        (n) => n && n.read === false,
+      ).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  function plural(n, singular, pluralWord) {
+    return n === 1 ? singular : pluralWord;
+  }
+
+  function syncDashNotificationBanner() {
+    if (!els.note) return;
+
+    const unread = getUnreadCount();
+
+    // Update the visible count + message
+    if (els.unreadCount) els.unreadCount.textContent = String(unread);
+
+    if (els.noteText) {
+      const word = plural(unread, "notification", "notifications");
+      els.noteText.textContent = `You have ${unread} unread ${word}.`;
+    }
+
+    // Ensure link is correct
+    if (els.noteLink) {
+      els.noteLink.href = "/src/pages/notifications/index.html";
+    }
+
+    // Dismiss logic: if dismissed, keep hidden until unread increases beyond dismissedAtCount
+    const st = readDismissState();
+
+    const shouldShow =
+      unread > 0 &&
+      (!st.dismissed || unread > Number(st.dismissedAtCount || 0));
+
+    els.note.hidden = !shouldShow;
+  }
+
+  // Notification close (persist dismissal until unread increases)
+  if (els.noteClose && els.note) {
+    els.noteClose.addEventListener("click", () => {
+      const unread = getUnreadCount();
+      writeDismissState({ dismissed: true, dismissedAtCount: unread });
+      els.note.hidden = true;
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // User profile
+  // ──────────────────────────────────────────────────────────────
   function applyUserProfile() {
     try {
       const profile = window.DatasetPortal?.getUserProfile?.();
       if (!profile) return;
       const first = String(profile.firstName || "").trim();
       const last = String(profile.lastName || "").trim();
-      const initials = `${first ? first[0].toUpperCase() : ""}${last ? last[0].toUpperCase() : ""}` || "??";
+      const initials =
+        `${first ? first[0].toUpperCase() : ""}${last ? last[0].toUpperCase() : ""}` ||
+        "??";
 
       // Avatar photo fallback to initials
       const hasAvatar = !!String(profile.avatarDataUrl || "").trim();
@@ -79,21 +184,35 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   }
 
   function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (s) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[s]));
+    return String(str).replace(
+      /[&<>"']/g,
+      (s) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[s],
+    );
   }
 
   function formatShortDate(iso) {
     const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   }
 
   function statusToBadgeClass(status) {
     const s = (status || "").toLowerCase().trim();
     if (s === "draft") return "dash-badge--draft";
-    if (s === "in review" || s === "review" || s === "in-review") return "dash-badge--review";
-    if (s === "needs updates" || s === "needs-updates") return "dash-badge--needs";
+    if (s === "in review" || s === "review" || s === "in-review")
+      return "dash-badge--review";
+    if (s === "needs updates" || s === "needs-updates")
+      return "dash-badge--needs";
     if (s === "published") return "dash-badge--published";
     return "dash-badge--draft";
   }
@@ -111,13 +230,15 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   // ──────────────────────────────────────────────────────────────
 
   function getFocusableElements(container) {
-    return Array.from(container.querySelectorAll(
-      'a[href]:not([disabled]), button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled])'
-    ));
+    return Array.from(
+      container.querySelectorAll(
+        "a[href]:not([disabled]), button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled])",
+      ),
+    );
   }
 
   function trapFocus(e) {
-    if (e.key !== 'Tab') return;
+    if (e.key !== "Tab") return;
 
     const focusable = getFocusableElements(els.modal);
     if (focusable.length === 0) return;
@@ -126,12 +247,18 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     const last = focusable[focusable.length - 1];
 
     if (e.shiftKey) {
-      if (document.activeElement === first || !els.modal.contains(document.activeElement)) {
+      if (
+        document.activeElement === first ||
+        !els.modal.contains(document.activeElement)
+      ) {
         e.preventDefault();
         last.focus();
       }
     } else {
-      if (document.activeElement === last || !els.modal.contains(document.activeElement)) {
+      if (
+        document.activeElement === last ||
+        !els.modal.contains(document.activeElement)
+      ) {
         e.preventDefault();
         first.focus();
       }
@@ -139,18 +266,18 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   }
 
   function startModalTrap() {
-    els.modal.addEventListener('keydown', trapFocus);
+    els.modal.addEventListener("keydown", trapFocus);
 
     const sectionsToInert = [
-      document.querySelector('header'),
-      document.querySelector('main'),
-      document.querySelector('[data-include="portal-footer"]')
+      document.querySelector("header"),
+      document.querySelector("main"),
+      document.querySelector('[data-include="portal-footer"]'),
     ].filter(Boolean);
 
-    sectionsToInert.forEach(el => {
+    sectionsToInert.forEach((el) => {
       if (el && !el.contains(els.modal)) {
-        el.setAttribute('aria-hidden', 'true');
-        el.setAttribute('inert', '');
+        el.setAttribute("aria-hidden", "true");
+        el.setAttribute("inert", "");
       }
     });
 
@@ -159,11 +286,11 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   }
 
   function stopModalTrap() {
-    els.modal.removeEventListener('keydown', trapFocus);
+    els.modal.removeEventListener("keydown", trapFocus);
 
-    document.querySelectorAll('[aria-hidden="true"][inert]').forEach(el => {
-      el.removeAttribute('aria-hidden');
-      el.removeAttribute('inert');
+    document.querySelectorAll('[aria-hidden="true"][inert]').forEach((el) => {
+      el.removeAttribute("aria-hidden");
+      el.removeAttribute("inert");
     });
   }
 
@@ -172,7 +299,10 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
 
     if (els.stepForm) els.stepForm.hidden = false;
     if (els.stepSuccess) els.stepSuccess.hidden = true;
-    if (els.err) { els.err.hidden = true; els.err.textContent = ""; }
+    if (els.err) {
+      els.err.hidden = true;
+      els.err.textContent = "";
+    }
     if (els.titleInput) els.titleInput.value = "";
 
     // NEW: reset OLCF radios each time modal opens
@@ -208,15 +338,13 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
       return;
     }
 
-    // NOTE: OLCF yes/no is frontend-only for this build (not persisted).
-    // const olcfValue = els.olcfYes?.checked ? "yes" : els.olcfNo?.checked ? "no" : "";
-
     // Use shared store to create real draft
     const newRecord = createNewDraft(title);
 
     // Show success
     if (els.reservedValue) els.reservedValue.textContent = newRecord.doi;
-    if (els.editLink) els.editLink.href = `/src/pages/editor/index.html?doi=${encodeURIComponent(newRecord.doi)}`;
+    if (els.editLink)
+      els.editLink.href = `/src/pages/editor/index.html?doi=${encodeURIComponent(newRecord.doi)}`;
     if (els.stepForm) els.stepForm.hidden = true;
     if (els.stepSuccess) els.stepSuccess.hidden = false;
 
@@ -227,7 +355,8 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
 
   function syncStats() {
     const records = getAllRecords();
-    if (els.statDatasets) els.statDatasets.textContent = String(records.length || 0);
+    if (els.statDatasets)
+      els.statDatasets.textContent = String(records.length || 0);
     // Other stats remain demo values for now
     if (els.statViews) els.statViews.textContent = "774";
     if (els.statDownloads) els.statDownloads.textContent = "56";
@@ -249,14 +378,16 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     els.activityEmpty.hidden = true;
     els.activityList.hidden = false;
 
-    const rows = records.slice(0, 6).map((r) => {
-      const editorHref = `/src/pages/editor/index.html?doi=${encodeURIComponent(r.doi)}`;
-      const meta = `${badgeLabel(r.status)} · ${formatShortDate(r.updatedAt || r.createdAt)}`;
+    const rows = records
+      .slice(0, 6)
+      .map((r) => {
+        const editorHref = `/src/pages/editor/index.html?doi=${encodeURIComponent(r.doi)}`;
+        const meta = `${badgeLabel(r.status)} · ${formatShortDate(r.updatedAt || r.createdAt)}`;
 
-      const badgeClass = statusToBadgeClass(r.status);
-      const badgeText = badgeLabel(r.status);
+        const badgeClass = statusToBadgeClass(r.status);
+        const badgeText = badgeLabel(r.status);
 
-      return `
+        return `
         <div class="dash-activity__row">
           <div>
             <h3 class="dash-activity__title margin-0">
@@ -271,16 +402,10 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
           </div>
         </div>
       `;
-    }).join("");
+      })
+      .join("");
 
     els.activityList.innerHTML = rows;
-  }
-
-  // Notification close
-  if (els.noteClose && els.note) {
-    els.noteClose.addEventListener("click", () => {
-      els.note.hidden = true;
-    });
   }
 
   // Modal wiring
@@ -301,6 +426,9 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
   applyUserProfile();
   syncStats();
   renderActivity();
+
+  // Wire banner after profile (so email/role-based dismissal key is correct)
+  syncDashNotificationBanner();
 
   // Ensure modal/backdrop start hidden
   if (els.backdrop) els.backdrop.hidden = true;
