@@ -3,14 +3,15 @@
 .AppleDouble
 .LSOverride
 
-# Node.js dependencies
+# Node.js dependencies (never commit)
 node_modules/
 npm-debug.log
 yarn-error.log
 
-# other folders to ignore
-dist/
+# Vite / local env files
+.env
+.env.local
 
-# other files to ignore
+# archives
 *.zip
 *.tar.gz

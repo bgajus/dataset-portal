@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Edit Dataset</title>
+
+  <!-- USWDS init (recommended before CSS) -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+  <!-- USWDS + Font Awesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <!-- Portal shared layer -->
+
+  <!-- Page styles -->
+  <script type="module" crossorigin src="/assets/editor-leHxtC5h.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/includes-C1Ym7nk7.js">
+  <link rel="modulepreload" crossorigin href="/assets/shared-store-ByScQMD0.js">
+  <link rel="stylesheet" crossorigin href="/assets/includes-CL_DFCfW.css">
+  <link rel="stylesheet" crossorigin href="/assets/editor-BKlwdkOh.css">
+</head>
+
+<body data-auth="true">
+  <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+  <div data-include="portal-header"></div>
+
+  <main id="main-content">
+    <div class="grid-container-widescreen padding-y-2">
+
+      <!-- Sticky header wrapper -->
+      <div class="sticky-shell" id="stickyShell">
+
+        <!-- Breadcrumb row + Help icon -->
+        <div class="crumb-row">
+          <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
+            <ol class="usa-breadcrumb__list">
+              <li class="usa-breadcrumb__list-item">
+                <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
+              </li>
+              <li class="usa-breadcrumb__list-item">
+                <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>My Datasets</span></a>
+              </li>
+              <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+                Edit Dataset
+              </li>
+            </ol>
+          </nav>
+
+          <!-- Help: icon only, brand color, LEFT tooltip -->
+          <span class="tt tt--left" data-tt="Get Help">
+            <button type="button" class="usa-button usa-button--unstyled help-icon-btn" id="helpBtn"
+              aria-label="Get Help">
+              <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+            </button>
+          </span>
+        </div>
+
+        <header class="margin-bottom-2">
+          <div class="title-row">
+            <h1 class="margin-0" id="pageTitle"></h1>
+            <span class="title-editing" id="titleEditing" hidden>(Editing…)</span>
+          </div>
+        </header>
+
+        <div class="action-row">
+          <div class="action-left">
+            <span class="status-chip" aria-label="Status: Draft">Draft</span>
+            <span class="started-on">
+              <strong>Started on:</strong> <span id="startedOnDate"></span>
+            </span>
+          </div>
+
+          <div class="action-right">
+            <!-- Curator drawer toggle (shown only in curator mode while In Review / Needs Updates) -->
+            <button type="button" class="usa-button usa-button--outline btnBrandOutline cur-drawer__open"
+              id="curatorReviewBtn" hidden aria-hidden="true">
+              <i class="fa-solid fa-clipboard-check margin-right-05" aria-hidden="true"></i>
+              Curator Review
+            </button>
+
+            <span class="tt" data-tt="Preview">
+              <button type="button" class="usa-button usa-button--outline icon-btn brand-outline" id="previewBtn"
+                aria-label="Preview">
+                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+              </button>
+            </span>
+
+            <span class="tt" data-tt="Save">
+              <button type="button" class="usa-button usa-button--outline icon-btn brand-outline" id="saveBtn"
+                aria-label="Save">
+                <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+              </button>
+            </span>
+
+            <button type="button" class="usa-button" id="submitBtn" disabled aria-disabled="true">
+              Submit for Review
+            </button>
+          </div>
+        </div>
+
+        <hr class="section-divider" />
+      </div>
+
+      <div class="below-divider">
+        <p class="text-base margin-0 margin-bottom-2">
+          Fill all required fields to enable <strong>Submit for Review</strong>. Section headers show what’s still
+          missing.
+        </p>
+
+        <div class="usa-alert usa-alert--info margin-bottom-3" role="status" aria-live="polite">
+          <div class="usa-alert__body">
+            <p class="usa-alert__text" id="formStatus">
+              Required fields remaining: <strong id="requiredRemaining">—</strong>
+            </p>
+          </div>
+        </div>
+
+        <!-- Locked banner (shown when status is In Review / Published) -->
+        <section id="lockBanner" class="usa-alert usa-alert--warning margin-bottom-3" hidden>
+          <div class="usa-alert__body">
+            <h2 class="usa-alert__heading">In Review</h2>
+            <p class="usa-alert__text">
+              This dataset has been submitted to a curator for review. Metadata is now read-only.
+            </p>
+          </div>
+        </section>
+
+        <!-- Submitter-facing curator request panel -->
+        <section id="curRequestPanel" class="req-panel margin-bottom-3" hidden>
+          <div class="req-panel__head">
+            <div class="req-panel__title">
+              <i class="fa-solid fa-note-sticky" aria-hidden="true"></i>
+              <h2 class="margin-0">Curator request</h2>
+            </div>
+            <button id="curViewHistoryBtn" type="button" class="usa-button usa-button--unstyled req-panel__link">
+              View history (<span id="curHistoryCount">0</span>)
+            </button>
+          </div>
+
+          <div class="req-panel__msg" id="curLatestMsg">—</div>
+          <div class="req-panel__meta" id="curLatestMeta">—</div>
+        </section>
+
+        <div class="usa-accordion" aria-multiselectable="true" id="metaAccordion">
+
+          <!-- UPLOAD FILES (DEFAULT OPEN) -->
+          <h2 class="usa-accordion__heading" data-section="upload">
+            <button class="usa-accordion__button" aria-expanded="true" aria-controls="sect-upload">
+              <span>Upload Files</span>
+              <span class="acc-status" data-status-for="upload"></span>
+            </button>
+          </h2>
+          <div id="sect-upload" class="usa-accordion__content usa-prose" data-section-content="upload">
+            <p class="margin-top-0">
+              Use Globus to upload your dataset files to the designated storage location.
+            </p>
+
+            <ol class="usa-list">
+              <li>Click <strong>Upload with Globus</strong> below. You will be taken to the Globus website.</li>
+              <li>Follow the prompts in Globus to authenticate and transfer your dataset files to the designated storage
+                location.</li>
+              <li>Once your transfer is complete, return to this application. Uploaded datasets will appear here.</li>
+            </ol>
+
+            <div class="display-flex flex-wrap gap-2 margin-top-2">
+              <a class="usa-button brand-solid" id="uploadWithGlobusBtn" href="https://www.globus.org/" target="_blank"
+                rel="noopener noreferrer">
+                Upload with Globus
+                <i class="fa-solid fa-arrow-up-right-from-square ext-icon" aria-hidden="true"></i>
+              </a>
+            </div>
+
+            <div class="usa-alert usa-alert--warning margin-top-3" id="uploadRequiredAlert" role="alert">
+              <div class="usa-alert__body">
+                <p class="usa-alert__text">
+                  You must upload at least one file to Globus before submitting for review.
+                </p>
+              </div>
+            </div>
+
+            <div class="uploaded-panel margin-top-3" id="uploadedPanel" hidden>
+              <h3 class="margin-top-0">Uploaded files (demo)</h3>
+              <ul class="usa-list" id="uploadedFilesList"></ul>
+            </div>
+          </div>
+
+          <!-- DESCRIPTION -->
+          <h2 class="usa-accordion__heading" data-section="description">
+            <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-description">
+              <span>Description</span>
+              <span class="acc-status" data-status-for="description"></span>
+            </button>
+          </h2>
+          <div id="sect-description" class="usa-accordion__content usa-prose" data-section-content="description" hidden>
+            <div id="descriptionFields"></div>
+          </div>
+
+          <!-- AUTHORS -->
+          <h2 class="usa-accordion__heading" data-section="authors">
+            <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-authors">
+              <span>Authors</span>
+              <span class="acc-status" data-status-for="authors"></span>
+            </button>
+          </h2>
+          <div id="sect-authors" class="usa-accordion__content usa-prose" data-section-content="authors" hidden>
+            <p class="margin-top-0">
+              Add at least one author. In this modal pattern, authors are validated on save.
+            </p>
+
+            <ul id="authors-list" class="authors-list"></ul>
+
+            <div class="display-flex flex-justify-start gap-2 margin-top-2">
+              <button type="button" class="usa-button usa-button--outline brand-outline" id="add-author-btn">
+                + Add author
+              </button>
+            </div>
+
+            <!-- AUTHORS MODAL -->
+            <div id="author-modal" class="modal" hidden aria-modal="true" role="dialog" aria-labelledby="modal-title">
+              <div class="modal-content">
+                <button type="button" class="modal-close usa-button usa-button--unstyled"
+                  aria-label="Close author modal">
+                  ×
+                </button>
+
+                <h3 id="modal-title" class="margin-top-0">Add Author</h3>
+
+                <div class="author-form">
+                  <label class="usa-label" for="firstName">
+                    First name <span class="required-star" aria-hidden="true">*</span>
+                  </label>
+                  <input class="usa-input" type="text" id="firstName" required />
+
+                  <label class="usa-label" for="middleName">Middle name</label>
+                  <input class="usa-input" type="text" id="middleName" />
+
+                  <label class="usa-label" for="lastName">
+                    Last name <span class="required-star" aria-hidden="true">*</span>
+                  </label>
+                  <input class="usa-input" type="text" id="lastName" required />
+
+                  <label class="usa-label" for="email">Email</label>
+                  <input class="usa-input" type="email" id="email" />
+
+                  <label class="usa-label" for="orcid">ORCID iD</label>
+                  <input class="usa-input" type="text" id="orcid" placeholder="0000-0000-0000-0000" />
+
+                  <label class="usa-label" for="affiliation">
+                    Institutional affiliation <span class="required-star" aria-hidden="true">*</span>
+                  </label>
+                  <input class="usa-input" type="text" id="affiliation" required />
+
+                  <div class="display-flex flex-justify-end gap-2 margin-top-2">
+                    <button type="button" class="usa-button usa-button--outline brand-outline"
+                      id="cancelForm">Cancel</button>
+                    <button type="button" class="usa-button usa-button--outline brand-outline" id="saveAddAnother">Save
+                      & Add Another</button>
+                    <button type="button" class="usa-button brand-solid" id="saveAuthorForm">Save Author</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBJECTS -->
+          <h2 class="usa-accordion__heading" data-section="subjects">
+            <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-subjects">
+              <span>Subjects</span>
+              <span class="acc-status" data-status-for="subjects"></span>
+            </button>
+          </h2>
+          <div id="sect-subjects" class="usa-accordion__content usa-prose" data-section-content="subjects" hidden>
+            <div id="subjectsFields"></div>
+          </div>
+
+          <!-- FUNDING -->
+          <h2 class="usa-accordion__heading" data-section="funding">
+            <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-funding">
+              <span>Funding Information</span>
+              <span class="acc-status" data-status-for="funding"></span>
+            </button>
+          </h2>
+          <div id="sect-funding" class="usa-accordion__content usa-prose" data-section-content="funding" hidden>
+            <div id="fundingFields"></div>
+          </div>
+
+          <!-- RELATED WORKS -->
+          <h2 class="usa-accordion__heading" data-section="related">
+            <button class="usa-accordion__button" aria-expanded="false" aria-controls="sect-related">
+              <span>Related Works</span>
+              <span class="acc-status" data-status-for="related"></span>
+            </button>
+          </h2>
+          <div id="sect-related" class="usa-accordion__content usa-prose" data-section-content="related" hidden>
+            <div id="relatedFields"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="save-toast" id="saveToast" role="status" aria-live="polite" aria-atomic="true" hidden>
+        Saved.
+      </div>
+    </div>
+
+    <!-- Request history modal (submitter only; curator drawer uses inline history) -->
+    <div id="reqHistoryModal" class="req-modal" role="dialog" aria-modal="true" aria-labelledby="reqHistoryTitle"
+      hidden>
+      <div class="req-modal__overlay" data-req-close></div>
+      <div class="req-modal__panel" role="document">
+        <div class="req-modal__head">
+          <div>
+            <h2 id="reqHistoryTitle" class="req-modal__title margin-0">Request history</h2>
+            <p class="req-modal__sub margin-top-05">All curator “Request updates” notes for this dataset (newest first).
+            </p>
+          </div>
+
+          <button type="button" class="req-modal__x usa-button usa-button--unstyled" aria-label="Close" data-req-close>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="req-modal__body">
+          <div class="req-modal__meta">
+            <div class="req-modal__k">Dataset</div>
+            <div class="req-modal__v">
+              <div id="reqHistDatasetTitle" class="req-modal__datasetTitle">—</div>
+              <div id="reqHistDatasetDoi" class="req-modal__datasetDoi">—</div>
+            </div>
+          </div>
+
+          <div id="reqHistEmpty" class="usa-alert usa-alert--info margin-top-3" hidden>
+            <div class="usa-alert__body">
+              <h4 class="usa-alert__heading">No request history</h4>
+              <p class="usa-alert__text">No update requests have been sent for this dataset yet.</p>
+            </div>
+          </div>
+
+          <div id="reqHistList" class="req-hist margin-top-3" aria-live="polite"></div>
+        </div>
+
+        <div class="req-modal__foot">
+          <button type="button" class="usa-button btnBrandSolid" data-req-close>Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Curator Review Drawer (no overlay; allow interaction with page behind) -->
+    <div id="curatorDrawer" class="cur-drawer" hidden aria-hidden="true">
+      <aside class="cur-drawer__panel" role="dialog" aria-modal="false" aria-labelledby="curDrawerTitle">
+        <header class="cur-drawer__head">
+          <div class="cur-drawer__headLeft">
+            <div class="cur-drawer__titleRow">
+              <h2 id="curDrawerTitle" class="margin-0">Curator review</h2>
+              <span id="curDrawerStatusChip" class="status-chip" data-status="draft" aria-label="Status: Draft">
+                Draft
+              </span>
+            </div>
+            <div class="cur-drawer__role">Role: <strong data-role-label></strong></div>
+          </div>
+
+          <button type="button" class="cur-drawer__x usa-button usa-button--unstyled" aria-label="Close curator review"
+            data-cur-drawer-close>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="cur-drawer__body">
+          <p class="margin-top-0 text-base cur-drawer__sub">
+            Review the submitter’s metadata and either request updates or publish.
+          </p>
+
+          <!-- Latest request + inline history toggle -->
+          <section class="cur-drawer__context" aria-label="Request context">
+            <div class="cur-drawer__contextHead">
+              <div class="cur-drawer__contextTitle">
+                <i class="fa-solid fa-note-sticky" aria-hidden="true"></i>
+                <span>Most recent request</span>
+              </div>
+
+              <button id="curDrawerToggleHistoryBtn" type="button"
+                class="usa-button usa-button--unstyled cur-drawer__historyLink" aria-expanded="false"
+                aria-controls="curDrawerHistoryWrap">
+                History (<span id="curDrawerHistoryCount">0</span>)
+                <i class="fa-solid fa-chevron-down cur-drawer__chev" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <div class="cur-drawer__contextMsg" id="curDrawerLatestMsg">—</div>
+            <div class="cur-drawer__contextMeta" id="curDrawerLatestMeta">—</div>
+
+            <div id="curDrawerHistoryWrap" class="cur-drawer__historyWrap" hidden>
+              <div id="curDrawerHistEmpty" class="usa-alert usa-alert--info margin-top-2" hidden>
+                <div class="usa-alert__body">
+                  <p class="usa-alert__text">No request history yet.</p>
+                </div>
+              </div>
+
+              <div id="curDrawerHistList" class="cur-drawer__histList margin-top-2" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <hr class="cur-drawer__divider" />
+
+          <label class="usa-label" for="curatorNote">Curator note</label>
+          <textarea id="curatorNote" class="usa-textarea" rows="4"
+            placeholder="e.g., Please clarify methodology and add funding details."></textarea>
+
+          <div class="cur-drawer__actions margin-top-2">
+            <button id="requestUpdatesBtn" type="button" class="usa-button usa-button--outline btnBrandOutline">
+              Request updates
+            </button>
+            <button id="publishBtn" type="button" class="usa-button btnBrandSolid">
+              Publish dataset
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div data-include="portal-footer"></div>
+
+  <!-- USWDS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+  <!-- Shared includes loader -->
+</body>
+
+</html>

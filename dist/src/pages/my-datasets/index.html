@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Datasets - Constellation Dataset Portal</title>
+
+    <!-- USWDS init -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- Portal shared layer -->
+
+    <!-- Page styles -->
+    <script type="module" crossorigin src="/assets/myDatasets-BIShWoaH.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/includes-C1Ym7nk7.js">
+    <link rel="modulepreload" crossorigin href="/assets/shared-store-ByScQMD0.js">
+    <link rel="stylesheet" crossorigin href="/assets/includes-CL_DFCfW.css">
+    <link rel="stylesheet" crossorigin href="/assets/myDatasets-Dt0b0n73.css">
+  </head>
+
+  <body data-auth="true">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content" class="padding-y-4">
+      <div class="grid-container-widescreen">
+        <!-- Breadcrumb + Create button -->
+        <div class="md-page-top display-flex flex-align-center flex-wrap gap-2 margin-bottom-3">
+          <nav class="usa-breadcrumb usa-breadcrumb--wrap" aria-label="Breadcrumbs">
+            <ol class="usa-breadcrumb__list">
+              <li class="usa-breadcrumb__list-item">
+                <a class="usa-breadcrumb__link" href="/src/pages/dashboard/index.html"><span>Dashboard</span></a>
+              </li>
+              <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+                <span>My Datasets</span>
+              </li>
+            </ol>
+          </nav>
+
+          <a class="usa-button btnBrandSolid md-createBtn" href="/src/pages/dashboard/index.html">
+            <i class="fa-solid fa-plus margin-right-1" aria-hidden="true"></i>
+            Create New DOI Reservation
+          </a>
+        </div>
+
+        <!-- Page title -->
+        <div class="display-flex flex-justify flex-align-end flex-wrap gap-2 margin-bottom-3">
+          <h1 class="md-page-title margin-0">My Datasets</h1>
+        </div>
+
+        <!-- Card -->
+        <section class="md-card" aria-label="My Datasets table">
+          <header class="md-card__header">
+            <div class="md-card__titleRow">
+              <div class="md-card__titleWrap">
+                <h2 class="md-card__title">Datasets</h2>
+                <span class="md-countChip" id="datasetCountChip">0 datasets</span>
+              </div>
+
+              <div class="md-card__tools">
+                <!-- Search pill -->
+                <div class="md-search" role="search">
+                  <i class="fa-solid fa-magnifying-glass md-search__icon" aria-hidden="true"></i>
+                  <label class="usa-sr-only" for="searchFilter">Search by title or DOI</label>
+                  <input class="md-search__input" id="searchFilter" type="search" placeholder="Search" />
+                </div>
+
+                <!-- Filter button -->
+                <div class="md-filterWrap">
+                  <button
+                    type="button"
+                    class="md-pillBtn"
+                    id="filterBtn"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-controls="filterPopover"
+                  >
+                    <i class="fa-solid fa-sliders md-pillBtn__icon" aria-hidden="true"></i>
+                    <span>Filter</span>
+                  </button>
+
+                  <!-- Popover -->
+                  <div class="md-popover" id="filterPopover" role="dialog" aria-label="Filter datasets" hidden>
+                    <div class="md-popover__inner">
+                      <div class="md-popover__head">
+                        <div class="md-popover__title">Filters</div>
+                        <button type="button" class="md-iconBtn" id="filterCloseBtn" aria-label="Close filters">
+                          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        </button>
+                      </div>
+
+                      <div class="md-popover__body">
+                        <div class="md-field">
+                          <label class="usa-label margin-top-0" for="statusFilter">Status</label>
+                          <select class="usa-select" id="statusFilter">
+                            <option value="all">All</option>
+                            <option value="draft">Draft</option>
+                            <option value="in review">In Review</option>
+                            <option value="needs updates">Needs Updates</option>
+                            <option value="published">Published</option>
+                            <option value="tombstoned">Tombstoned</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="md-popover__footer">
+                        <button type="button" class="usa-button usa-button--unstyled md-linkBtn" id="clearFiltersBtn">
+                          Clear
+                        </button>
+                        <button type="button" class="usa-button btnBrandSolid" id="applyFiltersBtn">
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="md-popoverBackdrop" id="filterBackdrop" hidden></div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div class="md-card__tableWrap">
+            <table class="md-table width-full" id="datasetsTable">
+              <thead>
+                <tr>
+                  <th scope="col" data-sort="title" class="md-th">
+                    <button class="md-thBtn" type="button">
+                      <span>Title</span>
+                      <span class="md-sortIcon" aria-hidden="true"></span>
+                    </button>
+                  </th>
+
+                  <th scope="col" data-sort="doi" class="md-th">
+                    <button class="md-thBtn" type="button">
+                      <span>DOI</span>
+                      <span class="md-sortIcon" aria-hidden="true"></span>
+                    </button>
+                  </th>
+
+                  <th scope="col" data-sort="startedOn" class="md-th">
+                    <button class="md-thBtn" type="button">
+                      <span>Started on</span>
+                      <span class="md-sortIcon" aria-hidden="true"></span>
+                    </button>
+                  </th>
+
+                  <th scope="col" data-sort="submittedOn" class="md-th">
+                    <button class="md-thBtn" type="button">
+                      <span>Submitted on</span>
+                      <span class="md-sortIcon" aria-hidden="true"></span>
+                    </button>
+                  </th>
+
+                  <th scope="col" data-sort="status" class="md-th">
+                    <button class="md-thBtn" type="button">
+                      <span>Status</span>
+                      <span class="md-sortIcon" aria-hidden="true"></span>
+                    </button>
+                  </th>
+
+                  <th scope="col" class="md-th md-th--actions" aria-label="Actions"></th>
+                </tr>
+              </thead>
+              <tbody id="datasetsBody"></tbody>
+            </table>
+
+            <!-- Pagination (like screenshot) -->
+            <div class="md-paginationBar" id="paginationBar" hidden>
+              <nav class="usa-pagination md-pagination" aria-label="Pagination">
+                <ul class="usa-pagination__list" id="paginationList"></ul>
+              </nav>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div id="emptyState" class="md-emptyState" hidden>
+            <h3 class="margin-top-0">No datasets yet</h3>
+            <p class="text-base margin-bottom-3">
+              Create your first DOI reservation from the dashboard to get started.
+            </p>
+            <a class="usa-button btnBrandSolid" href="/src/pages/dashboard/index.html">
+              Go to Dashboard
+            </a>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes -->
+
+    <!-- Page JS -->
+  </body>
+</html>

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Constellation Dataset Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- USWDS init (recommended before CSS) -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds-init.min.js"></script>
+
+    <!-- USWDS + Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/css/uswds.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+
+    <!-- Portal shared layer -->
+
+    <!-- Home styles -->
+
+    <!-- Safety: never render the clear X when [hidden] -->
+    <style>
+      .home-search__clear[hidden]{ display:none !important; }
+    </style>
+    <script type="module" crossorigin src="/assets/home-D2dOq7VA.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/includes-C1Ym7nk7.js">
+    <link rel="modulepreload" crossorigin href="/assets/shared-store-ByScQMD0.js">
+    <link rel="modulepreload" crossorigin href="/assets/demo-datasets-ROcwX3iX.js">
+    <link rel="stylesheet" crossorigin href="/assets/includes-CL_DFCfW.css">
+    <link rel="stylesheet" crossorigin href="/assets/home-D17m8stY.css">
+  </head>
+
+  <body data-auth="false">
+    <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+
+    <div data-include="portal-header"></div>
+
+    <main id="main-content">
+      <!-- Full-width hero (NOT in container) -->
+      <section class="home-hero" aria-label="Search datasets">
+        <div class="home-hero__inner">
+          <h1 class="home-hero__title">Search the Constellation dataset repository.</h1>
+
+          <form
+            class="home-hero__search"
+            action="/src/pages/search/index.html"
+            method="get"
+            role="search"
+          >
+            <label class="usa-sr-only" for="homeSearch">Search datasets</label>
+
+            <div class="home-search">
+              <input
+                id="homeSearch"
+                name="q"
+                class="usa-input home-search__input"
+                type="search"
+                placeholder="Search"
+                autocomplete="off"
+              />
+
+              <button
+                id="homeClear"
+                class="home-search__clear"
+                type="button"
+                aria-label="Clear search"
+                hidden
+              >
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+              </button>
+
+              <button
+                class="usa-button btnBrandSolid home-search__btn"
+                type="submit"
+                aria-label="Search"
+              >
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Main content container region (MATCHES search/editor) -->
+      <div class="padding-y-4">
+        <div class="grid-container-widescreen">
+          <!-- Browse by Subject -->
+          <section aria-label="Browse by subject">
+            <header class="home-sectionhead">
+              <h2 class="home-sectionhead__title">Browse by subject</h2>
+              <p class="home-sectionhead__sub">
+                Jump straight into search results filtered by subject.
+              </p>
+            </header>
+
+            <div id="homeSubjects" class="home-cats" role="list" aria-live="polite"></div>
+
+            <button
+              id="homeSubjectsToggle"
+              class="usa-button usa-button--unstyled home-see-more"
+              type="button"
+              aria-expanded="false"
+              hidden
+            >
+              See more
+            </button>
+          </section>
+
+          <!-- Latest Published Datasets -->
+          <section class="margin-top-5" aria-label="Latest published datasets">
+            <header class="home-sectionhead">
+              <h2 class="home-sectionhead__title">Latest published datasets</h2>
+              <p class="home-sectionhead__sub">
+                Recently published datasets across the repository.
+              </p>
+            </header>
+
+            <div id="homeLatest" class="home-latest" aria-live="polite"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <div data-include="portal-footer"></div>
+
+    <!-- USWDS JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@uswds/uswds@3.13.0/dist/js/uswds.min.js"></script>
+
+    <!-- Shared includes loader -->
+
+    <!-- Homepage behaviors (subjects toggle + latest datasets) -->
+  </body>
+</html>
