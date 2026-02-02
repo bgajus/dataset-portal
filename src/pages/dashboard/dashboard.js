@@ -214,6 +214,7 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     if (s === "needs updates" || s === "needs-updates")
       return "dash-badge--needs";
     if (s === "published") return "dash-badge--published";
+    if (s === "tombstoned") return "dash-badge--tombstoned";
     return "dash-badge--draft";
   }
 
@@ -222,6 +223,7 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     if (status === "In Review") return "In Review";
     if (status === "Needs Updates") return "Needs Updates";
     if (status === "Published") return "Published";
+    if (status === "Tombstoned") return "Tombstoned";
     return status || "Draft";
   }
 
@@ -381,24 +383,34 @@ import { createNewDraft, getAllRecords } from "/src/assets/js/shared-store.js";
     const rows = records
       .slice(0, 6)
       .map((r) => {
-        const editorHref = `/src/pages/editor/index.html?doi=${encodeURIComponent(r.doi)}`;
+        const statusNorm = String(r.status || "").toLowerCase().trim();
+
+        const viewHref = `/src/pages/dataset/index.html?doi=${encodeURIComponent(r.doi)}`;
+        const editHref = `/src/pages/editor/index.html?doi=${encodeURIComponent(r.doi)}`;
+
+        const isViewOnly = statusNorm === "published" || statusNorm === "tombstoned";
+        const primaryHref = isViewOnly ? viewHref : editHref;
+
         const meta = `${badgeLabel(r.status)} · ${formatShortDate(r.updatedAt || r.createdAt)}`;
 
         const badgeClass = statusToBadgeClass(r.status);
         const badgeText = badgeLabel(r.status);
 
+        const actionHref = isViewOnly ? viewHref : editHref;
+        const actionLabel = isViewOnly ? "View" : "Edit";
+
         return `
         <div class="dash-activity__row">
           <div>
             <h3 class="dash-activity__title margin-0">
-              <a class="usa-link" href="${editorHref}">${escapeHtml(r.title || "Untitled dataset")}</a>
+              <a class="usa-link" href="${primaryHref}">${escapeHtml(r.title || "Untitled dataset")}</a>
             </h3>
             <div class="dash-activity__meta">${escapeHtml(r.doi)} · ${escapeHtml(meta)}</div>
           </div>
 
           <div class="dash-activity__right">
             <span class="dash-badge ${badgeClass}">${escapeHtml(badgeText)}</span>
-            <a class="dash-editlink" href="${editorHref}">Edit</a>
+            <a class="dash-editlink" href="${actionHref}">${actionLabel}</a>
           </div>
         </div>
       `;

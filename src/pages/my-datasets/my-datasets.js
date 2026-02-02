@@ -65,13 +65,14 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
     if (s === "in review") return "status-inreview";
     if (s === "needs updates") return "status-needsupdates";
     if (s === "published") return "status-published";
+    if (s === "tombstoned") return "status-tombstoned";
     return "status-draft";
   }
 
   function getRowLink(ds) {
     const status = (ds.status || "Draft").toLowerCase();
     const doi = encodeURIComponent(ds.doi || "");
-    if (status === "published") return `/src/pages/dataset/index.html?doi=${doi}`;
+    if (status === "published" || status === "tombstoned") return `/src/pages/dataset/index.html?doi=${doi}`;
     return `/src/pages/editor/index.html?doi=${doi}`;
   }
 
@@ -102,8 +103,9 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
 
       const link = getRowLink(ds);
       const statusText = ds.status || "Draft";
-      const isPublished = (statusText || "").toLowerCase() === "published";
-      const actionIcon = isPublished ? "fa-eye" : "fa-pencil";
+      const statusNorm = (statusText || "").toLowerCase();
+      const isViewOnly = statusNorm === "published" || statusNorm === "tombstoned";
+      const actionIcon = isViewOnly ? "fa-eye" : "fa-pencil";
 
       row.innerHTML = `
         <td>
@@ -116,7 +118,7 @@ import { getAllRecords } from "/src/assets/js/shared-store.js";
           <span class="status-chip ${getStatusClass(statusText)}">${escapeHtml(statusText)}</span>
         </td>
         <td class="action-icons" aria-label="Actions">
-          <a href="${link}" aria-label="${isPublished ? "View" : "Edit"} dataset">
+          <a href="${link}" aria-label="${isViewOnly ? "View" : "Edit"} dataset">
             <i class="fa-solid ${actionIcon}" aria-hidden="true"></i>
           </a>
           <button type="button" aria-label="More actions">

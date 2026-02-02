@@ -447,3 +447,5 @@
 
 /* Ensure hidden always hides even if a UA stylesheet interferes */
 [hidden]{ display: none !important; }
+
+.dash-badge--tombstoned{ background: rgba(12,10,20,.92); color: #f4f4ff; border-color: rgba(88,65,153,.55); }

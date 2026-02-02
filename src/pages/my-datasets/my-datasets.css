@@ -67,7 +67,7 @@ a.usa-button.btnBrandSolid.md-createBtn:focus-visible {
   border: 1px solid var(--md-border-soft);
   border-radius: 10px;
   background: #fff;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .md-card__header {
@@ -447,4 +447,12 @@ th:not([data-sort-state]) .md-sortIcon::before {
     justify-content: flex-start;
     flex-wrap: wrap;
   }
+}
+
+
+/* Tombstoned status chip (match dataset landing page vibe) */
+.status-tombstoned {
+  background: rgba(12, 10, 20, 0.92);
+  color: #f4f4ff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
