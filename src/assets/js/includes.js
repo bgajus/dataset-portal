@@ -7,8 +7,8 @@
  *   <div data-include="portal-footer"></div>
  *
  * Auth state:
- *   - Demo auth should be driven by localStorage 'dp-auth'
- *   - Pages MAY have <body data-auth="true|false"> but localStorage wins
+ *   - Set <body data-auth="true|false"> per page (recommended)
+ *   - Or set localStorage 'dp-auth' to 'true'/'false'
  */
 
 const INCLUDE_MAP = {
@@ -38,14 +38,6 @@ function normalizeRole(role) {
   return "Submitter";
 }
 
-function parseRoleList(value) {
-  // Supports: "Curator", "Admin", "Curator,Admin", "Curator, Admin"
-  return String(value || "")
-    .split(",")
-    .map((s) => normalizeRole(s))
-    .filter(Boolean);
-}
-
 function getRole() {
   try {
     const raw = localStorage.getItem(ROLE_STORAGE_KEY);
@@ -65,21 +57,26 @@ function setRole(role) {
   }
 }
 
-function roleAllows(requiredRoleOrList) {
+function roleAllows(requiredRole) {
   const role = getRole();
-  const allowed = parseRoleList(requiredRoleOrList);
+  const raw = String(requiredRole || "").trim();
+  if (!raw) return true;
 
-  // If no requirement provided, allow.
-  if (!allowed.length) return true;
+  // Support comma-separated role lists, e.g. "Curator,Admin"
+  const reqs = raw
+    .split(",")
+    .map((s) => normalizeRole(s))
+    .filter(Boolean);
 
-  // Admin sees everything.
-  if (role === "Admin") return true;
+  if (!reqs.length) return true;
 
-  // If the element explicitly allows Submitter, allow everyone.
-  if (allowed.includes("Submitter")) return true;
-
-  // Otherwise role must match one of allowed.
-  return allowed.includes(role);
+  return reqs.some((req) => {
+    if (!req) return true;
+    if (req === "Submitter") return true;
+    if (req === "Curator") return role === "Curator" || role === "Admin";
+    if (req === "Admin") return role === "Admin";
+    return true;
+  });
 }
 
 function applyRoleState(rootEl) {
@@ -87,11 +84,23 @@ function applyRoleState(rootEl) {
 
   rootEl.dataset.role = getRole();
 
+  // Elements can declare data-requires-role="Curator" or "Admin"
   rootEl.querySelectorAll("[data-requires-role]").forEach((el) => {
     const req = el.getAttribute("data-requires-role");
-    el.hidden = !roleAllows(req);
+    const shouldShow = roleAllows(req);
+
+    // Use both the semantic [hidden] attribute and an inline display override.
+    // Inline display ensures elements remain hidden even if CSS accidentally overrides [hidden].
+    el.hidden = !shouldShow;
+    el.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    if (!shouldShow) {
+      el.style.display = "none";
+    } else {
+      el.style.removeProperty("display");
+    }
   });
 
+  // Optional: show current role label if element exists
   const roleLabel = rootEl.querySelector("[data-role-label]");
   if (roleLabel) roleLabel.textContent = getRole();
 }
@@ -152,6 +161,56 @@ function addNotification({
   return item;
 }
 
+function getCurrentUserEmail() {
+  const p = getUserProfile();
+  return String(p?.email || "").trim();
+}
+
+function getNotificationsForCurrentUser() {
+  const role = getRole();
+  const email = getCurrentUserEmail();
+  return readNotifications().filter((n) => {
+    if (!n) return false;
+    const byRole = normalizeRole(n.toRole) === role;
+    if (!byRole) return false;
+    // If a notification is addressed to a specific email, enforce it
+    if (String(n.toEmail || "").trim()) {
+      return (
+        String(n.toEmail || "")
+          .trim()
+          .toLowerCase() === email.toLowerCase()
+      );
+    }
+    return true;
+  });
+}
+
+function markNotificationRead(id) {
+  const list = readNotifications();
+  const next = list.map((n) => (n?.id === id ? { ...n, read: true } : n));
+  writeNotifications(next);
+  updateNotifBadge();
+}
+
+function markAllNotificationsRead() {
+  const list = readNotifications();
+  const next = list.map((n) => ({ ...n, read: true }));
+  writeNotifications(next);
+  updateNotifBadge();
+}
+
+function getUnreadCountForCurrentUser() {
+  return getNotificationsForCurrentUser().filter((n) => !n.read).length;
+}
+
+function updateNotifBadge() {
+  const badge = document.getElementById("notifBadge");
+  if (!badge) return;
+  const count = getUnreadCountForCurrentUser();
+  badge.hidden = count <= 0;
+  badge.textContent = String(count);
+}
+
 function getDefaultUserProfile() {
   return {
     firstName: "Brian",
@@ -160,7 +219,7 @@ function getDefaultUserProfile() {
     email: "",
     affiliation: "",
     orcid: "",
-    avatarDataUrl: "",
+    avatarDataUrl: "", // base64/data URL
   };
 }
 
@@ -197,9 +256,8 @@ function applyUserProfileToHeader() {
     if (hasAvatar) {
       imgEl.src = profile.avatarDataUrl;
       imgEl.alt =
-        `${String(profile.firstName || "").trim()} ${String(
-          profile.lastName || "",
-        ).trim()}`.trim() || "User avatar";
+        `${String(profile.firstName || "").trim()} ${String(profile.lastName || "").trim()}`.trim() ||
+        "User avatar";
       imgEl.hidden = false;
       if (initialsEl) initialsEl.hidden = true;
     } else {
@@ -211,26 +269,14 @@ function applyUserProfileToHeader() {
   }
 }
 
-/**
- * IMPORTANT: localStorage dp-auth is the source of truth.
- * Some pages may have <body data-auth="false"> hardcoded for old demos;
- * this function intentionally ignores that if dp-auth exists.
- */
 function getAuthState() {
-  // 1) localStorage wins
-  let stored = null;
-  try {
-    stored = localStorage.getItem("dp-auth");
-  } catch (_) {}
-
-  if (stored !== null && stored !== undefined) {
-    const raw = String(stored).toLowerCase();
-    return raw === "true" || raw === "1" || raw === "yes";
-  }
-
-  // 2) fallback to body attribute if localStorage doesn't exist yet
+  // IMPORTANT: In the demo, localStorage is the source of truth for auth.
+  // Some pages ship with <body data-auth="false"> for static fallbacks,
+  // but once a user signs in/out we must honor dp-auth across pages.
+  const stored = localStorage.getItem("dp-auth");
   const bodyAttr = document.body?.dataset?.auth;
-  const raw = (bodyAttr ?? "false").toString().toLowerCase();
+
+  const raw = (stored ?? bodyAttr ?? "false").toString().toLowerCase();
   return raw === "true" || raw === "1" || raw === "yes";
 }
 
@@ -240,18 +286,32 @@ function applyAuthState(rootEl, isAuthed) {
   rootEl.dataset.auth = isAuthed ? "true" : "false";
 
   rootEl.querySelectorAll('[data-requires-auth="true"]').forEach((el) => {
-    el.hidden = !isAuthed;
+    const shouldShow = !!isAuthed;
+    el.hidden = !shouldShow;
+    el.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    if (!shouldShow) {
+      el.style.display = "none";
+    } else {
+      el.style.removeProperty("display");
+    }
   });
 
   rootEl.querySelectorAll('[data-requires-auth="false"]').forEach((el) => {
-    el.hidden = isAuthed;
+    const shouldShow = !isAuthed;
+    el.hidden = !shouldShow;
+    el.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    if (!shouldShow) {
+      el.style.display = "none";
+    } else {
+      el.style.removeProperty("display");
+    }
   });
 }
 
 function htmlToNodes(html) {
   const tpl = document.createElement("template");
   tpl.innerHTML = html;
-  return Array.from(tpl.content.childNodes);
+  return Array.from(tpl.content.childNodes); // includes text nodes; that's OK
 }
 
 async function loadInclude(target, includeKey) {
@@ -275,15 +335,16 @@ async function loadInclude(target, includeKey) {
     return;
   }
 
+  // Build nodes from the fetched HTML (supports multiple top-level elements).
   const nodes = htmlToNodes(html);
 
+  // Apply auth toggles to any included elements (wrap to query safely).
   const wrap = document.createElement("div");
   nodes.forEach((n) => wrap.appendChild(n.cloneNode(true)));
-
-  // Apply state inside the included header/footer before inserting
   applyAuthState(wrap, getAuthState());
   applyRoleState(wrap);
 
+  // Replace placeholder with the wrapped children.
   const outNodes = Array.from(wrap.childNodes);
   target.replaceWith(...outNodes);
 }
@@ -296,12 +357,14 @@ function setActiveNav() {
 
   navLinks.forEach((link) => {
     const linkPath = link.getAttribute("data-path");
+    // Remove active from all
     link.classList.remove("is-active");
     link.removeAttribute("aria-current");
 
-    if (linkPath && currentPath.includes(linkPath)) {
+    // Add to matching one (partial match for flexibility)
+    if (currentPath.includes(linkPath)) {
       link.classList.add("is-active");
-      link.setAttribute("aria-current", "page");
+      link.setAttribute("aria-current", "page"); // Accessibility win
     }
   });
 }
@@ -309,13 +372,15 @@ function setActiveNav() {
 function initAvatarDropdown() {
   const avatarBtn = document.getElementById("avatarBtn");
   const userMenu = document.getElementById("userMenu");
+
   if (!avatarBtn || !userMenu) return;
 
   function toggleMenu() {
     const isExpanded = avatarBtn.getAttribute("aria-expanded") === "true";
-    avatarBtn.setAttribute("aria-expanded", String(!isExpanded));
+    avatarBtn.setAttribute("aria-expanded", !isExpanded);
     userMenu.hidden = isExpanded;
 
+    // Focus first menu item when opening
     if (!isExpanded) {
       setTimeout(() => {
         const firstLink = userMenu.querySelector("a");
@@ -326,6 +391,7 @@ function initAvatarDropdown() {
 
   avatarBtn.addEventListener("click", toggleMenu);
 
+  // Close on outside click
   document.addEventListener("click", (e) => {
     if (!avatarBtn.contains(e.target) && !userMenu.contains(e.target)) {
       avatarBtn.setAttribute("aria-expanded", "false");
@@ -333,6 +399,7 @@ function initAvatarDropdown() {
     }
   });
 
+  // Close on ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !userMenu.hidden) {
       avatarBtn.setAttribute("aria-expanded", "false");
@@ -341,59 +408,12 @@ function initAvatarDropdown() {
     }
   });
 
+  // Sign Out (demo)
   document.getElementById("signOutBtn")?.addEventListener("click", () => {
-    // Sign out demo: set dp-auth false and redirect home
-    try {
-      localStorage.setItem("dp-auth", "false");
-    } catch (_) {}
-    window.location.href = "/index.html";
+    alert("Signed out (demo) — redirecting to login...");
+    // Real implementation: clear auth and reload
+    // window.DatasetPortal.setAuth(false);
   });
-}
-
-function getNotificationsForCurrentUser() {
-  const role = getRole();
-  const email = String(getUserProfile()?.email || "")
-    .trim()
-    .toLowerCase();
-
-  return readNotifications().filter((n) => {
-    if (!n) return false;
-    const byRole = normalizeRole(n.toRole) === role;
-    if (!byRole) return false;
-
-    const toEmail = String(n.toEmail || "")
-      .trim()
-      .toLowerCase();
-    if (toEmail) return toEmail === email;
-    return true;
-  });
-}
-
-function getUnreadCountForCurrentUser() {
-  return getNotificationsForCurrentUser().filter((n) => !n.read).length;
-}
-
-function updateNotifBadge() {
-  const badge = document.getElementById("notifBadge");
-  if (!badge) return;
-
-  const count = getUnreadCountForCurrentUser();
-  badge.hidden = count <= 0;
-  badge.textContent = String(count);
-}
-
-function markNotificationRead(id) {
-  const list = readNotifications();
-  const next = list.map((n) => (n?.id === id ? { ...n, read: true } : n));
-  writeNotifications(next);
-  updateNotifBadge();
-}
-
-function markAllNotificationsRead() {
-  const list = readNotifications();
-  const next = list.map((n) => ({ ...n, read: true }));
-  writeNotifications(next);
-  updateNotifBadge();
 }
 
 async function initIncludes() {
@@ -404,17 +424,25 @@ async function initIncludes() {
     placeholders.map((ph) => loadInclude(ph, ph.getAttribute("data-include"))),
   );
 
-  // Apply state to the full page as a safety net
+  // Apply auth toggles across the whole page (fallback safety)
   applyAuthState(document.body, isAuthed);
   applyRoleState(document.body);
 
+  // Post-processing helpers
   document.querySelectorAll("[data-footer-year]").forEach((el) => {
     el.textContent = String(new Date().getFullYear());
   });
 
+  // Highlight active nav item after includes load
   setActiveNav();
+
+  // Initialize avatar dropdown
   initAvatarDropdown();
+
+  // Apply user profile (avatar initials / photo)
   applyUserProfileToHeader();
+
+  // Notification badge in header
   updateNotifBadge();
 }
 
@@ -424,16 +452,16 @@ if (document.readyState === "loading") {
   initIncludes();
 }
 
+// Also re-run on popstate (back/forward navigation) for single-page feel
 window.addEventListener("popstate", setActiveNav);
 
 window.DatasetPortal = window.DatasetPortal || {};
 window.DatasetPortal.setAuth = function setAuth(isAuthed) {
-  try {
-    localStorage.setItem("dp-auth", isAuthed ? "true" : "false");
-  } catch (_) {}
+  localStorage.setItem("dp-auth", isAuthed ? "true" : "false");
   window.location.reload();
 };
 
+// Expose user profile helpers for pages that want them (e.g., Settings)
 window.DatasetPortal.getUserProfile = function () {
   return getUserProfile();
 };
@@ -450,6 +478,7 @@ window.DatasetPortal.saveUserProfile = function (profile) {
   }
 };
 
+// Role helpers
 window.DatasetPortal.getRole = function () {
   return getRole();
 };
@@ -460,6 +489,7 @@ window.DatasetPortal.setRole = function (role) {
   return ok;
 };
 
+// Notifications helpers
 window.DatasetPortal.notifications = {
   add: addNotification,
   listForMe: getNotificationsForCurrentUser,
