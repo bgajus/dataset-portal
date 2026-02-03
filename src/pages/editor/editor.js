@@ -1391,6 +1391,10 @@ import {
     if (!isCuratorMode()) return;
 
     const note = String(curatorNoteEl?.value || "").trim();
+    const noteSnippet = note.replace(/\s+/g, " ").trim();
+    const noteShort = noteSnippet.length > 280 ? noteSnippet.slice(0, 280) + "…" : noteSnippet;
+    const noteBlock = noteShort ? `\n\nCurator note:\n${noteShort}` : "";
+
     if (!note) {
       alert("Please enter a curator note before requesting updates.");
       curatorNoteEl?.focus?.();
@@ -1415,6 +1419,20 @@ import {
     currentRecord.status = "Needs Updates";
     saveRecord(currentRecord);
 
+    // Notify submitter (in-app)
+    try {
+      const toEmail = String(currentRecord.submitterEmail || "").trim().toLowerCase();
+      window.DatasetPortal?.notifications?.add?.({
+        toRole: "Submitter",
+        toEmail,
+        title: "Curator requested updates",
+        message: `Updates were requested for “${currentRecord.title || "a dataset"}”.${noteBlock}`,
+        href: `/src/pages/editor/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
+        recordDoi: currentRecord.doi,
+        kind: "needs-updates",
+      });
+    } catch (_) {}
+
     setStatusChip(currentRecord.status);
     applyLockedUI();
   });
@@ -1426,6 +1444,21 @@ import {
     if (note) currentRecord.curatorNote = note;
     currentRecord.status = "Published";
     saveRecord(currentRecord);
+
+    // Notify submitter (in-app)
+    try {
+      const toEmail = String(currentRecord.submitterEmail || "").trim().toLowerCase();
+      window.DatasetPortal?.notifications?.add?.({
+        toRole: "Submitter",
+        toEmail,
+        title: "Dataset published",
+        message: `“${currentRecord.title || "Your dataset"}” was published.`,
+        href: `/src/pages/dataset/index.html?doi=${encodeURIComponent(currentRecord.doi || "")}`,
+        recordDoi: currentRecord.doi,
+        kind: "published",
+      });
+    } catch (_) {}
+
     setStatusChip(currentRecord.status);
     applyLockedUI();
     closeCuratorDrawer();
