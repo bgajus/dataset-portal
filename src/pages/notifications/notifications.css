@@ -61,18 +61,6 @@
     color: rgba(181, 9, 9, 0.9);
 }
 
-/* Solid confirm button inside modal (still calm) */
-.notif-btnDangerSolid {
-    background: rgba(181, 9, 9, 0.9) !important;
-    border-color: rgba(181, 9, 9, 0.9) !important;
-    color: #fff !important;
-}
-
-.notif-btnDangerSolid:hover {
-    background: rgba(138, 4, 4, 0.95) !important;
-    border-color: rgba(138, 4, 4, 0.95) !important;
-}
-
 .notif-list {
     display: flex;
     flex-direction: column;
@@ -174,31 +162,4 @@
 .notif-iconbtn:focus-visible {
     outline: 2px solid rgba(0, 0, 0, 0.35);
     outline-offset: 2px;
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Modal shell (USWDS-styled content, simple overlay)
-   ────────────────────────────────────────────────────────────── */
-.notif-modal[hidden] {
-    display: none !important;
-}
-
-.notif-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-}
-
-.notif-modal__overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.35);
-}
-
-.notif-modal .usa-modal {
-    position: relative;
-    z-index: 1;
-    margin: 8vh auto 0 auto;
-    max-width: 34rem;
-    width: calc(100% - 2rem);
 }

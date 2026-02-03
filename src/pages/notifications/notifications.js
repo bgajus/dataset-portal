@@ -2,15 +2,12 @@
 // Supports: delete single, delete selected, delete all (for current user)
 // Enhancements:
 // - Selected count indicator + button label updates
-// - USWDS-styled confirm modal (replaces window.confirm)
+// - Uses window.confirm for delete confirmations (no custom modal)
 
 const $ = (id) => document.getElementById(id);
 
 const NOTIF_STORAGE_KEY = "constellation:notifications:v1";
 const selected = new Set();
-
-// Modal state
-let pendingAction = null; // { type: 'deleteSelected'|'deleteAll', ids?: string[], count?: number }
 
 function escapeHtml(str) {
   return String(str ?? "").replace(
@@ -122,71 +119,6 @@ function deleteAllForMe() {
   selected.clear();
   render();
   updateHeaderBadge();
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Confirm modal (USWDS-styled)
-   ────────────────────────────────────────────────────────────── */
-function openConfirmModal({ title, desc, okLabel, action }) {
-  const wrap = $("notifConfirmModal");
-  const titleEl = $("notifConfirmTitle");
-  const descEl = $("notifConfirmDesc");
-  const okBtn = $("notifConfirmOk");
-
-  if (!wrap || !titleEl || !descEl || !okBtn) return;
-
-  pendingAction = action;
-
-  titleEl.textContent = title || "Confirm";
-  descEl.textContent = desc || "Are you sure?";
-  okBtn.textContent = okLabel || "Delete";
-
-  wrap.hidden = false;
-  wrap.setAttribute("aria-hidden", "false");
-
-  // focus OK by default
-  try {
-    okBtn.focus();
-  } catch (_) {}
-}
-
-function closeConfirmModal() {
-  const wrap = $("notifConfirmModal");
-  if (!wrap) return;
-  wrap.hidden = true;
-  wrap.setAttribute("aria-hidden", "true");
-  pendingAction = null;
-}
-
-function wireConfirmModal() {
-  const wrap = $("notifConfirmModal");
-  if (!wrap) return;
-
-  wrap.querySelectorAll("[data-modal-close]").forEach((el) => {
-    el.addEventListener("click", closeConfirmModal);
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    if (!wrap || wrap.hidden) return;
-    closeConfirmModal();
-  });
-
-  $("notifConfirmOk")?.addEventListener("click", () => {
-    const act = pendingAction;
-    closeConfirmModal();
-
-    if (!act) return;
-
-    if (act.type === "deleteSelected") {
-      deleteByIds(act.ids || []);
-      return;
-    }
-    if (act.type === "deleteAll") {
-      deleteAllForMe();
-      return;
-    }
-  });
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -364,19 +296,23 @@ function render() {
     });
   });
 
-  // Delete single (no confirm yet; we can add if you want)
+  // Delete single (confirm)
   listEl.querySelectorAll("[data-delete]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-delete");
       if (!id) return;
+
+      const ok = window.confirm(
+        "Delete this notification? This cannot be undone.",
+      );
+      if (!ok) return;
+
       deleteByIds([id]);
     });
   });
 }
 
 function init() {
-  wireConfirmModal();
-
   // Select all
   $("selectAllNotifs")?.addEventListener("change", (e) => {
     const el = e.currentTarget;
@@ -396,32 +332,32 @@ function init() {
     updateHeaderBadge();
   });
 
-  // Delete selected (confirm modal)
+  // Delete selected (confirm)
   $("deleteSelected")?.addEventListener("click", () => {
     const items = getVisibleItems();
     const visibleIds = new Set(items.map((n) => String(n.id)));
     const ids = Array.from(selected).filter((id) => visibleIds.has(id));
     if (!ids.length) return;
 
-    openConfirmModal({
-      title: "Delete selected notifications",
-      desc: `Delete ${ids.length} notification${ids.length === 1 ? "" : "s"}? This cannot be undone.`,
-      okLabel: "Delete selected",
-      action: { type: "deleteSelected", ids, count: ids.length },
-    });
+    const ok = window.confirm(
+      `Delete ${ids.length} selected notification${ids.length === 1 ? "" : "s"}? This cannot be undone.`,
+    );
+    if (!ok) return;
+
+    deleteByIds(ids);
   });
 
-  // Delete all (confirm modal)
+  // Delete all (confirm)
   $("deleteAll")?.addEventListener("click", () => {
     const items = getVisibleItems();
     if (!items.length) return;
 
-    openConfirmModal({
-      title: "Delete all notifications",
-      desc: "Delete all notifications? This cannot be undone.",
-      okLabel: "Delete all",
-      action: { type: "deleteAll" },
-    });
+    const ok = window.confirm(
+      "Delete all notifications? This cannot be undone.",
+    );
+    if (!ok) return;
+
+    deleteAllForMe();
   });
 
   render();
