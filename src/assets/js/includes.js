@@ -308,6 +308,30 @@ function applyAuthState(rootEl, isAuthed) {
   });
 }
 
+function escapeHtml(str) {
+  return String(str ?? "").replace(
+    /[&<>"']/g,
+    (s) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        s
+      ],
+  );
+}
+
+function formatNotifTime(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch (_) {
+    return "";
+  }
+}
+
 function htmlToNodes(html) {
   const tpl = document.createElement("template");
   tpl.innerHTML = html;
@@ -416,6 +440,174 @@ function initAvatarDropdown() {
   });
 }
 
+function initNotifSlideout() {
+  const bellBtn = document.getElementById("notifBellBtn");
+  const panel = document.getElementById("notifPanel");
+  const back = document.getElementById("notifBack");
+  const closeBtn = document.getElementById("notifCloseBtn");
+  const listEl = document.getElementById("notifPanelList");
+  const emptyEl = document.getElementById("notifPanelEmpty");
+  const unreadChip = document.getElementById("notifPanelUnreadChip");
+  const unreadCountEl = document.getElementById("notifPanelUnreadCount");
+  const markAllBtn = document.getElementById("notifMarkAllReadBtn");
+
+  if (!bellBtn || !panel || !back || !listEl) return;
+
+  function isOpen() {
+    return panel.classList.contains("is-open");
+  }
+
+  function setOpen(open) {
+    if (open) {
+      panel.hidden = false;
+      back.hidden = false;
+
+      // allow CSS transitions
+      requestAnimationFrame(() => {
+        panel.classList.add("is-open");
+        back.classList.add("is-open");
+      });
+
+      bellBtn.setAttribute("aria-expanded", "true");
+      panel.setAttribute("aria-hidden", "false");
+
+      // Lock scroll like a typical notifications drawer
+      document.body.style.overflow = "hidden";
+
+      render();
+      // focus close button for accessibility
+      setTimeout(() => {
+        (closeBtn || panel).focus?.();
+      }, 0);
+    } else {
+      panel.classList.remove("is-open");
+      back.classList.remove("is-open");
+      bellBtn.setAttribute("aria-expanded", "false");
+      panel.setAttribute("aria-hidden", "true");
+
+      document.body.style.overflow = "";
+
+      // wait for transition to finish before hiding
+      window.setTimeout(() => {
+        if (!panel.classList.contains("is-open")) {
+          panel.hidden = true;
+          back.hidden = true;
+        }
+      }, 200);
+    }
+  }
+
+  function toggle() {
+    setOpen(!isOpen());
+  }
+
+  function render() {
+    const list = window.DatasetPortal?.notifications?.listForMe?.() || [];
+    const unread = list.filter((n) => n && !n.read).length;
+
+    if (unreadCountEl) unreadCountEl.textContent = String(unread);
+    if (unreadChip) unreadChip.hidden = unread <= 0;
+
+    const top = list.slice(0, 5);
+
+    if (emptyEl) emptyEl.hidden = top.length !== 0;
+
+    listEl.innerHTML = top
+      .map((n) => {
+        const title = escapeHtml(n.title || "Notification");
+        const msg = escapeHtml(n.message || "");
+        const when = escapeHtml(formatNotifTime(n.createdAt));
+        const href = String(n.href || "").trim();
+        const unreadClass = n.read ? "" : " is-unread";
+        const dot = n.read
+          ? ""
+          : '<span class="portal-notifDot" aria-hidden="true"></span>';
+
+        // We render an <a> for expected behavior; we intercept click to mark read + close.
+        const safeHref = href || "javascript:void(0)";
+        return `
+          <article class="portal-notifItem${unreadClass}" role="listitem" data-notif-id="${escapeHtml(n.id || "")}" data-notif-href="${escapeHtml(href)}">
+            <a class="portal-notifItem__link" href="${escapeHtml(safeHref)}">
+              ${dot}
+              <div class="portal-notifItem__main">
+                <div class="portal-notifItem__top">
+                  <div class="portal-notifItem__title">${title}</div>
+                  <div class="portal-notifItem__time">${when}</div>
+                </div>
+                <div class="portal-notifItem__msg">${msg}</div>
+              </div>
+            </a>
+          </article>
+        `;
+      })
+      .join("");
+
+    // wire click handlers
+    listEl.querySelectorAll(".portal-notifItem__link").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        const item = a.closest(".portal-notifItem");
+        if (!item) return;
+
+        const id = item.getAttribute("data-notif-id");
+        const href = item.getAttribute("data-notif-href") || "";
+
+        // Always mark read when opened from the panel
+        if (id) window.DatasetPortal?.notifications?.markRead?.(id);
+
+        // Update badge + rerender before navigating
+        updateNotifBadge();
+        render();
+
+        // Close the panel
+        setOpen(false);
+
+        // Navigate only if we have a real href
+        if (href) {
+          e.preventDefault();
+          window.location.href = href;
+        }
+      });
+    });
+  }
+
+  bellBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggle();
+  });
+
+  closeBtn?.addEventListener("click", () => setOpen(false));
+  back.addEventListener("click", () => setOpen(false));
+
+  markAllBtn?.addEventListener("click", () => {
+    window.DatasetPortal?.notifications?.markAllRead?.();
+    updateNotifBadge();
+    render();
+  });
+
+  // ESC closes
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen()) {
+      setOpen(false);
+      try {
+        bellBtn.focus();
+      } catch (_) {}
+    }
+  });
+
+  // Close if avatar menu opens (optional safety)
+  document.getElementById("avatarBtn")?.addEventListener("click", () => {
+    if (isOpen()) setOpen(false);
+  });
+
+  // Re-render on storage changes (multiple tabs / demo role changes)
+  window.addEventListener("storage", (evt) => {
+    if (evt.key === "constellation:notifications:v1") {
+      updateNotifBadge();
+      if (isOpen()) render();
+    }
+  });
+}
+
 async function initIncludes() {
   const isAuthed = getAuthState();
 
@@ -438,6 +630,7 @@ async function initIncludes() {
 
   // Initialize avatar dropdown
   initAvatarDropdown();
+  initNotifSlideout();
 
   // Apply user profile (avatar initials / photo)
   applyUserProfileToHeader();

@@ -33,10 +33,11 @@
 
         <!-- Logged in -->
         <div class="portal-auth__loggedin" data-requires-auth="true" hidden>
-          <a class="portal-bell" href="/src/pages/notifications/index.html" aria-label="Notifications">
+          <button type="button" class="portal-bell" id="notifBellBtn" aria-label="Notifications" aria-expanded="false"
+            aria-haspopup="dialog" aria-controls="notifPanel">
             <i class="fa-solid fa-bell" aria-hidden="true"></i>
             <span id="notifBadge" class="portal-bell__badge" hidden>0</span>
-          </a>
+          </button>
 
           <button type="button" class="portal-avatar" id="avatarBtn" aria-expanded="false" aria-haspopup="true"
             aria-controls="userMenu">
@@ -88,6 +89,41 @@
               </li>
             </ul>
           </div>
+
+          <!-- Notifications slide-out (bell) -->
+          <div class="portal-notifBack" id="notifBack" hidden></div>
+
+          <aside class="portal-notifPanel" id="notifPanel" hidden aria-hidden="true" aria-label="Notifications">
+            <header class="portal-notifPanel__head">
+              <div class="portal-notifPanel__titleRow">
+                <h2 class="portal-notifPanel__title">Notifications</h2>
+                <button type="button" class="portal-iconBtn" id="notifCloseBtn" aria-label="Close notifications">
+                  <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              <div class="portal-notifPanel__actions">
+                <span class="portal-notifPanel__unreadChip" id="notifPanelUnreadChip"
+                  aria-label="Unread notifications">Unread: <strong id="notifPanelUnreadCount">0</strong></span>
+                <button type="button" class="usa-button usa-button--unstyled portal-notifPanel__linkBtn"
+                  id="notifMarkAllReadBtn">
+                  Mark all as read
+                </button>
+              </div>
+            </header>
+
+            <div class="portal-notifPanel__body">
+              <div id="notifPanelEmpty" class="portal-notifEmpty" hidden>No notifications yet.</div>
+              <div id="notifPanelList" class="portal-notifList" role="list" aria-live="polite"></div>
+            </div>
+
+            <footer class="portal-notifPanel__foot">
+              <a class="usa-link portal-notifPanel__viewAll" href="/src/pages/notifications/index.html">
+                View all notifications
+              </a>
+            </footer>
+          </aside>
+
         </div>
       </div>
     </div>
