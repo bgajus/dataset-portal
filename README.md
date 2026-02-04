@@ -50,6 +50,8 @@ This is **not** a production system — it is a high-fidelity prototype.
   - Queue of datasets under review or awaiting updates
 - **Notifications**
   - Workflow-driven notifications with bulk delete
+  - Header bell slide-out panel with recent notifications preview
+  - Unread badge + visual state, click-outside to close
 - **Settings**
   - Demo-only role switching
   - Demo authentication toggle
