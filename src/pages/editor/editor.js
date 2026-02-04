@@ -166,8 +166,9 @@ import {
   let titleTypingTimer = null;
 
   function isCuratorRole() {
-    const role = window.DatasetPortal?.getRole?.() || "Submitter";
-    return role === "Curator" || role === "Admin";
+    const roleRaw = window.DatasetPortal?.getRole?.() || "Submitter";
+    const role = String(roleRaw).trim().toLowerCase();
+    return role === "curator" || role === "admin";
   }
 
   function isCuratorMode() {
@@ -516,11 +517,16 @@ import {
   // ──────────────────────────────────────────────────────────────
   function showCuratorReviewIfNeeded() {
     if (!curatorReviewBtn) return;
+
+    // Defense-in-depth: never show Curator Review controls unless Curator/Admin in curator mode
     const s = String(currentRecord?.status || "").toLowerCase();
     const show =
       isCuratorMode() && (s === "in review" || s === "needs updates");
+
     curatorReviewBtn.hidden = !show;
     curatorReviewBtn.setAttribute("aria-hidden", show ? "false" : "true");
+    // Some CSS may override [hidden]; enforce via inline style too.
+    curatorReviewBtn.style.display = show ? "" : "none";
   }
 
   function setStatusChip(status) {
@@ -555,8 +561,17 @@ import {
     }
 
     if (saveBtn) saveBtn.disabled = locked;
+
+    // Hide "Submit for Review" for Curator/Admin (they should use Curator Review actions instead)
     if (submitBtn) {
-      if (locked) {
+      const hideForRole = isCuratorRole();
+      submitBtn.hidden = hideForRole;
+      submitBtn.setAttribute("aria-hidden", hideForRole ? "true" : "false");
+
+      if (hideForRole) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute("aria-disabled", "true");
+      } else if (locked) {
         submitBtn.disabled = true;
         submitBtn.setAttribute("aria-disabled", "true");
       } else {
@@ -978,11 +993,20 @@ import {
     syncRequiredAlertVisibility(remaining);
 
     if (submitBtn) {
-      submitBtn.disabled = remaining !== 0;
-      submitBtn.setAttribute(
-        "aria-disabled",
-        remaining !== 0 ? "true" : "false",
-      );
+      const hideForRole = isCuratorRole();
+      submitBtn.hidden = hideForRole;
+      submitBtn.setAttribute("aria-hidden", hideForRole ? "true" : "false");
+
+      if (hideForRole) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute("aria-disabled", "true");
+      } else {
+        submitBtn.disabled = remaining !== 0;
+        submitBtn.setAttribute(
+          "aria-disabled",
+          remaining !== 0 ? "true" : "false",
+        );
+      }
     }
 
     METADATA_SCHEMA.forEach((s) => {
@@ -1392,7 +1416,8 @@ import {
 
     const note = String(curatorNoteEl?.value || "").trim();
     const noteSnippet = note.replace(/\s+/g, " ").trim();
-    const noteShort = noteSnippet.length > 280 ? noteSnippet.slice(0, 280) + "…" : noteSnippet;
+    const noteShort =
+      noteSnippet.length > 280 ? noteSnippet.slice(0, 280) + "…" : noteSnippet;
     const noteBlock = noteShort ? `\n\nCurator note:\n${noteShort}` : "";
 
     if (!note) {
@@ -1421,7 +1446,9 @@ import {
 
     // Notify submitter (in-app)
     try {
-      const toEmail = String(currentRecord.submitterEmail || "").trim().toLowerCase();
+      const toEmail = String(currentRecord.submitterEmail || "")
+        .trim()
+        .toLowerCase();
       window.DatasetPortal?.notifications?.add?.({
         toRole: "Submitter",
         toEmail,
@@ -1447,7 +1474,9 @@ import {
 
     // Notify submitter (in-app)
     try {
-      const toEmail = String(currentRecord.submitterEmail || "").trim().toLowerCase();
+      const toEmail = String(currentRecord.submitterEmail || "")
+        .trim()
+        .toLowerCase();
       window.DatasetPortal?.notifications?.add?.({
         toRole: "Submitter",
         toEmail,
